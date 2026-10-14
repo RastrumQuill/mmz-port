@@ -1,0 +1,7 @@
+# Translation units: start address and name. A unit runs until the next one.
+# If src/NAME.c exists it is compiled, otherwise asm/NAME.s is assembled.
+# The first unit (crt0) stays at 0x08000000 in the relocation test.
+0x08000000 crt0
+0x080002DC main
+0x08000EA8 input
+0x08000FE8 code_08000FE8

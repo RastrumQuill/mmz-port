@@ -18,17 +18,43 @@ game:
 * Every ROM address in the code and data is a symbol, so code and data can
   move. This is checked by a relocation test (see below), which plays the
   intro and the opening mission identically to the original.
-* Decompilation to C has not started yet.
+* C is compiled with agbcc (the original compiler) into the same ROM. The
+  input code (`src/input.c`) is the first decompiled file.
 
 ## Building
 
-Needs `binutils-arm-none-eabi`, `make` and Python 3.
+Needs `binutils-arm-none-eabi`, `make`, Python 3 with `capstone`, and
+[agbcc](https://github.com/pret/agbcc) installed into `tools/agbcc`
+(`./build.sh && ./install.sh path/to/mmz`).
 
 ```sh
 cp /path/to/your/rom.gba baserom.gba
-make            # builds mmz.gba and checks the SHA-1
-make moved      # builds mmz_moved.gba with code and data moved (relocation test)
+make              # builds mmz.gba and checks the SHA-1
+make moved        # code and data moved far away (relocation test)
+make nonmatching  # uses the C of functions that do not match yet
 ```
+
+## Decompiling
+
+The code is split into translation units (`tools/disasm/units.txt`). A unit
+is built from `src/UNIT.c` if that exists and from `asm/UNIT.s` otherwise.
+In a C file, functions that are not decompiled yet are included as assembly
+with `ASM_FUNC("asm/nonmatching/UNIT/NAME.inc", decl)`; a function whose C
+works but does not compile to the same code yet goes in
+`NONMATCH(...) { ... } END_NONMATCH`, so the normal build stays identical and
+`make nonmatching` builds the C.
+
+* `python3 tools/asmdiff.py [FUNC]` lists functions that differ from the
+  original, or shows one side by side.
+* `python3 tools/score.py FILE.c FUNC [-v]` compiles a file and scores one
+  function against the original (100 is a match).
+* `python3 tools/match/match.py baserom.gba asm/... OBJDIR out.tsv` finds
+  functions that look like ones from another game built with agbcc (used
+  with [rmz3](https://github.com/mmzret/rmz3), the Mega Man Zero 3
+  decompilation, which shares the engine).
+* RAM variables used by C get their address in `sym_ram.ld`.
+* Function names go into `tools/disasm/mmz.cfg`
+  (`thumb_func ADDRESS NAME`); `regen.py` applies them everywhere.
 
 ## Testing
 
