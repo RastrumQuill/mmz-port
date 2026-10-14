@@ -1,0 +1,20 @@
+diff --git a/disasm.c b/disasm.c
+index 29f4794..dfbc5b6 100755
+--- a/disasm.c
++++ b/disasm.c
+@@ -1283,6 +1283,15 @@ static void print_disassembly(void)
+         if (i >= gLabelsCount)
+             break;
+         nextAddr = gLabels[i].addr;
++        if (addr > nextAddr)
++        {
++            fprintf(stderr, "warning: label %08X inside the previous item (ends %08X), skipped\n", nextAddr, addr);
++            while (i < gLabelsCount && gLabels[i].addr < addr)
++                i++;
++            if (i >= gLabelsCount)
++                break;
++            nextAddr = gLabels[i].addr;
++        }
+         assert(addr <= nextAddr);
+ 
+         if (nextAddr <= ROM_LOAD_ADDR + gInputFileBufferSize) // prevent out-of-bound read

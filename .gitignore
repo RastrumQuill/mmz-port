@@ -4,4 +4,6 @@ baserom.gba
 *.elf
 *.map
 *.sav
+__pycache__/
 /tools/agbcc/
+/tools/emu/runner
