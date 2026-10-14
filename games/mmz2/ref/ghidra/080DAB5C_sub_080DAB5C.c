@@ -1,0 +1,19 @@
+// sub_080DAB5C at 0x080DAB5C (thumb)
+
+undefined4 sub_080DAB5C(int param_1)
+
+{
+  byte bVar1;
+  int iVar2;
+  undefined4 *puVar3;
+  undefined4 in_lr;
+  
+  bVar1 = *(byte *)(param_1 + 0x12);
+  iVar2 = sub_080D58A8((uint)bVar1,*(undefined *)(param_1 + 0x13));
+  puVar3 = (undefined4 *)(((iVar2 << 0x18) >> 0x15) + *(int *)(&DAT_0834ab24 + (uint)bVar1 * 4));
+  *(undefined4 *)(param_1 + 0x54) = *puVar3;
+  *(undefined4 *)(param_1 + 0x58) = puVar3[1];
+  sub_080EF118(param_1,*(undefined4 *)(&DAT_0834bab4 + (uint)*(byte *)(param_1 + 0x11) * 4));
+  return in_lr;
+}
+

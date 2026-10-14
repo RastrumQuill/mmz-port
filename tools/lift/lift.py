@@ -17,7 +17,9 @@ import glob, os, re, struct, sys
 from collections import defaultdict
 
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../..')
-os.chdir(ROOT)
+sys.path.insert(0, os.path.join(ROOT, 'tools/disasm'))
+import game
+os.chdir(game.GAME_DIR)
 outdir = sys.argv[1]
 skip = set()
 if '--skip' in sys.argv:
@@ -44,7 +46,7 @@ label_owner = {}                 # label -> Func
 label_addr = {}
 units = []
 pending = None
-for line in open('tools/disasm/units.txt'):
+for line in open(game.UNITS):
     f = line.split('#')[0].split()
     if f:
         units.append(f[1])
@@ -643,7 +645,7 @@ for f in funcs:
         continue
     g = Gen(f)
     g.body()
-    chunk = '%s_%02d' % (f.unit, (f.addr >> 15) & 0xFF) if f.unit.startswith('code_') else f.unit
+    chunk = '%s_%02d' % (f.unit, (f.addr >> 15) & 0xFF) if f.unit.startswith('code') else f.unit
     files[chunk].append(g.render(f.name))
     protos.append(f.name)
     tb = 1 if f.kind == 'thumb' else 0

@@ -1,0 +1,28 @@
+// sub_0808C640 at 0x0808C640 (thumb)
+
+undefined4 sub_0808C640(int param_1)
+
+{
+  uint uVar1;
+  undefined4 in_lr;
+  
+  uVar1 = sub_08015188(&DAT_0202ed18,param_1 + 0x54);
+  if ((uVar1 < 0x6001) || (*(char *)(param_1 + 0x10) != '\x01')) {
+    if ((*(uint *)(param_1 + 0x8c) & 0x800) == 0) {
+      *(undefined *)(param_1 + 0xd) = 6;
+      *(undefined *)(param_1 + 0xe) = 0;
+    }
+  }
+  else {
+    *(byte *)(param_1 + 10) = *(byte *)(param_1 + 10) & 0xfc;
+    *(undefined4 *)(param_1 + 0x8c) = 0;
+    *(undefined4 *)(param_1 + 0x90) = 0;
+    *(undefined *)(param_1 + 0x94) = 0;
+    *(byte *)(param_1 + 10) = *(byte *)(param_1 + 10) & 0xfb;
+    *(undefined4 *)(param_1 + 0xc) = 3;
+    *(undefined4 *)(param_1 + 0x14) =
+         *(undefined4 *)(*(int *)(&DAT_0833d990 + (uint)*(byte *)(param_1 + 9) * 4) + 0xc);
+  }
+  return in_lr;
+}
+

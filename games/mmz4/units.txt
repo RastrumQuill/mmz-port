@@ -1,0 +1,3 @@
+# start address and name of each translation unit
+0x08000000 crt0
+0x080006C8 code

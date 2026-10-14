@@ -1,0 +1,36 @@
+{
+  "name": "Mega Man Zero 4 (USA)",
+  "sha1": "596993205a1895a6f51e80749407fb069b907628",
+  "seeds": [
+    [
+      "arm",
+      "0x080000C0",
+      "Start"
+    ],
+    [
+      "arm",
+      "0x080000FC",
+      "IntrMain"
+    ],
+    [
+      "thumb",
+      "0x080006C8",
+      "AgbMain"
+    ]
+  ],
+  "exclude": [
+    [
+      "0x08000000",
+      "0x08000100"
+    ],
+    [
+      "0x080001BC",
+      "0x080006C8"
+    ]
+  ],
+  "pinned": [],
+  "functions": "functions.cfg",
+  "units": "units.txt",
+  "code_end": "0x08128C10",
+  "data_start": "0x08128C10"
+}

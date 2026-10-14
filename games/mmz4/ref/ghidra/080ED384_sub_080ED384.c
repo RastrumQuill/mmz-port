@@ -1,0 +1,83 @@
+// sub_080ED384 at 0x080ED384 (thumb)
+
+undefined8 sub_080ED384(int param_1,undefined2 param_2,char param_3)
+
+{
+  byte bVar1;
+  char cVar2;
+  int iVar3;
+  undefined4 uVar4;
+  undefined4 in_lr;
+  
+  switch(*(undefined *)(param_1 + 0xf)) {
+  case 0:
+    sub_0801CDBC(param_1);
+    if (param_3 != '\0') {
+      sub_0801CEEC(param_1);
+    }
+    sub_0801CF00(param_1,param_2);
+    *(undefined2 *)(param_1 + 0x50) = 0x20;
+    *(undefined2 *)(param_1 + 0x52) = 0x200;
+    sub_0801D3FC(param_1);
+    uVar4 = sub_08008534(*(undefined4 *)(param_1 + 0x54),*(undefined4 *)(param_1 + 0x58));
+    *(undefined4 *)(param_1 + 0x68) = uVar4;
+    *(int *)(param_1 + 0x58) = DAT_0202ea34 + -0x6000;
+    *(char *)(param_1 + 0xf) = *(char *)(param_1 + 0xf) + '\x01';
+  case 1:
+    sub_0801CFF0(param_1);
+    iVar3 = *(int *)(param_1 + 0x58) + 0x1c00;
+    *(int *)(param_1 + 0x58) = iVar3;
+    if (*(int *)(param_1 + 0x68) < iVar3) {
+      *(int *)(param_1 + 0x58) = *(int *)(param_1 + 0x68);
+      sub_08002B10(0x4b);
+      *(undefined *)(param_1 + 0x12) = 1;
+LAB_080ed49e:
+      *(char *)(param_1 + 0xf) = *(char *)(param_1 + 0xf) + '\x01';
+    }
+    break;
+  case 2:
+    sub_0801CFF0(param_1);
+    *(ushort *)(param_1 + 0x50) = (ushort)*(byte *)(param_1 + 0x12) * 0x40 + 0x20;
+    *(ushort *)(param_1 + 0x52) = (ushort)*(byte *)(param_1 + 0x12) * -0x20 + 0x160;
+    bVar1 = *(char *)(param_1 + 0x12) + 1;
+    *(byte *)(param_1 + 0x12) = bVar1;
+    if (bVar1 < 5) break;
+    *(undefined *)(param_1 + 0x12) = 1;
+    goto LAB_080ed49e;
+  case 3:
+    sub_0801CFF0(param_1);
+    *(ushort *)(param_1 + 0x50) = (ushort)*(byte *)(param_1 + 0x12) * -4 + 0x120;
+    *(ushort *)(param_1 + 0x52) = (ushort)*(byte *)(param_1 + 0x12) * 4 + 0xe0;
+    bVar1 = *(char *)(param_1 + 0x12) + 1;
+    *(byte *)(param_1 + 0x12) = bVar1;
+    if (8 < bVar1) goto LAB_080ed49e;
+    break;
+  case 4:
+    sub_0801CC9C(param_1);
+    if (param_3 != '\0') {
+      sub_0801CEEC(param_1);
+    }
+    sub_0801CF00(param_1,param_2);
+    *(undefined *)(param_1 + 0x12) = 0x1e;
+    *(char *)(param_1 + 0xf) = *(char *)(param_1 + 0xf) + '\x01';
+  case 5:
+    sub_0801CFF0(param_1);
+    if ((*(byte *)(param_1 + 0x12) & 1) == 0) {
+      sub_0801D3FC(param_1);
+    }
+    else {
+      sub_0801D330(param_1);
+    }
+    cVar2 = *(char *)(param_1 + 0x12) + -1;
+    *(char *)(param_1 + 0x12) = cVar2;
+    if (cVar2 == '\0') {
+      *(undefined *)(param_1 + 0xf) = 0;
+      uVar4 = 1;
+      goto LAB_080ed4fc;
+    }
+  }
+  uVar4 = 0;
+LAB_080ed4fc:
+  return CONCAT44(in_lr,uVar4);
+}
+

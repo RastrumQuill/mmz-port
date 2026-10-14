@@ -1,0 +1,31 @@
+// sub_080C4CE0 at 0x080C4CE0 (thumb)
+
+undefined4 sub_080C4CE0(int param_1)
+
+{
+  char cVar1;
+  undefined4 uVar2;
+  int iVar3;
+  undefined4 in_lr;
+  
+  iVar3 = *(int *)(param_1 + 0x28);
+  if (*(char *)(param_1 + 0xf) == '\0') {
+    sub_08005784(param_1 + 0x74,&DAT_08862268);
+    sub_0801CF00(param_1,0x5400);
+    *(undefined *)(param_1 + 0x12) = 8;
+    *(char *)(param_1 + 0xf) = *(char *)(param_1 + 0xf) + '\x01';
+  }
+  sub_0801CFF0(param_1);
+  uVar2 = *(undefined4 *)(iVar3 + 0x58);
+  *(undefined4 *)(param_1 + 0x54) = *(undefined4 *)(iVar3 + 0x54);
+  *(undefined4 *)(param_1 + 0x58) = uVar2;
+  cVar1 = *(char *)(param_1 + 0x12) + -1;
+  *(char *)(param_1 + 0x12) = cVar1;
+  if (cVar1 == '\0') {
+    *(undefined *)(param_1 + 0xd) = 1;
+    *(undefined *)(param_1 + 0xe) = 0;
+    *(undefined *)(param_1 + 0xf) = 0;
+  }
+  return in_lr;
+}
+

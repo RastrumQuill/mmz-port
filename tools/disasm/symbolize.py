@@ -39,6 +39,22 @@ while rom[rom_end - 1] == 0xFF:
     rom_end -= 1
 data_targets = {t for t in data_targets if t < 0x08000000 + rom_end}
 
+# A label inside a pointer word means one of them is wrong. Keep the label
+# and leave the word as raw bytes (the build stays the same either way).
+conflicts = [a for a in ptrs if any(a + k in data_targets for k in (1, 2, 3))]
+for a in conflicts:
+    del ptrs[a]
+# pointers that overlap each other (unaligned music pointers next to words)
+last = -4
+for a in sorted(ptrs):
+    if a < last + 4:
+        conflicts.append(a)
+        del ptrs[a]
+    else:
+        last = a
+if conflicts:
+    print('pointer words dropped (overlap a label or another pointer): %d' % len(conflicts), file=sys.stderr)
+
 def data_name(a):
     return 'gUnk_%08X' % a
 
@@ -78,7 +94,7 @@ open(asm_path, 'w').write(s2)
 # stay at its address. The data around it is split into sections that can
 # move: .rodata before the pinned bank and .rodata.after behind it. The 0xFF
 # padding between them is left to the linker.
-PINNED = [(0x08500000, 0x0850C03E)]
+from game import PINNED
 end = 0x08000000 + rom_end
 sections = []
 pos = DATA_START
@@ -92,7 +108,7 @@ for ps, pe in PINNED:
     sections.append(('.rodata' if pos == DATA_START else '.rodata.after', pos, a_end))
     sections.append(('.rodata.bank_%08X' % ps, ps, pe))
     pos = b_start
-sections.append(('.rodata.after', pos, end))
+sections.append(('.rodata' if pos == DATA_START else '.rodata.after', pos, end))
 
 out = ['\t.include "asm/macros.inc"', '']
 events = sorted(set(data_targets) | set(a for a in ptrs if a >= DATA_START))

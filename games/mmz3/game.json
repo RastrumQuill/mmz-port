@@ -1,0 +1,36 @@
+{
+  "name": "Mega Man Zero 3 (USA)",
+  "sha1": "403a78f2cad93d41e4b0f2e520ce08026531664b",
+  "seeds": [
+    [
+      "arm",
+      "0x080000C0",
+      "Start"
+    ],
+    [
+      "arm",
+      "0x080000FC",
+      "IntrMain"
+    ],
+    [
+      "thumb",
+      "0x080017CC",
+      "AgbMain"
+    ]
+  ],
+  "exclude": [
+    [
+      "0x08000000",
+      "0x08000100"
+    ],
+    [
+      "0x080001BC",
+      "0x08000908"
+    ]
+  ],
+  "pinned": [],
+  "functions": "functions.cfg",
+  "units": "units.txt",
+  "code_end": "0x080FE5F8",
+  "data_start": "0x080FE5F8"
+}

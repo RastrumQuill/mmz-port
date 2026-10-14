@@ -10,3 +10,4 @@ __pycache__/
 /build_lift/
 /tools/agbcc/
 /tools/emu/runner
+/games/*/build/

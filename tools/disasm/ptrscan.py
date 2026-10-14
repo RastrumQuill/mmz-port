@@ -8,8 +8,7 @@ tables), and their targets become new labels. Repeats until stable.
 import re, struct, sys, json
 from classify import load_listing, classify
 
-CODE_END = 0x080C8E22
-DATA_START = 0x080C8E24
+from game import CODE_END, DATA_START
 
 def load(rom_path, asm_path):
     rom = open(rom_path, 'rb').read()

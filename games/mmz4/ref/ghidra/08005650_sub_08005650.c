@@ -1,0 +1,35 @@
+// sub_08005650 at 0x08005650 (thumb)
+
+undefined4 sub_08005650(void)
+
+{
+  uint uVar1;
+  undefined4 in_lr;
+  
+  sub_0800627C();
+  uVar1 = (uint)DAT_030032e2;
+  if (uVar1 == 0) {
+    DAT_03003908 = uVar1;
+    DAT_0300390c = uVar1;
+    DAT_03003910 = uVar1;
+    sub_080062E8(DAT_030038e4,DAT_03003900);
+    sub_080062E8(DAT_030038e4,DAT_03003904);
+    sub_080062E8(DAT_030038e8,DAT_030038fc);
+    sub_080062E8(DAT_030038e8,DAT_03003904);
+    sub_080062E8(DAT_030038ec,DAT_03003900);
+    sub_080062E8(DAT_030038ec,DAT_030038fc);
+    sub_080062E8(DAT_030038ec,DAT_03003904);
+    sub_08006360(DAT_030038e4,DAT_030038f4);
+    sub_08006360(DAT_030038e4,DAT_030038f8);
+    sub_08006360(DAT_030038e8,DAT_030038f0);
+    sub_08006360(DAT_030038e8,DAT_030038f8);
+    sub_08006360(DAT_030038ec,DAT_030038f4);
+    sub_08006360(DAT_030038ec,DAT_030038f0);
+    sub_08006360(DAT_030038ec,DAT_030038f8);
+  }
+  else {
+    DAT_030032e2 = DAT_030032e2 - 1;
+  }
+  return in_lr;
+}
+

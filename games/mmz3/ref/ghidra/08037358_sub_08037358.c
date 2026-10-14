@@ -1,0 +1,14 @@
+// sub_08037358 at 0x08037358 (thumb)
+
+void sub_08037358(int param_1)
+
+{
+  *(undefined4 *)(param_1 + 0x8c) = 0;
+  *(undefined4 *)(param_1 + 0x90) = 0;
+  *(undefined *)(param_1 + 0x94) = 0;
+  *(byte *)(param_1 + 10) = *(byte *)(param_1 + 10) & 0xfb;
+  *(undefined4 *)(param_1 + 0xc) = 4;
+  *(undefined4 *)(param_1 + 0x14) = *(undefined4 *)((&DAT_0835b5d0)[*(byte *)(param_1 + 9)] + 0x10);
+  return;
+}
+

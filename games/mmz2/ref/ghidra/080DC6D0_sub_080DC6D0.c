@@ -1,0 +1,27 @@
+// sub_080DC6D0 at 0x080DC6D0 (thumb)
+
+undefined4 sub_080DC6D0(int param_1)
+
+{
+  char cVar1;
+  byte bVar2;
+  undefined4 uVar3;
+  undefined4 in_lr;
+  
+  cVar1 = sub_080DCC44();
+  if (cVar1 == '\0') {
+    uVar3 = sub_080DCCAC(param_1);
+    bVar2 = sub_080D57FC(uVar3,*(undefined *)(param_1 + 0x11));
+    if (bVar2 != 0) {
+      bVar2 = *(char *)(param_1 + 0x13) + 0x1fU & 0x1f;
+    }
+    *(byte *)(param_1 + 0x13) = bVar2;
+  }
+  else {
+    *(undefined *)(param_1 + 0xd) = 2;
+    *(undefined *)(param_1 + 0xe) = 0;
+    sub_080DC714(param_1);
+  }
+  return in_lr;
+}
+

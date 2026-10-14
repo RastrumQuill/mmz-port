@@ -1,0 +1,27 @@
+// sub_080DBBA8 at 0x080DBBA8 (thumb)
+
+undefined4 sub_080DBBA8(undefined4 param_1)
+
+{
+  int iVar1;
+  int iVar2;
+  undefined4 in_lr;
+  
+  iVar2 = 3;
+  do {
+    iVar2 = iVar2 + -1;
+    iVar1 = sub_08006B50(DAT_0202f094);
+    if (iVar1 != 0) {
+      *(undefined *)(iVar1 + 0x25) = 0x10;
+      *(undefined *)(iVar1 + 9) = 3;
+      *(undefined4 *)(iVar1 + 0x14) = 0x80db9c1;
+      *(undefined2 *)(iVar1 + 0x20) = 0;
+      *(undefined *)(iVar1 + 0x22) = 0;
+      *(undefined4 *)(iVar1 + 0x28) = param_1;
+      *(undefined *)(iVar1 + 0x10) = 0;
+      *(char *)(iVar1 + 0x12) = (char)iVar2;
+    }
+  } while ((iVar2 != 0) && (iVar1 != 0));
+  return in_lr;
+}
+

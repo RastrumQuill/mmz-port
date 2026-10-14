@@ -54,6 +54,27 @@ Things the check has to model, because the game depends on them:
 * Dead stack space below the stack pointer is ignored, as are registers
   written by H-blank DMA and the BIOS's own stack.
 
+## The other games
+
+`games/mmz2`, `games/mmz3` and `games/mmz4` hold the same pipeline for
+Mega Man Zero 2, 3 and 4 (USA), as a reference codebase. Mega Man Zero 1 is
+the main project; the others get the same treatment later.
+
+| Game | Functions | Rebuilds byte for byte | Lifted C | Ghidra C |
+|---|---|---|---|---|
+| Mega Man Zero 2 (USA) | 6,807 | yes | compiles | yes |
+| Mega Man Zero 3 (USA) | 5,852 | yes | compiles | yes |
+| Mega Man Zero 4 (USA) | 7,477 | yes | compiles | yes |
+
+Each directory has `game.json` (code range, entry points, excluded ranges),
+`functions.cfg`, `units.txt`, `asm/`, `data/`, `lifted/` and `ref/ghidra/`.
+Put the game's ROM in it as `baserom.gba`, then `make` rebuilds it and checks
+the SHA-1. A new game is set up with `tools/disasm/new_game.py`, then
+`MMZ_GAME=DIR tools/disasm/discover.py ... --write`, `regen.py`,
+`game_files.py` and `make lift`. Not done yet for these: the relocation
+test, the equivalence check (it needs input routes for each game) and the
+pinned data banks.
+
 ## Building
 
 Needs `binutils-arm-none-eabi`, `make`, Python 3 with `capstone`, and

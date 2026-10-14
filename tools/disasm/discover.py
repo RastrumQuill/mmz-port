@@ -1,6 +1,11 @@
-"""Find the game's functions and disassemble asm/code.s.
+"""Find the game's functions.
 
-usage: discover.py GBADISASM WORKDIR
+usage: discover.py GBADISASM WORKDIR [--write]
+
+Works on the game in $MMZ_GAME (see game.py). If game.json has no code_end
+yet, it is found first: the strong seeds are cut at the first large gap,
+disassembled, and the code ends where the last decoded function ends.
+--write saves the function list to the game's functions file.
 
 Strong seeds: the entry points and every ROM word pointing at a Thumb
 `push {..., lr}`. Weaker candidates (other pointer targets, pointers found
@@ -12,11 +17,38 @@ sys.path.insert(0, os.path.dirname(__file__))
 from classify import load_listing, classify
 from funcheck import thumb_func_extent, strict_thumb_func_extent
 import ptrscan
+import fixup
 
+import game
 dis, work = sys.argv[1:3]
-root = os.path.join(os.path.dirname(__file__), '../..')
-os.chdir(root)
+os.chdir(game.GAME_DIR)
 rom = open('baserom.gba', 'rb').read()
+header = ''.join('%s_func 0x%08x %s\n' % (k, a, n) for k, a, n in game.SEEDS)
+
+if not game.CODE_END:
+    seeds = sorted({(struct.unpack_from('<I', rom, o)[0] & ~1) for o in range(0, len(rom) - 3, 4)
+                    if struct.unpack_from('<I', rom, o)[0] & 1
+                    and 0x08000000 <= struct.unpack_from('<I', rom, o)[0] < 0x08000000 + len(rom)
+                    and rom[(struct.unpack_from('<I', rom, o)[0] & ~1) - 0x08000000 + 1] == 0xB5})
+    cut = len(seeds)
+    for i in range(1, len(seeds)):
+        if seeds[i] - seeds[i - 1] > 0x20000:
+            cut = i
+            break
+    seeds = seeds[:cut]
+    with open(f'{work}/probe.cfg', 'w') as f:
+        f.write(header + ''.join('thumb_func 0x%08x\n' % a for a in seeds))
+    out = subprocess.run([dis, 'baserom.gba', '-c', f'{work}/probe.cfg'], capture_output=True, text=True).stdout
+    with open(f'{work}/probe.s', 'w') as f:
+        f.write('\t.include "asm/macros.inc"\n\t.syntax unified\n\t.text\n\n' + out)
+    fixup.fix(f'{work}/probe.s', rom, game.ROOT)
+    subprocess.run(['arm-none-eabi-as', '-march=armv5te', '-I', game.ROOT, f'-al={work}/probe.lst',
+                    '-o', '/dev/null', f'{work}/probe.s'], check=True, stdout=subprocess.DEVNULL)
+    spans = load_listing(f'{work}/probe.lst')
+    end = max(a + size for a, size, k in spans if k == 'insn')
+    game.save(code_end='0x%08X' % end, data_start='0x%08X' % ((end + 3) & ~3))
+    ptrscan.CODE_END, ptrscan.DATA_START = end, (end + 3) & ~3
+    print('code ends at %08X' % end, file=sys.stderr)
 CODE_END = ptrscan.CODE_END
 
 strong, weak = set(), set()
@@ -31,7 +63,6 @@ for o in range(0, len(rom) - 3, 4):
             weak.add(t)
 funcs = set(strong)
 rejected = set()
-header = 'arm_func 0x080000c0 Start\narm_func 0x080000fc IntrMain\nthumb_func 0x0800033c AgbMain\n'
 
 def disasm(seeds):
     with open(f'{work}/mmz.cfg', 'w') as f:
@@ -57,16 +88,17 @@ def run(added=()):
         funcs.discard(bad[0])
         rejected.add(bad[0])
         return run([a for a in added if a != bad[0]])
-    with open('asm/code.s', 'w') as f:
+    with open(f'{work}/code.s', 'w') as f:
         f.write('\t.include "asm/macros.inc"\n\t.syntax unified\n\t.text\n\n' + out + '\t.align 2, 0\n')
-    subprocess.run(['arm-none-eabi-as', '-mcpu=arm7tdmi', '-I', '.', f'-al={work}/code.lst',
-                    '-o', '/dev/null', 'asm/code.s'], check=True, stdout=subprocess.DEVNULL)
+    fixup.fix(f'{work}/code.s', rom, game.ROOT)
+    subprocess.run(['arm-none-eabi-as', '-march=armv5te', '-I', game.ROOT, f'-al={work}/code.lst',
+                    '-o', '/dev/null', f'{work}/code.s'], check=True, stdout=subprocess.DEVNULL)
 
 add = ()
 for i in range(20):
     run(add)
     spans = load_listing(f'{work}/code.lst')
-    r, labels, kind, pool = ptrscan.load('baserom.gba', 'asm/code.s')
+    r, labels, kind, pool = ptrscan.load('baserom.gba', f'{work}/code.s')
     ptrs, data_labels, new_funcs = ptrscan.scan(r, labels, kind, pool, spans)
     json.dump({'ptrs': {hex(a): w for a, w in ptrs.items()}, 'data_labels': sorted(data_labels),
                'new_funcs': []}, open(f'{work}/ptrs.json', 'w'))
@@ -96,8 +128,11 @@ for i in range(20):
     for c in sorted(cands):
         if c in funcs or c in rejected or c < covered or classify(spans, c) != 'gap':
             continue
-        if c < 0x08000100 or 0x080001BC <= c < 0x080002DC:
-            continue  # cartridge header; ARM interrupt code copied to IWRAM
+        chunk = rom[c - 0x08000000:c - 0x08000000 + 12]
+        if sum(32 <= b < 127 for b in chunk) >= 10:
+            continue  # text, not code
+        if game.excluded(c):
+            continue  # cartridge header, ARM code copied to RAM
         end = (thumb_func_extent if c in referenced else strict_thumb_func_extent)(rom, c)
         if end is None:
             continue
@@ -107,3 +142,7 @@ for i in range(20):
     if not add:
         break
     funcs |= add
+
+if '--write' in sys.argv:
+    import shutil
+    shutil.copy(f'{work}/mmz.cfg', game.FUNCTIONS)

@@ -1,0 +1,36 @@
+// sub_080417B4 at 0x080417B4 (thumb)
+
+undefined8 sub_080417B4(int param_1,undefined4 param_2,undefined param_3)
+
+{
+  undefined uVar1;
+  int iVar2;
+  undefined4 in_lr;
+  
+  iVar2 = sub_08005500(DAT_0202ed88);
+  if (iVar2 != 0) {
+    if (*(char *)(param_1 + 0xf8) == '\x02') {
+      *(undefined *)(iVar2 + 9) = 0xc;
+      *(undefined4 *)(iVar2 + 0x14) = 0x8041859;
+      *(byte *)(iVar2 + 0xb) = *(byte *)(iVar2 + 0xb) & 0xbf;
+      *(undefined *)(iVar2 + 0x25) = 0x10;
+      *(undefined2 *)(iVar2 + 0x20) = 0;
+      uVar1 = 1;
+    }
+    else {
+      *(undefined *)(iVar2 + 9) = 0xc;
+      *(undefined4 *)(iVar2 + 0x14) = 0x8041859;
+      *(byte *)(iVar2 + 0xb) = *(byte *)(iVar2 + 0xb) & 0xbf;
+      *(undefined *)(iVar2 + 0x25) = 0x10;
+      *(undefined2 *)(iVar2 + 0x20) = 0x30;
+      uVar1 = 2;
+    }
+    *(undefined *)(iVar2 + 0x22) = uVar1;
+    *(int *)(iVar2 + 0x28) = param_1;
+    *(undefined4 *)(iVar2 + 0x2c) = param_2;
+    *(undefined *)(iVar2 + 0x10) = 2;
+    *(undefined *)(iVar2 + 0x11) = param_3;
+  }
+  return CONCAT44(in_lr,iVar2);
+}
+

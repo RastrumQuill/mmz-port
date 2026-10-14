@@ -1,0 +1,23 @@
+// sub_080FD98C at 0x080FD98C (thumb)
+
+undefined8 sub_080FD98C(void)
+
+{
+  int iVar1;
+  undefined4 in_lr;
+  
+  iVar1 = sub_08005500(DAT_0202eda0);
+  if (iVar1 != 0) {
+    *(undefined *)(iVar1 + 0x25) = 0x1e;
+    *(undefined *)(iVar1 + 9) = 0x2f;
+    *(undefined4 *)(iVar1 + 0x14) = 0x80fd9e1;
+    *(undefined2 *)(iVar1 + 0x20) = 0;
+    *(undefined *)(iVar1 + 0x22) = 0;
+    *(byte *)(iVar1 + 0xb) = *(byte *)(iVar1 + 0xb) | 0x10;
+    *(undefined *)(iVar1 + 0x1d) = *(undefined *)(iVar1 + 0x1c);
+    *(undefined *)(iVar1 + 0x10) = 0;
+    *(undefined *)(iVar1 + 0x11) = 0;
+  }
+  return CONCAT44(in_lr,iVar1);
+}
+

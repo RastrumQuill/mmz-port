@@ -2,7 +2,7 @@
 
 usage: split.py FULL_CODE_S
 
-Reads tools/disasm/units.txt and writes:
+Reads the game's unit list (game.py) and writes:
   asm/UNIT.s                      every unit, as assembly
   asm/nonmatching/UNIT/FUNC.inc   each function of a unit that has src/UNIT.c,
                                   for the functions not decompiled yet
@@ -15,11 +15,13 @@ import os, re, sys
 
 here = os.path.dirname(os.path.abspath(__file__))
 root = os.path.join(here, '../..')
-os.chdir(root)
+sys.path.insert(0, here)
+import game
+os.chdir(game.GAME_DIR)
 
 full = open(sys.argv[1]).read()
 units = []
-for line in open(os.path.join(here, 'units.txt')):
+for line in open(game.UNITS):
     line = line.split('#')[0].split()
     if line:
         units.append((int(line[0], 16), line[1]))
@@ -74,6 +76,4 @@ with open('units.ld', 'w') as f:
         f.write('build/%s.o(.text);\n' % name)
 with open('units.mk', 'w') as f:
     f.write('UNITS := %s\n' % ' '.join(name for name, _ in pieces))
-if os.path.exists('asm/code.s'):
-    os.remove('asm/code.s')
 print('units:', ', '.join(name for name, _ in pieces), file=sys.stderr)

@@ -1,0 +1,11 @@
+// sub_080028EC at 0x080028EC (thumb)
+
+void sub_080028EC(void)
+
+{
+  DAT_04000052 = DAT_02000a42;
+  DAT_04000054 = DAT_02000a44;
+  DAT_04000050 = DAT_02000a40;
+  return;
+}
+

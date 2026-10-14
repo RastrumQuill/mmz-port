@@ -1,0 +1,11 @@
+{
+  "name": "Mega Man Zero (USA, Europe)",
+  "sha1": "193b14120119162518a73c70876f0b8bffdbd96e",
+  "code_end": "0x080C8E22",
+  "data_start": "0x080C8E24",
+  "seeds": [["arm", "0x080000C0", "Start"], ["arm", "0x080000FC", "IntrMain"], ["thumb", "0x0800033C", "AgbMain"]],
+  "exclude": [["0x08000000", "0x08000100"], ["0x080001BC", "0x080002DC"]],
+  "pinned": [["0x08500000", "0x0850C03E"]],
+  "functions": "tools/disasm/mmz.cfg",
+  "units": "tools/disasm/units.txt"
+}

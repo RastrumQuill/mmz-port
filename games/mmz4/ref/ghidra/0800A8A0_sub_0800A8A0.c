@@ -1,0 +1,26 @@
+// sub_0800A8A0 at 0x0800A8A0 (thumb)
+
+/* WARNING: Globals starting with '_' overlap smaller symbols at the same address */
+
+undefined4 sub_0800A8A0(void)
+
+{
+  int iVar1;
+  undefined4 in_lr;
+  
+  iVar1 = _DAT_0202dae4;
+  if (_DAT_0202dae4 != 0) {
+    *(byte *)(_DAT_0202dae4 + 10) = *(byte *)(_DAT_0202dae4 + 10) & 0xfc;
+    *(undefined4 *)(iVar1 + 0x8c) = 0;
+    *(undefined4 *)(iVar1 + 0x90) = 0;
+    *(undefined *)(iVar1 + 0x94) = 0;
+    *(byte *)(iVar1 + 10) = *(byte *)(iVar1 + 10) & 0xfb;
+    *(undefined4 *)(iVar1 + 0xc) = 3;
+    *(undefined4 *)(iVar1 + 0x14) =
+         *(undefined4 *)(*(int *)(&DAT_08865dc4 + (uint)*(byte *)(iVar1 + 9) * 4) + 0xc);
+  }
+  sub_08002624(0xc);
+  sub_08002624(0xd);
+  return in_lr;
+}
+

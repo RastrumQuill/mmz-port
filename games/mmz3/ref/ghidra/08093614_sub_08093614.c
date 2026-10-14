@@ -1,0 +1,32 @@
+// sub_08093614 at 0x08093614 (thumb)
+
+undefined8 sub_08093614(int param_1)
+
+{
+  undefined4 uVar1;
+  uint uVar2;
+  undefined4 in_lr;
+  
+  if ((*(uint *)(param_1 + 0x8c) & 0x200) == 0) {
+    uVar1 = 0;
+    goto LAB_08093662;
+  }
+  *(undefined4 *)(param_1 + 0xc) = 2;
+  *(undefined4 *)(param_1 + 0x14) =
+       *(undefined4 *)(*(int *)(&DAT_08362110 + (uint)*(byte *)(param_1 + 9) * 4) + 8);
+  uVar2 = *(uint *)(param_1 + 0x8c);
+  if ((uVar2 & 0x10000) == 0) {
+    uVar2 = uVar2 & 0x20000;
+    if (uVar2 == 0) goto LAB_0809365a;
+    *(undefined *)(param_1 + 0xd) = 2;
+  }
+  else {
+    uVar2 = 1;
+LAB_0809365a:
+    *(char *)(param_1 + 0xd) = (char)uVar2;
+  }
+  uVar1 = 1;
+LAB_08093662:
+  return CONCAT44(in_lr,uVar1);
+}
+
