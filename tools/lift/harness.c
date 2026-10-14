@@ -29,7 +29,7 @@ int lift_tail;
 
 static u8 *rom;
 static u32 romSize;
-static u8 ewram[0x40000], iwram[0x8000], io[0x400], pal[0x400], vram[0x18000], oam[0x400];
+static u8 ewram[0x40000], iwram[0x8000], io[0x400], pal[0x400], vram[0x18000], oam[0x400], sram[0x8000];
 static jmp_buf failJmp;
 static char failReason[128];
 static long budget;
@@ -53,6 +53,7 @@ static u8 *ptr(u32 a, int write) {
 	case 5: return &pal[a & 0x3FF];
 	case 6: { u32 o = a & 0x1FFFF; if (o >= 0x18000) o -= 0x8000; return &vram[o]; }
 	case 7: return &oam[a & 0x3FF];
+	case 0xE: case 0xF: return &sram[a & 0x7FFF];  /* cartridge SRAM (8-bit bus) */
 	case 8: case 9: case 0xA: case 0xB: case 0xC: case 0xD:
 		if (write) return NULL;
 		if ((a & 0x1FFFFFF) < romSize) return &rom[a & 0x1FFFFFF];
@@ -74,8 +75,8 @@ static u32 bios_read(u32 a, int size) {
 	return size == 1 ? v & 0xFF : size == 2 ? v & 0xFFFF : v;
 }
 u32 lift_read8(u32 a) { u8 *p = ptr(a, 0); tick(); if (!p) { if (a < 0x4000) return bios_read(a, 1); unmapped(a); } return p ? *p : 0; }
-u32 lift_read16(u32 a) { u8 *p = ptr(a, 0); tick(); if (!p) { if (a < 0x4000) return bios_read(a, 2); unmapped(a); } return p ? p[0] | p[1] << 8 : 0; }
-u32 lift_read32(u32 a) { u8 *p = ptr(a, 0); tick(); if (!p) { if (a < 0x4000) return bios_read(a, 4); unmapped(a); } return p ? p[0] | p[1] << 8 | p[2] << 16 | (u32)p[3] << 24 : 0; }
+u32 lift_read16(u32 a) { if ((a >> 25) == 7) return lift_read8(a) * 0x101; u8 *p = ptr(a, 0); tick(); if (!p) { if (a < 0x4000) return bios_read(a, 2); unmapped(a); } return p ? p[0] | p[1] << 8 : 0; }
+u32 lift_read32(u32 a) { if ((a >> 25) == 7) return lift_read8(a) * 0x01010101; u8 *p = ptr(a, 0); tick(); if (!p) { if (a < 0x4000) return bios_read(a, 4); unmapped(a); } return p ? p[0] | p[1] << 8 | p[2] << 16 | (u32)p[3] << 24 : 0; }
 
 static void dma_check(u32 reg);
 
@@ -124,6 +125,7 @@ void lift_write8(u32 a, u32 v) {
 	if (p) *p = v;
 }
 void lift_write16(u32 a, u32 v) {
+	if ((a >> 25) == 7) { sram[a & 0x7FFF] = ror32(v, (a & 1) * 8); return; }
 	if ((a >> 24) == 4) {
 		if ((a & 0xFFFFFF) < 0x400) { io_store16(a & 0x3FE, v); dma_check(a); }
 		return;
@@ -133,6 +135,7 @@ void lift_write16(u32 a, u32 v) {
 	if ((a >> 24) == 4) dma_check(a);
 }
 void lift_write32(u32 a, u32 v) {
+	if ((a >> 25) == 7) { sram[a & 0x7FFF] = ror32(v, (a & 3) * 8); return; }
 	if ((a >> 24) == 4) {
 		if ((a & 0xFFFFFF) < 0x400) { io_store16(a & 0x3FE, v); io_store16((a & 0x3FE) + 2, v >> 16); dma_check(a); dma_check(a + 2); }
 		return;
@@ -276,8 +279,31 @@ static int find(u32 a) {
 	return -1;
 }
 
+/* Code the game copied into RAM: find the ROM code with the same bytes and
+ * run its lifted version. */
+static int find_copied(u32 a) {
+	static u32 cacheFrom[64], cacheTo[64];
+	static int cacheN;
+	for (int k = 0; k < cacheN; k++)
+		if (cacheFrom[k] == a) return find(cacheTo[k]);
+	u8 code[24];
+	u8 *p = ptr(a & ~1u, 0);
+	if (!p) return -1;
+	memcpy(code, p, sizeof code);
+	for (u32 o = 0; o + sizeof code <= 0xC8E24; o += 2) {
+		if (!memcmp(rom + o, code, sizeof code)) {
+			u32 src = (0x08000000 + o) | (a & 1);
+			int i = find(src);
+			if (i >= 0 && cacheN < 64) { cacheFrom[cacheN] = a; cacheTo[cacheN++] = src; }
+			return i;
+		}
+	}
+	return -1;
+}
+
 void lift_call(u32 a) {
 	int i = find(a);
+	if (i < 0 && (a >> 24) >= 2 && (a >> 24) <= 3) i = find_copied(a);
 	if (i < 0) fail("call to", a);
 	gLiftTable[i].fn();
 }
@@ -305,7 +331,7 @@ static int keymask(const char *s) {
 
 struct Snap {
 	u32 r[16];
-	u8 ewram_[0x40000], iwram_[0x8000], io_[0x400], pal_[0x400], vram_[0x18000], oam_[0x400];
+	u8 ewram_[0x40000], iwram_[0x8000], io_[0x400], pal_[0x400], vram_[0x18000], oam_[0x400], sram_[0x8000];
 };
 static struct Snap snap;
 
@@ -412,6 +438,7 @@ int main(int argc, char **argv) {
 						memcpy(ewram, snap.ewram_, sizeof ewram); memcpy(iwram, snap.iwram_, sizeof iwram);
 						memcpy(io, snap.io_, sizeof io); memcpy(pal, snap.pal_, sizeof pal);
 						memcpy(vram, snap.vram_, sizeof vram); memcpy(oam, snap.oam_, sizeof oam);
+						memcpy(sram, snap.sram_, sizeof sram);
 						memcpy(cpu.r, snap.r, sizeof cpu.r);
 						lift_tail = 0;
 						biosBus = snapBios;
@@ -454,6 +481,7 @@ int main(int argc, char **argv) {
 							CMP(pal, p2, 0x05000000, pal)
 							CMP(vram, v2, 0x06000000, vram)
 							CMP(oam, m2, 0x07000000, oam)
+							if (gba->memory.savedata.data) { u8 *s2 = gba->memory.savedata.data; CMP(sram, s2, 0x0E000000, sram) }
 							for (u32 k = 0; k < sizeof io && !*msg; k++)
 								if (!io_ignored(k) && io[k] != o2[k]) snprintf(msg, sizeof msg, "io %08X: %02X != %02X", 0x04000000 + k, io[k], o2[k]);
 						}
@@ -468,6 +496,7 @@ int main(int argc, char **argv) {
 				/* open a test */
 				memcpy(snap.r, arm->gprs, sizeof snap.r);
 				grab(gba, snap.ewram_, snap.iwram_, snap.io_, snap.pal_, snap.vram_, snap.oam_);
+				if (gba->memory.savedata.data) memcpy(snap.sram_, gba->memory.savedata.data, 0x8000);
 				open = idx;
 				openLR = arm->gprs[ARM_LR];
 				openSP = arm->gprs[ARM_SP];
