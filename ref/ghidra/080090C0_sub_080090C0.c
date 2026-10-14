@@ -1,0 +1,17 @@
+// sub_080090C0 at 0x080090C0 (thumb)
+
+int sub_080090C0(int param_1,int param_2)
+
+{
+  int iVar1;
+  
+  iVar1 = param_2 + -0x800 + (param_1 >> 2);
+  if (iVar1 < 1) {
+    iVar1 = 0;
+  }
+  else {
+    iVar1 = -iVar1;
+  }
+  return iVar1;
+}
+

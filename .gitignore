@@ -7,5 +7,6 @@ baserom.gba
 __pycache__/
 /build/
 /build_nm/
+/build_lift/
 /tools/agbcc/
 /tools/emu/runner

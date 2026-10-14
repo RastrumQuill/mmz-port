@@ -78,3 +78,33 @@ clean:
 	rm -rf build build_nm mmz.elf mmz.gba mmz_moved.gba mmz_nonmatching.gba
 
 .PHONY: all moved nonmatching clean
+
+# ---------------------------------------------------------------- lifted C
+# lifted/ is every function translated to C, instruction by instruction
+# (tools/lift/lift.py). The harness plays a route and checks each function's
+# lifted C against the original. Needs libmgba-dev.
+LIFT_SKIP := sub_080002DC,sub_08000300,sub_08000328
+LIFT_ALIAS := 03000000:080C6894:380
+ROUTE ?= tools/emu/routes/intro.txt
+
+lift:
+	python3 tools/lift/lift.py lifted --skip $(LIFT_SKIP) --alias $(LIFT_ALIAS)
+	cp tools/lift/lift.h lifted/
+
+harness:
+	$(MAKE) -C tools/lift LIFTED=$(CURDIR)/lifted OUT=$(CURDIR)/build_lift
+
+check-lifted: harness
+	grep -v ' shot ' $(ROUTE) > build_lift/route.txt
+	build_lift/harness baserom.gba build_lift/route.txt build_lift/results.tsv 2
+
+# Ghidra's decompilation of every function, for reference (ref/ghidra).
+GHIDRA ?= tools/ghidra/ghidra_11.0_PUBLIC
+ghidra-ref:
+	python3 tools/ghidra/funcs.py build_lift/funcs.tsv
+	rm -rf build_lift/gproj && mkdir -p build_lift/gproj ref/ghidra
+	$(GHIDRA)/support/analyzeHeadless build_lift/gproj mmz -import baserom.gba \
+		-processor ARM:LE:32:v4t -loader BinaryLoader -loader-baseAddr 0x08000000 -noanalysis \
+		-scriptPath tools/ghidra -postScript Decompile.py build_lift/funcs.tsv ref/ghidra -deleteProject
+
+.PHONY: lift harness check-lifted ghidra-ref

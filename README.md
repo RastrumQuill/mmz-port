@@ -21,6 +21,39 @@ game:
 * C is compiled with agbcc (the original compiler) into the same ROM. The
   input code (`src/input.c`) is the first decompiled file.
 
+## Lifted C and the equivalence check
+
+The goal is C whose functions give the same results as the originals, not
+byte-identical C. Two generated layers make that cheap:
+
+* `lifted/` (`make lift`): every function translated to C instruction by
+  instruction by `tools/lift/lift.py`. Registers are variables, memory goes
+  through accessors that reproduce the ARM7 (unaligned accesses, I/O), and
+  calls are C calls. It is unreadable but complete, and it runs anywhere C
+  does. It is the base the PC port runs on until functions are rewritten by
+  hand. The ARM sound mixer is lifted too; the task switching code
+  (`sub_080002DC`, `sub_08000300`, `sub_08000328`) and the start-up and
+  interrupt code are left to the runtime.
+* `ref/ghidra/` (`make ghidra-ref`): Ghidra's decompilation of every function,
+  as a starting point for readable C.
+
+`make check-lifted` builds `tools/lift/harness.c` and plays a route in mGBA.
+Each time a function is entered it copies the machine state, lets the
+original run to its return, runs the lifted C from the copy, and compares the
+results: r0, the registers a function must preserve, and all of memory and
+the I/O registers. Results go to `build_lift/results.tsv`. With the intro
+route: 652 functions tested, 650 identical (the other two use the task
+switching code).
+
+Things the check has to model, because the game depends on them:
+* Reads through null pointers return the last BIOS opcode (the game does
+  this).
+* Unaligned 32-bit stores write to the aligned address (the input code does
+  this).
+* I/O registers keep only their existing bits.
+* Dead stack space below the stack pointer is ignored, as are registers
+  written by H-blank DMA and the BIOS's own stack.
+
 ## Building
 
 Needs `binutils-arm-none-eabi`, `make`, Python 3 with `capstone`, and

@@ -1,0 +1,81 @@
+// sub_080BC680 at 0x080BC680 (thumb)
+
+undefined4 sub_080BC680(int *param_1)
+
+{
+  short sVar1;
+  uint uVar2;
+  int iVar3;
+  int *piVar4;
+  uint uVar5;
+  undefined4 in_lr;
+  
+  iVar3 = *param_1;
+  if (param_1[2] != 0) {
+    DAT_02004f30 = DAT_02004f30 | 0x100;
+    sVar1 = *(short *)(param_1[2] + 0x8c);
+    *(undefined4 *)(iVar3 + 0x2b8) = 0x124c124b;
+    *(undefined4 *)(iVar3 + 0x2f8) = 0x126c126b;
+    piVar4 = (int *)(iVar3 + 0x278);
+    uVar2 = (uint)sVar1;
+    if ((int)uVar2 < 0x21) {
+      uVar5 = 0;
+      do {
+        if ((int)uVar2 < (int)(uVar5 + 4)) {
+          if ((int)uVar2 < (int)uVar5) {
+            *piVar4 = 0x12a512a4;
+          }
+          else {
+            *piVar4 = (uVar2 & 3) * -0x200020 + 0x12a512a4;
+          }
+        }
+        else {
+          *piVar4 = 0x12251224;
+        }
+        uVar5 = uVar5 + 4 & 0xffff;
+        piVar4 = piVar4 + -0x10;
+      } while (uVar5 < 0x20);
+    }
+    else if ((int)uVar2 < 0x41) {
+      uVar5 = 0;
+      uVar2 = (int)((uVar2 - 0x20) * 0x10000) >> 0x10;
+      do {
+        if ((int)uVar2 < (int)(uVar5 + 4)) {
+          if ((int)uVar2 < (int)uVar5) {
+            *piVar4 = 0x12a712a6;
+          }
+          else {
+            *piVar4 = (uVar2 & 3) * -0x200020 + 0x12a712a6;
+          }
+        }
+        else {
+          *piVar4 = 0x12271226;
+        }
+        uVar5 = uVar5 + 4 & 0xffff;
+        piVar4 = piVar4 + -0x10;
+      } while (uVar5 < 0x20);
+    }
+    else {
+      uVar5 = 0;
+      uVar2 = (int)((uVar2 - 0x40) * 0x10000) >> 0x10;
+      do {
+        if ((int)uVar2 < (int)(uVar5 + 4)) {
+          if ((int)uVar2 < (int)uVar5) {
+            *piVar4 = 0x12a912a8;
+          }
+          else {
+            *piVar4 = (uVar2 & 3) * -0x200020 + 0x12a912a8;
+          }
+        }
+        else {
+          *piVar4 = 0x12291228;
+        }
+        uVar5 = uVar5 + 4 & 0xffff;
+        piVar4 = piVar4 + -0x10;
+      } while (uVar5 < 0x20);
+    }
+    *piVar4 = 0x12031202;
+  }
+  return in_lr;
+}
+
