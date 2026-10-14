@@ -1,0 +1,7 @@
+baserom.gba
+*.gba
+*.o
+*.elf
+*.map
+*.sav
+/tools/agbcc/
