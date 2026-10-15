@@ -596,7 +596,12 @@ class Gen:
                     self.lines.append('L_%08X:;' % a)
                     emitted_labels.add(a)
                 try:
+                    before = len(self.lines)
                     self.insn(a, t)
+                    # reads of unmapped memory return the prefetched opcode,
+                    # which depends on where the code is
+                    if any(re.search(r'\bR(S?8|S?16|32)\(', l) for l in self.lines[before:]):
+                        self.lines.insert(before, '    lift_pc = 0x%08X;' % (a | (1 if f.kind == 'thumb' else 0)))
                 except Exception as ex:
                     self.emit('lift_fail(0x%08X); /* %s: %s */' % (a, t, ex))
             else:

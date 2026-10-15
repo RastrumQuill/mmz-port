@@ -46,6 +46,8 @@ void lift_fail(u32 addr);
 /* A jump into another function (not a call) keeps the return address the
  * current function was entered with: that is where the jumped-to code will
  * return to, whatever LR holds by then. */
+/* address of the instruction doing the current load (bit 0: Thumb) */
+extern u32 lift_pc;
 extern u32 lift_tail_lr;
 extern int lift_tail;
 #define LIFT_TAIL(lr) do { lift_tail_lr = (lr); lift_tail = 1; } while (0)

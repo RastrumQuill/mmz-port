@@ -10,6 +10,9 @@
 #include <mgba-util/vfs.h>
 #include <mgba/internal/arm/arm.h>
 #include <stdio.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <mgba-util/vfs.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -29,6 +32,20 @@ static void traceHit(struct ARMCore *cpu, uint32_t addr, int size) {
 static uint32_t tLoad32(struct ARMCore *c, uint32_t a, int *cy) { traceHit(c, a, 32); return origMem.load32(c, a, cy); }
 static uint32_t tLoad16(struct ARMCore *c, uint32_t a, int *cy) { traceHit(c, a, 16); return origMem.load16(c, a, cy); }
 static uint32_t tLoad8(struct ARMCore *c, uint32_t a, int *cy) { traceHit(c, a, 8); return origMem.load8(c, a, cy); }
+static uint32_t wLo, wHi;
+static void wHit(struct ARMCore *cpu, uint32_t addr, int size, uint32_t v) {
+	if (addr >= wLo && addr < wHi && traceCount < 20000) {
+		traceCount++;
+		fprintf(stderr, "write%d %08X = %08X pc %08X lr %08X\n", size, addr, v, cpu->gprs[ARM_PC], cpu->gprs[ARM_LR]);
+	}
+}
+static void tStore32(struct ARMCore *c, uint32_t a, int32_t v, int *cy) { wHit(c, a, 32, v); origMem.store32(c, a, v, cy); }
+static void tStore16(struct ARMCore *c, uint32_t a, int16_t v, int *cy) { wHit(c, a, 16, (uint16_t)v); origMem.store16(c, a, v, cy); }
+static void tStore8(struct ARMCore *c, uint32_t a, int8_t v, int *cy) { wHit(c, a, 8, (uint8_t)v); origMem.store8(c, a, v, cy); }
+static uint32_t tStoreM(struct ARMCore *c, uint32_t a, int m, enum LSMDirection d, int *cy) {
+	wHit(c, a, 0, m);
+	return origMem.storeMultiple(c, a, m, d, cy);
+}
 static uint32_t tLoadM(struct ARMCore *c, uint32_t a, int m, enum LSMDirection d, int *cy) {
 	traceHit(c, a, 0);
 	return origMem.loadMultiple(c, a, m, d, cy);
@@ -64,7 +81,29 @@ int main(int argc, char **argv) {
 	color_t *vbuf = calloc(w * h, sizeof(color_t));
 	core->setVideoBuffer(core, vbuf, w);
 	if (!mCoreLoadFile(core, argv[1])) return 1;
+	/* SAVE=path: start from that save file (a temporary copy, so it is not changed) */
+	if (getenv("SAVE")) {
+		char tmp[] = "/tmp/mmzsaveXXXXXX";
+		int fd = mkstemp(tmp);
+		FILE *in = fopen(getenv("SAVE"), "rb");
+		char buf[65536];
+		size_t n = in ? fread(buf, 1, sizeof buf, in) : 0;
+		if (in) fclose(in);
+		if (fd >= 0) { write(fd, buf, n); close(fd); }
+		struct VFile *svf = VFileOpen(tmp, O_RDWR);
+		if (svf) core->loadSave(core, svf);
+	}
 	core->reset(core);
+	const char *tw = getenv("TRACEW");
+	if (tw) {
+		sscanf(tw, "%x-%x", &wLo, &wHi);
+		struct ARMCore *cpu = core->cpu;
+		origMem = cpu->memory;
+		cpu->memory.store32 = tStore32;
+		cpu->memory.store16 = tStore16;
+		cpu->memory.store8 = tStore8;
+		cpu->memory.storeMultiple = tStoreM;
+	}
 	const char *tr = getenv("TRACE");
 	if (tr) {
 		sscanf(tr, "%x-%x", &traceLo, &traceHi);
