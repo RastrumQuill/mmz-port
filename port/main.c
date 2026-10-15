@@ -26,6 +26,7 @@
 #include "pc.h"
 #include "settings.h"
 #include "ui.h"
+#include "input.h"
 
 extern u32 romSize, biosBus;
 extern jmp_buf failJmp;
@@ -212,17 +213,18 @@ static SDL_Renderer *renderer;
 static SDL_Texture *texture;
 static SDL_Texture *viewTexture;   /* the zoomed-out view, view_w x view_h */
 static int viewTexW, viewTexH;
-static SDL_GameController *pad;
 static SDL_AudioDeviceID audioDev;
 static SDL_AudioStream *audioStream;
 static int audioStreamRate;
 static Uint64 nextFrameTime;
 
 static void sdl_init(int scale) {
+	input_hints();
 	if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_GAMECONTROLLER) < 0) {
 		fprintf(stderr, "SDL: %s\n", SDL_GetError());
 		exit(1);
 	}
+	input_init();
 	window = SDL_CreateWindow("Mega Man Zero", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
 	                          SCREEN_W * scale, SCREEN_H * scale, SDL_WINDOW_RESIZABLE);
 	renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
@@ -266,32 +268,22 @@ static void sdl_events(void) {
 	SDL_Event e;
 	while (SDL_PollEvent(&e)) {
 		if (e.type == SDL_QUIT) { save_flush(); settings_save(); exit(0); }
-		if (e.type == SDL_CONTROLLERDEVICEADDED && !pad) pad = SDL_GameControllerOpen(e.cdevice.which);
+		input_event(&e);
 		if (ui_event(&e)) continue;
 		if (e.type == SDL_KEYDOWN && e.key.keysym.scancode == SDL_SCANCODE_F11) {
 			settings.fullscreen = !settings.fullscreen;
 			SDL_SetWindowFullscreen(window, settings.fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0);
 		}
 	}
+	input_poll();
+	/* the controller's fast-forward hotkey (Tab on the keyboard, in ui.cpp) */
+	static int fast;
+	if (input_fast != fast) debug.fastForward = fast = input_fast;
 }
 
 static u16 read_buttons(void) {
 	if (ui_wants_input()) return 0;
-	const Uint8 *k = SDL_GetKeyboardState(NULL);
-	u16 m = 0;
-	for (int i = 0; i < 10; i++)
-		if (k[settings.keys[i]]) m |= 1 << i;
-	if (pad) {
-		for (int i = 0; i < 10; i++)
-			if (SDL_GameControllerGetButton(pad, settings.pad[i])) m |= 1 << i;
-		int ax = SDL_GameControllerGetAxis(pad, SDL_CONTROLLER_AXIS_LEFTX);
-		int ay = SDL_GameControllerGetAxis(pad, SDL_CONTROLLER_AXIS_LEFTY);
-		if (ax > 16000) m |= 16;
-		if (ax < -16000) m |= 32;
-		if (ay < -16000) m |= 64;
-		if (ay > 16000) m |= 128;
-	}
-	return m;
+	return input_buttons();
 }
 
 /* the picture to show: the zoomed-out view, or the GBA's */

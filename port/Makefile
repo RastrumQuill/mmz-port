@@ -38,6 +38,7 @@ OBJS := $(HAND:$(ROOT)/src/%.c=$(OUT)/src/%.o) $(PC:%.c=$(OUT)/pc/%.o) $(CXXOBJS
 
 $(OUT)/$(EXE): $(OBJS)
 	$(CXX) $(LDFLAGS) -o $@ $(OBJS) $(ROOT)/sym_ram.ld $(LIBS)
+	cp third_party/gamecontrollerdb/gamecontrollerdb.txt $(OUT)/
 ifeq ($(WINDOWS),1)
 	cp $(SDL2_DIR)/bin/SDL2.dll $(OUT)/
 endif
@@ -46,9 +47,9 @@ $(OUT)/lifted/%.o: $(ROOT)/lifted/%.c $(ROOT)/tools/lift/lift.h imm.h | $(OUT)/l
 	$(CC) $(CFLAGS) -include imm.h -c -o $@ $<
 $(OUT)/src/%.o: $(ROOT)/src/%.c | $(OUT)/src
 	$(CC) $(CFLAGS) -DPLATFORM_PC -c -o $@ $<
-$(OUT)/pc/%.o: %.c pc.h | $(OUT)/pc
+$(OUT)/pc/%.o: %.c pc.h settings.h input.h ui.h | $(OUT)/pc
 	$(CC) $(CFLAGS) -Wall -Wno-unused-function -c -o $@ $<
-$(OUT)/pc/ui.o: ui.cpp ui.h pc.h settings.h | $(OUT)/pc
+$(OUT)/pc/ui.o: ui.cpp ui.h pc.h settings.h input.h | $(OUT)/pc
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
 $(OUT)/imgui/%.o: third_party/imgui/%.cpp | $(OUT)/imgui
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
@@ -65,6 +66,7 @@ dist: $(OUT)/$(EXE)
 	$(if $(filter 1,$(WINDOWS)),x86_64-w64-mingw32-strip,strip) -o $(OUT)/dist/mmz/$(EXE) $(OUT)/$(EXE)
 	$(if $(filter 1,$(WINDOWS)),cp $(OUT)/SDL2.dll $(OUT)/dist/mmz/,)
 	cp README.md $(OUT)/dist/mmz/README.txt
+	cp third_party/gamecontrollerdb/gamecontrollerdb.txt $(OUT)/dist/mmz/
 	cd $(OUT)/dist && zip -qr ../mmz-$(if $(filter 1,$(WINDOWS)),windows,linux).zip mmz
 
 clean:

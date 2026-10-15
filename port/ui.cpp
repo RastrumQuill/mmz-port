@@ -3,6 +3,8 @@
 //   F2   debug tools: status, speed, layers, mission warp, RAM freezes and
 //        search, memory, palette, tiles, sprites, I/O registers
 //   P    pause, N one frame while paused, Tab (held) fast-forward
+// Controllers: Guide or Back+Start opens the settings, the D-pad / stick and
+// A move around them, B closes them.
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -15,6 +17,7 @@ extern "C" {
 #include "pc.h"
 #include "settings.h"
 #include "ui.h"
+#include "input.h"
 }
 
 struct DebugState debug = { 0, 0, 0, 0x1F };
@@ -23,7 +26,9 @@ static SDL_Window *sWindow;
 static SDL_Renderer *sRenderer;
 static bool sShowSettings, sShowDebug;
 static bool sShowMemory, sShowPalette, sShowTiles, sShowSprites, sShowIo, sShowSearch, sShowFreezes;
-static int sRebindKey = -1, sRebindPad = -1;   // button waiting for a new key / pad button
+static int sRebindKey = -1, sRebindPad = -1;   // binding waiting for a new key / controller input
+static Uint32 sRebindTime;                      // when the controller binding started
+static bool sFocusSettings;
 static bool sTabHeld;
 static const char *sTestDir;   // --ui-test
 
@@ -110,12 +115,28 @@ extern "C" void ui_init(SDL_Window *window, SDL_Renderer *renderer) {
 	io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
 	ImGui::StyleColorsDark();
 	ImGui_ImplSDL2_InitForSDLRenderer(window, renderer);
+	ImGui_ImplSDL2_SetGamepadMode(ImGui_ImplSDL2_GamepadMode_AutoAll);
 	ImGui_ImplSDLRenderer2_Init(renderer);
 }
 
 static bool menus_open() { return sShowSettings || sShowDebug; }
 
 extern "C" int ui_pauses_game(void) { return sShowSettings && !sTestDir; }
+
+extern "C" int ui_rebinding(void) { return sRebindKey >= 0 || sRebindPad >= 0; }
+
+extern "C" void ui_toggle_settings(void) {
+	sShowSettings = !sShowSettings;
+	if (sShowSettings) sFocusSettings = true;
+	else settings_save();
+}
+
+static void rebind_pad(int i) {
+	sRebindPad = i;
+	sRebindKey = -1;
+	sRebindTime = SDL_GetTicks();
+	input_capture_begin();
+}
 
 extern "C" int ui_wants_input(void) {
 	if (sRebindKey >= 0 || sRebindPad >= 0) return 1;
@@ -129,18 +150,31 @@ extern "C" int ui_event(const SDL_Event *e) {
 		sRebindKey = -1;
 		return 1;
 	}
-	if (sRebindPad >= 0 && e->type == SDL_CONTROLLERBUTTONDOWN) {
-		settings.pad[sRebindPad] = (SDL_GameControllerButton)e->cbutton.button;
-		sRebindPad = -1;
-		return 1;
+	if (sRebindPad >= 0) {
+		struct Bind b;
+		int joy;
+		if (input_capture(e, &b, &joy)) {
+			(joy ? settings.joy : settings.pad)[sRebindPad] = b;
+			sRebindPad = -1;
+			return 1;
+		}
+		if (e->type == SDL_KEYDOWN && (e->key.keysym.scancode == SDL_SCANCODE_ESCAPE ||
+		                               e->key.keysym.scancode == SDL_SCANCODE_DELETE)) {
+			if (e->key.keysym.scancode == SDL_SCANCODE_DELETE) settings.pad[sRebindPad] = settings.joy[sRebindPad] = Bind();
+			sRebindPad = -1;
+			return 1;
+		}
+		if (e->type >= SDL_JOYAXISMOTION && e->type <= SDL_CONTROLLERDEVICEREMAPPED) return 1;
 	}
-	if (sRebindPad >= 0 && e->type == SDL_KEYDOWN && e->key.keysym.scancode == SDL_SCANCODE_ESCAPE) {
-		sRebindPad = -1;
+	// B (east) closes the settings, unless a slider or text field is being used
+	if (e->type == SDL_CONTROLLERBUTTONDOWN && e->cbutton.button == SDL_CONTROLLER_BUTTON_B && sShowSettings &&
+	    !ImGui::IsAnyItemActive() && !ImGui::IsPopupOpen("", ImGuiPopupFlags_AnyPopupId)) {
+		ui_toggle_settings();
 		return 1;
 	}
 	if (e->type == SDL_KEYDOWN && !e->key.repeat) {
 		switch (e->key.keysym.scancode) {
-		case SDL_SCANCODE_F1: sShowSettings = !sShowSettings; if (!sShowSettings) settings_save(); return 1;
+		case SDL_SCANCODE_F1: ui_toggle_settings(); return 1;
 		case SDL_SCANCODE_F2: sShowDebug = !sShowDebug; return 1;
 		case SDL_SCANCODE_ESCAPE:
 			if (sShowSettings) { sShowSettings = false; settings_save(); return 1; }
@@ -163,13 +197,14 @@ extern "C" int ui_event(const SDL_Event *e) {
 
 // -------------------------------------------------------------- settings
 
-static const char *pad_name(SDL_GameControllerButton b) {
+static const char *button_name(int b) {
 	switch (b) {
-	case SDL_CONTROLLER_BUTTON_A: return "A / Cross";
-	case SDL_CONTROLLER_BUTTON_B: return "B / Circle";
-	case SDL_CONTROLLER_BUTTON_X: return "X / Square";
-	case SDL_CONTROLLER_BUTTON_Y: return "Y / Triangle";
+	case SDL_CONTROLLER_BUTTON_A: return "A / Cross (bottom)";
+	case SDL_CONTROLLER_BUTTON_B: return "B / Circle (right)";
+	case SDL_CONTROLLER_BUTTON_X: return "X / Square (left)";
+	case SDL_CONTROLLER_BUTTON_Y: return "Y / Triangle (top)";
 	case SDL_CONTROLLER_BUTTON_BACK: return "Back / Select";
+	case SDL_CONTROLLER_BUTTON_GUIDE: return "Guide / Home";
 	case SDL_CONTROLLER_BUTTON_START: return "Start";
 	case SDL_CONTROLLER_BUTTON_LEFTSHOULDER: return "LB / L1";
 	case SDL_CONTROLLER_BUTTON_RIGHTSHOULDER: return "RB / R1";
@@ -179,11 +214,31 @@ static const char *pad_name(SDL_GameControllerButton b) {
 	case SDL_CONTROLLER_BUTTON_DPAD_DOWN: return "D-pad down";
 	case SDL_CONTROLLER_BUTTON_DPAD_LEFT: return "D-pad left";
 	case SDL_CONTROLLER_BUTTON_DPAD_RIGHT: return "D-pad right";
+	case SDL_CONTROLLER_BUTTON_MISC1: return "Share / Capture";
+	case SDL_CONTROLLER_BUTTON_TOUCHPAD: return "Touchpad press";
 	default: {
-		const char *n = SDL_GameControllerGetStringForButton(b);
-		return n ? n : "(none)";
+		const char *n = SDL_GameControllerGetStringForButton((SDL_GameControllerButton)b);
+		return n ? n : "?";
 	}
 	}
+}
+
+static const char *bind_name(struct Bind b, char *buf, int size) {
+	static const char *const axes[4][2] = {
+		{ "Left stick left", "Left stick right" }, { "Left stick up", "Left stick down" },
+		{ "Right stick left", "Right stick right" }, { "Right stick up", "Right stick down" } };
+	static const char *const hat[9] = { "", "up", "right", "", "down", "", "", "", "left" };
+	switch (b.type) {
+	case BIND_BUTTON: return button_name(b.index);
+	case BIND_AXIS:
+		if (b.index == SDL_CONTROLLER_AXIS_TRIGGERLEFT) return "LT / L2";
+		if (b.index == SDL_CONTROLLER_AXIS_TRIGGERRIGHT) return "RT / R2";
+		return b.index < 4 ? axes[b.index][b.dir > 0] : "?";
+	case BIND_JBUTTON: snprintf(buf, size, "Button %d", b.index); return buf;
+	case BIND_JHAT: snprintf(buf, size, "Hat %d %s", b.index, b.dir > 0 && b.dir <= 8 ? hat[b.dir] : "?"); return buf;
+	case BIND_JAXIS: snprintf(buf, size, "Axis %d%c", b.index, b.dir > 0 ? '+' : '-'); return buf;
+	}
+	return "(none)";
 }
 
 // a window's first placement: cascaded, inside the game window
@@ -195,6 +250,7 @@ static void place(int k, float w, float h) {
 
 static void settings_window() {
 	ImVec2 vp = ImGui::GetMainViewport()->Size;
+	if (sFocusSettings) { ImGui::SetNextWindowFocus(); sFocusSettings = false; }
 	ImGui::SetNextWindowPos(ImVec2(vp.x / 2, vp.y / 2), ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
 	ImGui::SetNextWindowSizeConstraints(ImVec2(0, 0), ImVec2(vp.x - 20, vp.y - 20));
 	if (!ImGui::Begin("Settings (F1)", &sShowSettings, ImGuiWindowFlags_AlwaysAutoResize)) {
@@ -242,31 +298,61 @@ static void settings_window() {
 		if (ImGui::Checkbox("Mute", &m)) settings.mute = m;
 	}
 	if (ImGui::CollapsingHeader("Controls", ImGuiTreeNodeFlags_DefaultOpen)) {
-		ImGui::TextDisabled("Click a binding, then press the key or gamepad button (Esc cancels).");
-		static const char *const labels[10] = { "A", "B", "Select", "Start", "Right", "Left", "Up", "Down", "R", "L" };
-		static const int order[10] = { 6, 7, 5, 4, 0, 1, 9, 8, 3, 2 };
-		if (ImGui::BeginTable("bindings", 3, ImGuiTableFlags_BordersInnerH)) {
+		ImGui::TextDisabled("Pick a binding, then press the key or controller input (Esc cancels, Delete or\n"
+		                    "right-click clears). Controller buttons go by position: A is the bottom one.");
+		int n = input_devices();
+		if (!n) ImGui::TextDisabled("No controller connected.");
+		for (int d = 0; d < n; d++) {
+			int known;
+			const char *name = input_device_name(d, &known);
+			ImGui::BulletText("%s%s", name, known ? "" : " (no mapping: uses the Joystick column)");
+		}
+		static const char *const labels[BINDS] = { "A", "B", "Select", "Start", "Right", "Left", "Up", "Down", "R", "L",
+		                                           "Open settings", "Fast-forward (held)" };
+		static const int order[BINDS] = { 6, 7, 5, 4, 0, 1, 9, 8, 3, 2, 10, 11 };
+		bool joyColumn = input_have_joysticks();
+		char buf[32];
+		if (ImGui::BeginTable("bindings", joyColumn ? 4 : 3, ImGuiTableFlags_BordersInnerH)) {
 			ImGui::TableSetupColumn("Button");
 			ImGui::TableSetupColumn("Keyboard");
-			ImGui::TableSetupColumn("Gamepad");
+			ImGui::TableSetupColumn("Controller");
+			if (joyColumn) ImGui::TableSetupColumn("Joystick");
 			ImGui::TableHeadersRow();
-			for (int k = 0; k < 10; k++) {
+			for (int k = 0; k < BINDS; k++) {
 				int i = order[k];
 				ImGui::PushID(i);
 				ImGui::TableNextRow();
 				ImGui::TableNextColumn();
 				ImGui::TextUnformatted(labels[i]);
 				ImGui::TableNextColumn();
-				const char *kn = sRebindKey == i ? "press a key..." : SDL_GetScancodeName(settings.keys[i]);
-				if (ImGui::Button(kn[0] ? kn : "(none)", ImVec2(130, 0))) { sRebindKey = i; sRebindPad = -1; }
+				if (i < 10) {
+					const char *kn = sRebindKey == i ? "press a key..." : SDL_GetScancodeName(settings.keys[i]);
+					if (ImGui::Button(kn[0] ? kn : "(none)", ImVec2(130, 0))) { sRebindKey = i; sRebindPad = -1; }
+					if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) settings.keys[i] = SDL_SCANCODE_UNKNOWN;
+				} else {
+					ImGui::TextDisabled(i == BIND_MENU ? "F1" : "Tab");
+				}
 				ImGui::TableNextColumn();
-				const char *pn = sRebindPad == i ? "press a button..." : pad_name(settings.pad[i]);
-				if (ImGui::Button(pn, ImVec2(150, 0))) { sRebindPad = i; sRebindKey = -1; }
+				const char *pn = sRebindPad == i ? "press..." : bind_name(settings.pad[i], buf, sizeof buf);
+				if (ImGui::Button(pn, ImVec2(160, 0))) rebind_pad(i);
+				if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) settings.pad[i] = Bind();
+				if (joyColumn) {
+					ImGui::TableNextColumn();
+					const char *jn = sRebindPad == i ? "press..." : bind_name(settings.joy[i], buf, sizeof buf);
+					if (ImGui::Button(jn, ImVec2(110, 0))) rebind_pad(i);
+					if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) settings.joy[i] = Bind();
+				}
 				ImGui::PopID();
 			}
 			ImGui::EndTable();
 		}
-		ImGui::TextDisabled("The left stick also moves. P pauses, N steps a frame,\nTab (held) fast-forwards, F2 opens the debug tools.");
+		bool sm = settings.stickMoves;
+		if (ImGui::Checkbox("Left stick moves too", &sm)) settings.stickMoves = sm;
+		ImGui::SameLine();
+		ImGui::SetNextItemWidth(150);
+		ImGui::SliderInt("Stick dead zone", &settings.deadzone, 10, 90, "%d%%");
+		ImGui::TextDisabled("Back + Start also opens the settings; B closes them.\n"
+		                    "P pauses, N steps a frame, F2 opens the debug tools.");
 	}
 	ImGui::Separator();
 	if (ImGui::Button("Save")) settings_save();
@@ -621,7 +707,12 @@ extern "C" void ui_present(SDL_Texture *game) {
 	SDL_RenderCopy(sRenderer, game, nullptr, &dst);
 
 	if (sTestDir && sFrame == 1200) sShowSettings = true;
+	if (sRebindPad >= 0 && SDL_GetTicks() - sRebindTime > 5000) sRebindPad = -1;   // nothing pressed
 	if (menus_open()) {
+		// while a controller binding waits, the controller does not move around the menu
+		ImGuiIO &io = ImGui::GetIO();
+		if (sRebindPad >= 0) io.ConfigFlags &= ~ImGuiConfigFlags_NavEnableGamepad;
+		else io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
 		ImGui_ImplSDLRenderer2_NewFrame();
 		ImGui_ImplSDL2_NewFrame();
 		ImGui::GetIO().FontGlobalScale = wh >= 1400 ? 2.0f : wh >= 1000 ? 1.5f : 1.0f;

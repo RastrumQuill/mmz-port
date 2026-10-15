@@ -13,8 +13,16 @@
  *                             view_height), window (the window's shape,
  *                             view_window_height world pixels high)
  *   key_a = X                 keyboard keys, by SDL name ("Left Shift", "Z")
- *   pad_a = b                 gamepad buttons, by SDL name (a, b, x, y,
- *                             leftshoulder, rightshoulder, start, back, dpup...)
+ *   pad_a = b                 controller buttons by SDL name (a, b, x, y,
+ *                             leftshoulder, rightshoulder, start, back, guide,
+ *                             dpup...), or axes: lefttrigger, righttrigger,
+ *                             leftx+, lefty-... (positions, not labels: "a" is
+ *                             the bottom face button on every controller)
+ *   pad_menu, pad_fastforward controller hotkeys (settings, fast-forward)
+ *   joy_a = b1                joysticks SDL has no mapping for: button b<n>,
+ *                             hat h<n>up/down/left/right, axis a<n>+ / a<n>-
+ *   stick_moves = 1           the left stick works as the D-pad
+ *   stick_deadzone = 40       percent
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -25,10 +33,66 @@
 struct Settings settings;
 
 /* GBA buttons in KEYINPUT bit order */
-const char *const kButtonNames[10] = { "a", "b", "select", "start", "right", "left", "up", "down", "r", "l" };
+const char *const kButtonNames[BINDS] = { "a", "b", "select", "start", "right", "left", "up", "down", "r", "l",
+                                          "menu", "fastforward" };
 static const char *const kDefaultKeys[10] = { "X", "Z", "Backspace", "Return", "Right", "Left", "Up", "Down", "S", "A" };
-static const char *const kDefaultPad[10] = { "b", "a", "back", "start", "dpright", "dpleft", "dpup", "dpdown",
-                                             "rightshoulder", "leftshoulder" };
+static const char *const kDefaultPad[BINDS] = { "b", "a", "back", "start", "dpright", "dpleft", "dpup", "dpdown",
+                                                "rightshoulder", "leftshoulder", "guide", "righttrigger" };
+/* a common layout of generic USB pads */
+static const char *const kDefaultJoy[BINDS] = { "b1", "b0", "b8", "b9", "h0right", "h0left", "h0up", "h0down",
+                                                "b5", "b4", "", "b7" };
+
+static const char *const kHatNames[4] = { "up", "right", "down", "left" };   /* SDL_HAT_* bits */
+
+struct Bind bind_parse(const char *s, int joy) {
+	struct Bind b = { BIND_NONE, 0, 0 };
+	char name[64];
+	int n, len;
+	if (joy) {
+		if (sscanf(s, "b%d%n", &n, &len) == 1 && !s[len]) { b.type = BIND_JBUTTON; b.index = n; }
+		else if (sscanf(s, "a%d%n", &n, &len) == 1 && (s[len] == '+' || s[len] == '-') && !s[len + 1]) {
+			b.type = BIND_JAXIS; b.index = n; b.dir = s[len] == '+' ? 1 : -1;
+		} else if (sscanf(s, "h%d%n", &n, &len) == 1) {
+			for (int i = 0; i < 4; i++)
+				if (!strcmp(s + len, kHatNames[i])) { b.type = BIND_JHAT; b.index = n; b.dir = 1 << i; }
+		}
+		return b;
+	}
+	SDL_GameControllerButton btn = SDL_GameControllerGetButtonFromString(s);
+	if (btn != SDL_CONTROLLER_BUTTON_INVALID) { b.type = BIND_BUTTON; b.index = btn; return b; }
+	snprintf(name, sizeof name, "%s", s);
+	len = (int)strlen(name);
+	int dir = 1;
+	if (len && (name[len - 1] == '+' || name[len - 1] == '-')) { dir = name[len - 1] == '+' ? 1 : -1; name[len - 1] = 0; }
+	SDL_GameControllerAxis ax = SDL_GameControllerGetAxisFromString(name);
+	if (ax != SDL_CONTROLLER_AXIS_INVALID) {
+		b.type = BIND_AXIS; b.index = ax;
+		b.dir = ax >= SDL_CONTROLLER_AXIS_TRIGGERLEFT ? 1 : dir;
+	}
+	return b;
+}
+
+const char *bind_format(struct Bind b, char *buf, int size) {
+	const char *n;
+	buf[0] = 0;
+	switch (b.type) {
+	case BIND_BUTTON:
+		n = SDL_GameControllerGetStringForButton((SDL_GameControllerButton)b.index);
+		snprintf(buf, size, "%s", n ? n : "");
+		break;
+	case BIND_AXIS:
+		n = SDL_GameControllerGetStringForAxis((SDL_GameControllerAxis)b.index);
+		snprintf(buf, size, "%s%s", n ? n : "", b.index >= SDL_CONTROLLER_AXIS_TRIGGERLEFT ? "" : b.dir > 0 ? "+" : "-");
+		break;
+	case BIND_JBUTTON: snprintf(buf, size, "b%d", b.index); break;
+	case BIND_JAXIS: snprintf(buf, size, "a%d%c", b.index, b.dir > 0 ? '+' : '-'); break;
+	case BIND_JHAT:
+		for (int i = 0; i < 4; i++)
+			if (b.dir == 1 << i) snprintf(buf, size, "h%d%s", b.index, kHatNames[i]);
+		break;
+	}
+	return buf;
+}
 
 static char path[512];
 
@@ -69,10 +133,13 @@ void settings_defaults(void) {
 	settings.viewH = 240;
 	settings.viewHeight = 240;
 	settings.hudEdges = 1;
-	for (int i = 0; i < 10; i++) {
-		settings.keys[i] = SDL_GetScancodeFromName(kDefaultKeys[i]);
-		settings.pad[i] = SDL_GameControllerGetButtonFromString(kDefaultPad[i]);
+	for (int i = 0; i < 10; i++) settings.keys[i] = SDL_GetScancodeFromName(kDefaultKeys[i]);
+	for (int i = 0; i < BINDS; i++) {
+		settings.pad[i] = bind_parse(kDefaultPad[i], 0);
+		settings.joy[i] = bind_parse(kDefaultJoy[i], 1);
 	}
+	settings.stickMoves = 1;
+	settings.deadzone = 40;
 }
 
 static void set_defaults(void) {
@@ -105,15 +172,17 @@ static void apply(const char *key, const char *value) {
 	else if (!strcmp(key, "view_height")) settings.viewH = atoi(value);
 	else if (!strcmp(key, "view_window_height")) settings.viewHeight = atoi(value);
 	else if (!strcmp(key, "hud_edges")) settings.hudEdges = atoi(value);
-	else if (!strncmp(key, "key_", 4) || !strncmp(key, "pad_", 4)) {
-		for (int i = 0; i < 10; i++) {
+	else if (!strcmp(key, "stick_moves")) settings.stickMoves = atoi(value);
+	else if (!strcmp(key, "stick_deadzone")) settings.deadzone = atoi(value);
+	else if (!strncmp(key, "key_", 4) || !strncmp(key, "pad_", 4) || !strncmp(key, "joy_", 4)) {
+		for (int i = 0; i < BINDS; i++) {
 			if (strcmp(key + 4, kButtonNames[i])) continue;
 			if (key[0] == 'k') {
 				SDL_Scancode sc = SDL_GetScancodeFromName(value);
-				if (sc != SDL_SCANCODE_UNKNOWN) settings.keys[i] = sc;
+				if (sc != SDL_SCANCODE_UNKNOWN && i < 10) settings.keys[i] = sc;
 			} else {
-				SDL_GameControllerButton b = SDL_GameControllerGetButtonFromString(value);
-				if (b != SDL_CONTROLLER_BUTTON_INVALID) settings.pad[i] = b;
+				struct Bind b = bind_parse(value, key[0] == 'j');
+				if (b.type != BIND_NONE || !*value) (key[0] == 'j' ? settings.joy : settings.pad)[i] = b;
 			}
 		}
 	}
@@ -156,8 +225,13 @@ void settings_save(void) {
 	        kViewNames[settings.viewMode], settings.viewW, settings.viewH, settings.viewHeight, settings.hudEdges);
 	fprintf(f, "\n# keyboard (SDL key names)\n");
 	for (int i = 0; i < 10; i++) fprintf(f, "key_%s = %s\n", kButtonNames[i], SDL_GetScancodeName(settings.keys[i]));
-	fprintf(f, "\n# gamepad (SDL button names)\n");
-	for (int i = 0; i < 10; i++) fprintf(f, "pad_%s = %s\n", kButtonNames[i], SDL_GameControllerGetStringForButton(settings.pad[i]));
+	char buf[32];
+	fprintf(f, "\n# controllers: SDL button names by position (a = bottom face button), or axes\n"
+	           "# (lefttrigger, righttrigger, leftx+, lefty-...); empty for none\n");
+	for (int i = 0; i < BINDS; i++) fprintf(f, "pad_%s = %s\n", kButtonNames[i], bind_format(settings.pad[i], buf, sizeof buf));
+	fprintf(f, "\n# joysticks without an SDL mapping: b<n> button, h<n>up/down/left/right hat, a<n>+/- axis\n");
+	for (int i = 0; i < BINDS; i++) fprintf(f, "joy_%s = %s\n", kButtonNames[i], bind_format(settings.joy[i], buf, sizeof buf));
+	fprintf(f, "stick_moves = %d\nstick_deadzone = %d\n", settings.stickMoves, settings.deadzone);
 	fclose(f);
 }
 
