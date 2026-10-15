@@ -287,6 +287,14 @@ static void settings_window() {
 		settings_view_size(ww, wh, &vw, &vh);
 		ImGui::TextDisabled("Showing %dx%d of the world in stages (%.2fx the GBA's area).", vw, vh, vw * vh / (240.0 * 160));
 		bool he = settings.hudEdges;
+		{
+			static const int speeds[] = { 100, 200, 400, 800 };
+			static const char *const names[] = { "GBA (slows down where it did)", "2x", "4x", "8x" };
+			int cur = 0;
+			for (int k = 0; k < 4; k++) if (settings.cpuSpeed >= speeds[k]) cur = k;
+			if (ImGui::Combo("Game CPU", &cur, names, 4)) settings.cpuSpeed = speeds[cur];
+			if (ImGui::IsItemHovered()) ImGui::SetTooltip("CPU time the game gets each frame. More removes the slowdown\n(lots of enemies, the wide view) without speeding the game up.");
+		}
 		if (ImGui::Checkbox("HUD at the screen's edges", &he)) settings.hudEdges = he;
 		bool is = settings.integerScale, sm = settings.smooth;
 		if (ImGui::Checkbox("Whole-number scaling only", &is)) settings.integerScale = is;

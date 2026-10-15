@@ -24,7 +24,8 @@ struct Settings {
 	int viewMode;            /* VIEW_* */
 	int viewW, viewH;        /* VIEW_CUSTOM */
 	int viewHeight;          /* VIEW_WINDOW: world pixels from top to bottom */
-	int hudEdges;            /* the HUD at the view's edges (else over the GBA area) */
+	int hudEdges;
+	int cpuSpeed;            /* percent of the GBA's CPU per frame (100: its slowdown as it was) */            /* the HUD at the view's edges (else over the GBA area) */
 	SDL_Scancode keys[10];   /* per GBA button, KEYINPUT order */
 	struct Bind pad[BINDS];  /* recognised controllers: GBA buttons, then hotkeys */
 	struct Bind joy[BINDS];  /* other joysticks (no SDL mapping) */

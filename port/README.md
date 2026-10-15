@@ -55,6 +55,14 @@ with the defaults on the first start; it can also be edited by hand:
 axis names such as `a`, `dpup`, `righttrigger`, `leftx-`, and `joy_<button>`
 raw joystick inputs such as `b3`, `h0up`, `a1+`).
 
+**Game CPU (F1, Video).** The game counts the time its code would take on a
+GBA, so it slows down where the GBA would (many enemies on screen, and much
+more in the wide views, where enemies around the screen are active too). By
+default it gets 4x the GBA's CPU time per frame, so there are no lag
+frames; the game still runs at the GBA's 59.73 frames a second (faster only
+while fast-forwarding), and music and effects keep their timing. "GBA" puts
+the original slowdown back (`cpu_speed` in `mmz.ini`, `--cpu-speed`).
+
 **Debug tools (F2).**
 * Status: frame, speed, scanline, game mode, mission, area, camera position.
 * Speed: pause, frame step, fast-forward, and the timing calibration.

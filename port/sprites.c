@@ -143,7 +143,9 @@ void lift_sub_0800338C(void) {
 }
 
 /* the game copied its OAM buffer to OAM: what was collected is on screen now */
+long sprite_commits;   /* frames the game finished (testing: LAGDEBUG) */
 void sprites_commit(void) {
+	sprite_commits++;
 	view_sprites = lists[building];
 	view_sprite_count = counts[building];
 	building ^= 1;

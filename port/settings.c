@@ -8,6 +8,8 @@
  *   mute = 0
  *   integer_scale = 1         only whole multiples of the GBA picture
  *   smooth = 0                linear filtering
+ *   cpu_speed = 400           CPU per frame, percent of the GBA's (100: slows
+ *                             down where the GBA did)
  *   view = gba                how much of the world: gba, x2, x3, x4, mmx
  *                             (Mega Man X, 256x224), custom (view_width x
  *                             view_height), window (the window's shape,
@@ -133,6 +135,7 @@ void settings_defaults(void) {
 	settings.viewH = 240;
 	settings.viewHeight = 240;
 	settings.hudEdges = 1;
+	settings.cpuSpeed = 400;   /* no slowdown where the GBA ran out of time */
 	for (int i = 0; i < 10; i++) settings.keys[i] = SDL_GetScancodeFromName(kDefaultKeys[i]);
 	for (int i = 0; i < BINDS; i++) {
 		settings.pad[i] = bind_parse(kDefaultPad[i], 0);
@@ -172,6 +175,7 @@ static void apply(const char *key, const char *value) {
 	else if (!strcmp(key, "view_height")) settings.viewH = atoi(value);
 	else if (!strcmp(key, "view_window_height")) settings.viewHeight = atoi(value);
 	else if (!strcmp(key, "hud_edges")) settings.hudEdges = atoi(value);
+	else if (!strcmp(key, "cpu_speed")) settings.cpuSpeed = atoi(value);
 	else if (!strcmp(key, "stick_moves")) settings.stickMoves = atoi(value);
 	else if (!strcmp(key, "stick_deadzone")) settings.deadzone = atoi(value);
 	else if (!strncmp(key, "key_", 4) || !strncmp(key, "pad_", 4) || !strncmp(key, "joy_", 4)) {
@@ -223,6 +227,7 @@ void settings_save(void) {
 	           "# (the window's shape, view_window_height world pixels high)\n");
 	fprintf(f, "view = %s\nview_width = %d\nview_height = %d\nview_window_height = %d\nhud_edges = %d\n",
 	        kViewNames[settings.viewMode], settings.viewW, settings.viewH, settings.viewHeight, settings.hudEdges);
+	fprintf(f, "\n# CPU time the game gets per frame, percent of the GBA's (100: the GBA's slowdown)\ncpu_speed = %d\n", settings.cpuSpeed);
 	fprintf(f, "\n# keyboard (SDL key names)\n");
 	for (int i = 0; i < 10; i++) fprintf(f, "key_%s = %s\n", kButtonNames[i], SDL_GetScancodeName(settings.keys[i]));
 	char buf[32];

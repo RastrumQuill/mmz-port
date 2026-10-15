@@ -254,6 +254,7 @@ static void route_step(void) {
 		if (routeFrame < 0) {
 			char line[512];
 			if (!fgets(line, sizeof line, route)) { save_flush(); exit(0); }
+			if (getenv("LAGDEBUG")) { extern long sprite_commits; fprintf(stderr, "lag: frame %ld game frames %ld\n", frameCount, sprite_commits); }
 			routeArg1[0] = routeArg2[0] = routeArg3[0] = 0;
 			if (line[0] == '#' || sscanf(line, "%ld %63s %255s %63s %255s", &routeFrame, routeCmd, routeArg1, routeArg2, routeArg3) < 2) {
 				routeFrame = -1;
@@ -394,6 +395,7 @@ static void sdl_frame(void) {
 	SDL_GetRendererOutputSize(renderer, &ww, &wh);
 	settings_view_size(ww, wh, &view_w, &view_h);   /* (used from the next frame) */
 	view_hud_edges = settings.hudEdges;
+	hw_cpu_speed = settings.cpuSpeed < 100 ? 100 : settings.cpuSpeed > 1600 ? 1600 : settings.cpuSpeed;
 	sdl_events();
 	/* paused (or in the settings): the game waits here, at the frame's end */
 	while ((debug.paused && !debug.step) || ui_pauses_game()) {
@@ -457,7 +459,7 @@ u16 frontend_keys(void) {
 
 int main(int argc, char **argv) {
 	const char *romArg = NULL, *configArg = NULL, *viewArg = NULL;
-	int scale = 0;
+	int scale = 0, cpuArg = 0;
 	savePath = NULL;
 	for (int i = 1; i < argc; i++) {
 		if (!strcmp(argv[i], "--rom") && i + 1 < argc) romArg = argv[++i];
@@ -466,6 +468,7 @@ int main(int argc, char **argv) {
 		else if (!strcmp(argv[i], "--scale") && i + 1 < argc) scale = atoi(argv[++i]);
 		else if (!strcmp(argv[i], "--headless")) headless = 1;
 		else if (!strcmp(argv[i], "--skip-intro")) skipIntro = 1;
+		else if (!strcmp(argv[i], "--cpu-speed") && i + 1 < argc) cpuArg = atoi(argv[++i]);
 		else if (!strcmp(argv[i], "--view") && i + 1 < argc) viewArg = argv[++i];
 		else if (!strcmp(argv[i], "--ui-test") && i + 1 < argc) ui_test(argv[++i]);
 		else if (!strcmp(argv[i], "--wav") && i + 1 < argc) {
@@ -478,7 +481,7 @@ int main(int argc, char **argv) {
 			if (!route) { fprintf(stderr, "cannot open route %s\n", argv[i]); return 1; }
 		}
 		else {
-			fprintf(stderr, "usage: mmz [--rom FILE] [--save FILE] [--config FILE] [--scale N] [--view MODE] [--skip-intro]\n"
+			fprintf(stderr, "usage: mmz [--rom FILE] [--save FILE] [--config FILE] [--scale N] [--view MODE] [--cpu-speed PERCENT] [--skip-intro]\n"
 			                "       mmz --headless --route FILE [--wav FILE] [--rom FILE] [--save FILE]\n");
 			return 1;
 		}
@@ -486,6 +489,8 @@ int main(int argc, char **argv) {
 	if (headless && !route) { fprintf(stderr, "--headless needs --route\n"); return 1; }
 	settings_load(configArg);
 	if (scale > 0) settings.scale = scale;
+	if (cpuArg > 0) settings.cpuSpeed = cpuArg;
+	hw_cpu_speed = settings.cpuSpeed < 100 ? 100 : settings.cpuSpeed > 1600 ? 1600 : settings.cpuSpeed;
 	if (viewArg) {   /* a mode name, or WIDTHxHEIGHT */
 		int vw, vh;
 		if (sscanf(viewArg, "%dx%d", &vw, &vh) == 2) { settings.viewMode = VIEW_CUSTOM; settings.viewW = vw; settings.viewH = vh; }

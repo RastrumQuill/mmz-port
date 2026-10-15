@@ -200,9 +200,10 @@ static void next_line(void) {
  * of CPU cycles (1232) has gone by. */
 static u32 lineStart;
 int hw_cycle_scale = 120;   /* percent: the cycle counts are low by about this much (measured against mGBA) */
+int hw_cpu_speed = 100;     /* percent of the GBA's CPU per line (more: no lag frames; timers keep real time) */
 void rt_tick(void) {
 	if (inLine) return;
-	u32 line = 1232 * 100 / hw_cycle_scale;
+	u32 line = (u32)(1232LL * 100 * 100 / ((long long)hw_cycle_scale * hw_cpu_speed));
 	while (lift_cycles - lineStart >= line) {
 		lineStart += line;
 		next_line();
