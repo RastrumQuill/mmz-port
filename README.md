@@ -37,13 +37,25 @@ byte-identical C. Two generated layers make that cheap:
 * `ref/ghidra/` (`make ghidra-ref`): Ghidra's decompilation of every function,
   as a starting point for readable C.
 
-`make check-lifted` builds `tools/lift/harness.c` and plays a route in mGBA.
-Each time a function is entered it copies the machine state, lets the
-original run to its return, runs the lifted C from the copy, and compares the
-results: r0, the registers a function must preserve, and all of memory and
-the I/O registers. Results go to `build_lift/results.tsv`. With the intro
-route: 652 functions tested, 650 identical (the other two use the task
-switching code).
+`make check-lifted` builds the check and plays a route in mGBA. Each time a
+function is entered it copies the machine state, lets the original run to its
+return, runs the C version from the copy, and compares the results: r0, the
+registers a function must preserve, and all of memory and the I/O registers.
+Results go to `build_lift/results.tsv`. The C runs in `exec32`, a 32-bit
+process with the GBA memory mapped at its own addresses, so game pointers work
+as they are; `harness` (mGBA) shares that memory with it (`tools/lift/shm.h`).
+
+Random play from a save, with the mission byte overwritten so it reaches every
+stage (`tools/emu/fuzz_route.py FRAMES SEED SLOT MISSION`, run with
+`SAVE=file.sav`): 2358 functions tested, all identical except the task
+switching code and a few being looked into.
+
+Readable C replaces lifted code one function at a time. Lifted functions are
+weak `lift_NAME` symbols; a C function in `src/` replaces its lifted version
+with `LIFT_EXPORT_VOID(Name)` or `LIFT_EXPORT(type, Name)` next to it, and can
+call code that is still lifted with `LIFT_CALL(Name, a0, a1, a2, a3)` (see
+`tools/lift/lift.h`). `src/` is built with `PLATFORM_PC` for this, and then
+checked like the lifted code. `src/input.c` is checked this way.
 
 Things the check has to model, because the game depends on them:
 * Reads through null pointers return the last BIOS opcode (the game does
