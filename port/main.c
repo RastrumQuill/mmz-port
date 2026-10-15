@@ -57,17 +57,47 @@ static void fatal(const char *fmt, ...) {
 
 /* The GBA memory at its own addresses, so game pointers work as they are. */
 #ifdef _WIN32
-/* The GBA's address ranges, reserved before anything else runs: Windows
-   hands out low addresses to whatever asks first (the file dialog's shell
-   extensions, graphics drivers, overlays), and the game's memory has to be
-   at these exact addresses. */
+/* The game's memory has to be at the GBA's own addresses, but Windows hands
+   out low addresses to whatever asks first: injected overlays and hooks,
+   graphics drivers, the file dialog's shell extensions. So the ranges are
+   reserved before anything else runs (a constructor). If something already
+   holds them by then, the game starts itself again suspended, before any DLL
+   is loaded into the new process, reserves them there, and lets it run. */
 static const struct { u32 addr, size; } kGbaRanges[] = {
 	{ 0x02000000, 0x40000 }, { 0x03000000, 0x8000 }, { 0x04000000, 0x1000 }, { 0x05000000, 0x1000 },
 	{ 0x06000000, 0x18000 }, { 0x07000000, 0x1000 }, { 0x08000000, 0x2000000 }, { 0x0E000000, 0x8000 },
 };
+#define NRANGES (sizeof kGbaRanges / sizeof *kGbaRanges)
+
+static int reserve_in(HANDLE proc) {
+	int ok = 1;
+	for (unsigned i = 0; i < NRANGES; i++) {
+		void *want = (void *)(uintptr_t)kGbaRanges[i].addr;
+		MEMORY_BASIC_INFORMATION mi;
+		/* already reserved (by the parent, for this process) */
+		if (VirtualQueryEx(proc, want, &mi, sizeof mi) && mi.State == MEM_RESERVE && mi.AllocationBase == want)
+			continue;
+		if (VirtualAllocEx(proc, want, kGbaRanges[i].size, MEM_RESERVE, PAGE_NOACCESS) != want) ok = 0;
+	}
+	return ok;
+}
+
 __attribute__((constructor(101))) static void reserve_gba_ranges(void) {
-	for (unsigned i = 0; i < sizeof kGbaRanges / sizeof *kGbaRanges; i++)
-		VirtualAlloc((void *)(uintptr_t)kGbaRanges[i].addr, kGbaRanges[i].size, MEM_RESERVE, PAGE_NOACCESS);
+	if (reserve_in(GetCurrentProcess())) return;
+	if (GetEnvironmentVariableA("MMZ_RELAUNCHED", NULL, 0)) return;   /* map_at reports it */
+	SetEnvironmentVariableA("MMZ_RELAUNCHED", "1");
+	STARTUPINFOW si = { sizeof si };
+	PROCESS_INFORMATION pi;
+	wchar_t exe[MAX_PATH];
+	GetModuleFileNameW(NULL, exe, MAX_PATH);
+	if (!CreateProcessW(exe, GetCommandLineW(), NULL, NULL, TRUE, CREATE_SUSPENDED, NULL, NULL, &si, &pi))
+		return;
+	reserve_in(pi.hProcess);
+	ResumeThread(pi.hThread);
+	WaitForSingleObject(pi.hProcess, INFINITE);
+	DWORD code = 1;
+	GetExitCodeProcess(pi.hProcess, &code);
+	ExitProcess(code);
 }
 #endif
 
@@ -79,12 +109,17 @@ static void *map_at(u32 addr, u32 size) {
 	if (p != (void *)(uintptr_t)addr) {
 		DWORD err = GetLastError();
 		/* what is there, to report */
-		MEMORY_BASIC_INFORMATION mi;
+		MEMORY_BASIC_INFORMATION mi = { 0 };
 		char owner[MAX_PATH] = "";
-		if (VirtualQuery((void *)(uintptr_t)addr, &mi, sizeof mi) && mi.State != MEM_FREE)
+		VirtualQuery((void *)(uintptr_t)addr, &mi, sizeof mi);
+		if (mi.State != MEM_FREE && mi.Type == MEM_IMAGE)
 			GetModuleFileNameA((HMODULE)mi.AllocationBase, owner, sizeof owner);
-		fatal("Cannot reserve the GBA memory at %08X (error %lu)%s%s.", addr, err,
-		      owner[0] ? ": it is used by " : "", owner);
+		fatal("Cannot reserve the GBA memory at %08X (error %lu).\n\n"
+		      "Something else in the process holds %p-%p (%s%s%s, state %lX).%s",
+		      addr, err, mi.AllocationBase, (char *)mi.BaseAddress + mi.RegionSize,
+		      mi.Type == MEM_IMAGE ? "a program file" : mi.Type == MEM_MAPPED ? "a mapped file" : "private memory",
+		      owner[0] ? ": " : "", owner, (unsigned long)mi.State,
+		      GetEnvironmentVariableA("MMZ_RELAUNCHED", NULL, 0) ? " (after a restart)" : "");
 	}
 #else
 	void *p = mmap((void *)(uintptr_t)addr, size, PROT_READ | PROT_WRITE,

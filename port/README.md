@@ -12,6 +12,9 @@ stays free of platform code.
 
 ## Playing
 
+Download `mmz-windows.zip` (or `mmz-linux.zip`) from the
+[releases](https://github.com/RastrumQuill/mmz-port/releases).
+
 Windows: unzip, run `mmz.exe`. On the first start it asks for the ROM (or
 put it next to `mmz.exe` as `baserom.gba`). Saves go next to the ROM as
 `.sav` (the same format as GBA emulators, so emulator saves work).
@@ -72,6 +75,9 @@ Linux (needs SDL2): `make port` from the repository root, then
 Windows, cross-compiled with MinGW and the SDL2 MinGW development package:
 `make -C port WINDOWS=1 SDL2_DIR=.../SDL2-2.30.x/x86_64-w64-mingw32 dist`
 makes `build_port_win/mmz-windows.zip`.
+
+Releases are built by GitHub Actions (`.github/workflows/build.yml`): every
+push is built, and pushing a tag `v*` publishes a release with both zips.
 
 ## How it works
 

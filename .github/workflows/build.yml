@@ -1,0 +1,87 @@
+name: Build
+
+# Builds the PC port for Windows and Linux on every push. A tag v* (or a run
+# started by hand with a release name) also publishes a release with both
+# zips. No ROM is needed: the executable contains no game data and reads it
+# from the player's ROM at startup.
+
+on:
+  push:
+    branches: ["**"]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      release:
+        description: "Also publish a release with this tag (e.g. v0.1.0); leave empty to only build"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+env:
+  SDL2_VERSION: 2.30.9
+
+jobs:
+  windows:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install the MinGW cross compiler
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-mingw-w64-x86-64 g++-mingw-w64-x86-64 zip
+
+      - name: Get the SDL2 MinGW development package
+        run: |
+          curl -sSL -o sdl2.tar.gz "https://github.com/libsdl-org/SDL/releases/download/release-${SDL2_VERSION}/SDL2-devel-${SDL2_VERSION}-mingw.tar.gz"
+          mkdir -p sdl2 && tar -xzf sdl2.tar.gz -C sdl2
+
+      - name: Build
+        run: make -j"$(nproc)" -C port WINDOWS=1 SDL2_DIR="$GITHUB_WORKSPACE/sdl2/SDL2-${SDL2_VERSION}/x86_64-w64-mingw32" dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mmz-windows
+          path: build_port_win/mmz-windows.zip
+
+  linux:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install SDL2
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libsdl2-dev zip
+
+      - name: Build
+        run: make -j"$(nproc)" -C port dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mmz-linux
+          path: build_port/mmz-linux.zip
+
+  release:
+    needs: [windows, linux]
+    if: startsWith(github.ref, 'refs/tags/v') || inputs.release != ''
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Publish the release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.release || github.ref_name }}
+          target_commitish: ${{ github.sha }}
+          files: |
+            dist/mmz-windows.zip
+            dist/mmz-linux.zip
+          prerelease: true
+          generate_release_notes: true
