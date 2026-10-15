@@ -284,7 +284,10 @@ static void draw_hud(int w, int h, int ox, int oy) {
 		if (dispcnt & (0x2000 << k)) {
 			u16 wh = R16(80, 0x40 + k * 2), wv = R16(80, 0x44 + k * 2);
 			boxL[nb] = wh >> 8; boxR[nb] = wh & 0xFF; boxT[nb] = wv >> 8; boxB[nb] = wv & 0xFF;
-			if (boxR[nb] > boxL[nb] && boxB[nb] > boxT[nb]) nb++;
+			/* a text box: wide, but not most of the screen (the game also
+			   puts windows around the HP bar and over the whole field) */
+			int bw = boxR[nb] - boxL[nb], bh = boxB[nb] - boxT[nb];
+			if (bw >= SCREEN_W / 2 && bh > 0 && bw * bh < SCREEN_W * SCREEN_H * 3 / 4) nb++;
 		}
 	int dx[64], dy[64];
 	for (int id = 1; id <= n; id++) {
