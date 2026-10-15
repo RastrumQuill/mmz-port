@@ -1,8 +1,8 @@
 # The PC build: the lifted C (lifted/), the hand-written C (src/, built with
 # PLATFORM_PC), the runtime (tools/lift/runtime.c) and the platform layer
-# (pc/). Run from the repository root: make -C pc, or make pc.
+# (port/). Run from the repository root: make -C port, or make port.
 ROOT := ..
-OUT ?= $(ROOT)/build_pc
+OUT ?= $(ROOT)/build_port
 CC ?= cc
 OPT ?= -O2
 CFLAGS := -std=gnu11 $(OPT) -g -fwrapv -w -fno-pie -I $(ROOT)/tools/lift -I $(ROOT)/lifted -I $(ROOT)/include $(shell sdl2-config --cflags)

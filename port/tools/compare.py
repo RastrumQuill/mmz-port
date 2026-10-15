@@ -1,6 +1,6 @@
 """Compare the PC build's screenshots (.ppm) with mGBA's (.png).
 
-usage: pc_compare.py PC_DIR REF_DIR [SHEET.png]
+usage: compare.py PC_DIR REF_DIR [SHEET.png]
 Prints the share of identical pixels per frame; SHEET gets the differing
 frames side by side (mGBA, PC, differing pixels).
 """
