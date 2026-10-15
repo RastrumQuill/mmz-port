@@ -12,7 +12,7 @@
  * the I/O registers that do not change on their own). Tests interrupted by an
  * IRQ, or longer than the step limit, are dropped.
  * Environment: SAVE=file (start from a save), SPACING=frames, VERBOSE=1,
- * ONLY=address (test one function, e.g. ONLY=080491BD).
+ * ONLY=address (test one function, e.g. ONLY=080491BD), STEPS=limit.
  */
 #include <mgba/core/core.h>
 #include <mgba/core/log.h>
@@ -185,6 +185,8 @@ int main(int argc, char **argv) {
 	   the tests spread over the route instead of all being the first calls */
 	long spacing = getenv("SPACING") ? atol(getenv("SPACING")) : 0;
 	long *nextFrame = calloc(tableSize, sizeof(long));
+	/* STEPS=N: the most instructions a tested call may take */
+	long stepLimit = getenv("STEPS") ? atol(getenv("STEPS")) : 400000;
 	char (*why)[128] = calloc(tableSize, 128);
 	/* entry index by ROM halfword */
 	int *entryAt = malloc(sizeof(int) * (0x200000));
@@ -219,7 +221,7 @@ int main(int argc, char **argv) {
 				if (open >= 0) {
 					openSteps++;
 					if (arm->cpsr.priv == MODE_IRQ) sawIrq = 1;
-					if (openSteps > 400000) { arm->cpsr.i = savedI; arm->irqh.readCPSR(arm); tested[open] = maxPer; snprintf(why[open], 128, "no return within the step limit"); timeouts++; open = -1; continue; }
+					if (openSteps > stepLimit) { arm->cpsr.i = savedI; arm->irqh.readCPSR(arm); tested[open] = maxPer; snprintf(why[open], 128, "no return within the step limit"); timeouts++; open = -1; continue; }
 					if (thumb && (pc & ~1u) == (openLR & ~1u) && (u32)arm->gprs[ARM_SP] == openSP + 0) {
 						/* the original returned: run the lifted version from the snapshot */
 						int idx = open;
