@@ -47,8 +47,8 @@ as they are; `harness` (mGBA) shares that memory with it (`tools/lift/shm.h`).
 
 Random play from a save, with the mission byte overwritten so it reaches every
 stage (`tools/emu/fuzz_route.py FRAMES SEED SLOT MISSION`, run with
-`SAVE=file.sav`): 2358 functions tested, all identical except the task
-switching code and a few being looked into.
+`SAVE=file.sav`): 2358 functions tested, all identical except the two task
+switching functions, which need the PC runtime.
 
 Readable C replaces lifted code one function at a time. Lifted functions are
 weak `lift_NAME` symbols; a C function in `src/` replaces its lifted version
