@@ -117,6 +117,21 @@ for unit in units:
         else:
             addr += 4
 
+def insn_cycles(t):
+    """Cycles an instruction takes besides its memory accesses (which the
+    runtime counts): 1 to execute (the cartridge prefetch keeps code fetches
+    at about 1 cycle), 1 more for a load, a few for a multiply. Taken
+    branches add theirs where they branch."""
+    op = t.split()[0] if t.split() else ''
+    c = 1
+    if op in ('bl', 'blx'):
+        c = 2
+    if op.startswith('ldr') or op in ('pop', 'ldm', 'ldmia', 'ldmfd'):
+        c += 1
+    if op.startswith('mul') or op.startswith('mla') or op in ('umull', 'smull', 'umlal', 'smlal'):
+        c += 3
+    return c
+
 def trampoline_reg(f):
     """N if the function is only `bx rN`, else None."""
     insns = [t for a, k, t in f.items if k == 'insn']
@@ -218,7 +233,7 @@ class Gen:
     def branch(self, tgt, addr):
         f = self.f
         if tgt in f.labels:
-            return 'goto L_%08X;' % f.labels[tgt]
+            return '{ LIFT_CYC(2); goto L_%08X; }' % f.labels[tgt]
         o = label_owner.get(tgt)
         if o is None:
             return 'lift_fail(0x%08X); /* branch to unknown %s */' % (addr, tgt)
@@ -251,7 +266,7 @@ class Gen:
 
     def jump(self, expr):
         self.uses_jump = True
-        self.emit('jt = %s; goto do_jump;' % expr)
+        self.emit('LIFT_CYC(2); jt = %s; goto do_jump;' % expr)
 
     def operand2(self, ops, addr):
         """ARM operand 2: '#imm', 'rm', or 'rm, <shift> #n' / 'rm, <shift> rs'."""
@@ -472,7 +487,7 @@ class Gen:
                 e('if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }')
                 e('lift_call(jt);')
                 return
-            e('cpu.r[14] = 0x%08X; %s();' % (ret, cname(callee)))
+            e('LIFT_CYC(2); cpu.r[14] = 0x%08X; %s();' % (ret, cname(callee)))
             return
         if op == 'bx':
             self.jump(R(reg(ops[0])))
@@ -618,6 +633,7 @@ class Gen:
                     emitted_labels.add(a)
                 try:
                     before = len(self.lines)
+                    self.emit('LIFT_CYC(%d);' % insn_cycles(t))
                     self.insn(a, t)
                     # reads of unmapped memory return the prefetched opcode,
                     # which depends on where the code is

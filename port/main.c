@@ -255,7 +255,7 @@ int main(int argc, char **argv) {
 		else if (!strcmp(argv[i], "--route") && i + 1 < argc) {
 			route = fopen(argv[++i], "r");
 			if (!route) { fprintf(stderr, "cannot open route %s\n", argv[i]); return 1; }
-		} else if (!strcmp(argv[i], "--reads-per-line") && i + 1 < argc) hw_reads_per_line = atoi(argv[++i]);
+		}
 		else { fprintf(stderr, "usage: mmz [--rom FILE] [--save FILE] [--scale N] [--headless --route FILE]\n"); return 1; }
 	}
 	if (headless && !route) { fprintf(stderr, "--headless needs --route\n"); return 1; }
@@ -285,6 +285,7 @@ int main(int argc, char **argv) {
 	*(u16 *)0x04000000 = 0x80;     /* DISPCNT: forced blank */
 	biosBus = 0xE129F000;
 	budget = 0x7FFFFFFFFFFFFFFFL;
+	if (getenv("MMZ_CYCLE_SCALE")) hw_cycle_scale = atoi(getenv("MMZ_CYCLE_SCALE"));
 	hw_reset();
 	tasks_reset();
 	if (setjmp(failJmp)) {

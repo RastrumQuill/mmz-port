@@ -14,6 +14,7 @@ u32 lift_tail_lr, lift_tail_lr2, lift_ret;
 u32 lift_pc;
 int lift_tail;
 int lift_void;
+u32 lift_cycles;
 
 /* ------------------------------------------------------------ native memory */
 
@@ -67,11 +68,26 @@ __attribute__((weak)) void rt_tick(void) {}
 __attribute__((weak)) void rt_io_read(u32 o) { (void)o; }
 __attribute__((weak)) void rt_io_write(u32 o, u32 old) { (void)o; (void)old; }
 
-static void tick(void) {
+/* Cycles an access takes, with the wait states the game sets (WAITCNT
+ * 0x45B7): EWRAM has a 16-bit bus and 2 wait states, the cartridge 3 for
+ * the first access, SRAM 8. */
+static u32 access_cycles(u32 a, int size) {
+	switch (a >> 24) {
+	case 2: return size == 4 ? 6 : 3;
+	case 5: case 6: return size == 4 ? 2 : 1;
+	case 8: case 9: case 0xA: case 0xB: case 0xC: case 0xD: return size == 4 ? 6 : 4;
+	case 0xE: case 0xF: return 9;
+	}
+	return 1;
+}
+
+static void tick_at(u32 a, int size) {
 	if (--budget < 0)
 		fail("too long", cpu.r[15]);
+	lift_cycles += access_cycles(a, size);
 	rt_tick();
 }
+#define tick() tick_at(a, size_)
 
 /* Unmapped reads return the opcode the CPU prefetched: in Thumb the
  * halfword two instructions ahead, twice; in ARM the word two ahead. */
@@ -105,9 +121,9 @@ static u32 bios_read(u32 a, int size) {
 	u32 v = ror32(biosBus, (a & 3) * 8);
 	return size == 1 ? v & 0xFF : size == 2 ? v & 0xFFFF : v;
 }
-u32 lift_read8(u32 a) { if ((a >> 24) == 4) rt_io_read(a & 0x3FE); u8 *p = ptr(a, 0); tick(); if (!p) { if (a < 0x4000) return bios_read(a, 1); if (rom_oob(a)) return rom_oob_read(a, 1); unmapped(a); return open_bus(a) & 0xFF; } return *p; }
-u32 lift_read16(u32 a) { if ((a >> 25) == 7) return lift_read8(a) * 0x101; if ((a >> 24) == 4) rt_io_read(a & 0x3FE); u8 *p = ptr(a, 0); tick(); if (!p) { if (a < 0x4000) return bios_read(a, 2); if (rom_oob(a)) return rom_oob_read(a, 2); unmapped(a); return open_bus(a) & 0xFFFF; } return p ? p[0] | p[1] << 8 : 0; }
-u32 lift_read32(u32 a) { if ((a >> 25) == 7) return lift_read8(a) * 0x01010101; if ((a >> 24) == 4) { rt_io_read(a & 0x3FC); rt_io_read((a & 0x3FC) + 2); } u8 *p = ptr(a, 0); tick(); if (!p) { if (a < 0x4000) return bios_read(a, 4); if (rom_oob(a)) return rom_oob_read(a, 4); unmapped(a); return open_bus(a); } return p ? p[0] | p[1] << 8 | p[2] << 16 | (u32)p[3] << 24 : 0; }
+u32 lift_read8(u32 a) { const int size_ = 1; if ((a >> 24) == 4) rt_io_read(a & 0x3FE); u8 *p = ptr(a, 0); tick(); if (!p) { if (a < 0x4000) return bios_read(a, 1); if (rom_oob(a)) return rom_oob_read(a, 1); unmapped(a); return open_bus(a) & 0xFF; } return *p; }
+u32 lift_read16(u32 a) { const int size_ = 2; if ((a >> 25) == 7) return lift_read8(a) * 0x101; if ((a >> 24) == 4) rt_io_read(a & 0x3FE); u8 *p = ptr(a, 0); tick(); if (!p) { if (a < 0x4000) return bios_read(a, 2); if (rom_oob(a)) return rom_oob_read(a, 2); unmapped(a); return open_bus(a) & 0xFFFF; } return p ? p[0] | p[1] << 8 : 0; }
+u32 lift_read32(u32 a) { const int size_ = 4; if ((a >> 25) == 7) return lift_read8(a) * 0x01010101; if ((a >> 24) == 4) { rt_io_read(a & 0x3FC); rt_io_read((a & 0x3FC) + 2); } u8 *p = ptr(a, 0); tick(); if (!p) { if (a < 0x4000) return bios_read(a, 4); if (rom_oob(a)) return rom_oob_read(a, 4); unmapped(a); return open_bus(a); } return p ? p[0] | p[1] << 8 | p[2] << 16 | (u32)p[3] << 24 : 0; }
 
 static void dma_check(u32 reg);
 
@@ -140,6 +156,7 @@ static void io_store16(u32 o, u32 v) {
 }
 
 void lift_write8(u32 a, u32 v) {
+	lift_cycles += access_cycles(a, 1);
 	rt_tick();
 	u32 r = a >> 24;
 	if (r == 7 || (r == 6 && (a & 0x1FFFF) >= 0x10000))
@@ -161,6 +178,7 @@ void lift_write8(u32 a, u32 v) {
 	if (p) *p = v;
 }
 void lift_write16(u32 a, u32 v) {
+	lift_cycles += access_cycles(a, 2);
 	rt_tick();
 	if ((a >> 25) == 7) { sram[a & 0x7FFF] = ror32(v, (a & 1) * 8); return; }
 	if ((a >> 24) == 4) {
@@ -172,6 +190,7 @@ void lift_write16(u32 a, u32 v) {
 	if ((a >> 24) == 4) dma_check(a);
 }
 void lift_write32(u32 a, u32 v) {
+	lift_cycles += access_cycles(a, 4);
 	rt_tick();
 	if ((a >> 25) == 7) { sram[a & 0x7FFF] = ror32(v, (a & 3) * 8); return; }
 	if ((a >> 24) == 4) {

@@ -4,7 +4,7 @@
 #include "lift.h"
 
 /* hw.c */
-extern int hw_line, hw_reads_per_line;
+extern int hw_line, hw_cycle_scale;
 void hw_irq(u16 bit);
 void hw_fifo_request(int fifo);
 void hw_reset(void);

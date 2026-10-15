@@ -94,6 +94,11 @@ typedef u32 (*LiftFn4)(u32, u32, u32, u32);
     cpu.r[0] = (u32)(a0); cpu.r[1] = (u32)(a1); cpu.r[2] = (u32)(a2); cpu.r[3] = (u32)(a3); \
     cpu.r[14] = LIFT_RETURN_MAGIC; lift_tail = 0; lift_##name(); cpu.r[0]; })
 
+/* CPU cycles, for the PC port's clock: each lifted instruction adds its
+ * cost, each memory access the cost of its memory region (runtime.c). */
+extern u32 lift_cycles;
+#define LIFT_CYC(n) (lift_cycles += (n))
+
 static inline u32 ror32(u32 v, u32 n) {
     n &= 31;
     return n ? (v >> n) | (v << (32 - n)) : v;

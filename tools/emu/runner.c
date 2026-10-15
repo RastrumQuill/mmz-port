@@ -3,6 +3,7 @@
  * SCRIPT lines: "F KEYS" hold KEYS (e.g. A,START,RIGHT or -) from frame F,
  *               "F shot FILE.png", "F dump ADDR LEN FILE", "F end" */
 #include <mgba/core/core.h>
+#include <mgba/internal/gba/gba.h>
 #include <mgba/core/log.h>
 #define USE_PNG 1
 #include <png.h>
@@ -27,7 +28,8 @@ static struct ARMMemory origMem;
 static void traceHit(struct ARMCore *cpu, uint32_t addr, int size) {
 	if (traceOn && addr >= traceLo && addr < traceHi && traceCount < 2000) {
 		traceCount++;
-		fprintf(stderr, "read%d %08X pc %08X lr %08X\n", size, addr, cpu->gprs[ARM_PC], cpu->gprs[ARM_LR]);
+		fprintf(stderr, "read%d %08X pc %08X lr %08X line %d\n", size, addr, cpu->gprs[ARM_PC], cpu->gprs[ARM_LR],
+		        ((struct GBA *) cpu->master)->video.vcount);
 	}
 }
 static uint32_t tLoad32(struct ARMCore *c, uint32_t a, int *cy) { traceHit(c, a, 32); return origMem.load32(c, a, cy); }
@@ -37,7 +39,8 @@ static uint32_t wLo, wHi;
 static void wHit(struct ARMCore *cpu, uint32_t addr, int size, uint32_t v) {
 	if (traceOn && addr >= wLo && addr < wHi && traceCount < 5000000) {
 		traceCount++;
-		fprintf(stderr, "write%d %08X = %08X pc %08X lr %08X\n", size, addr, v, cpu->gprs[ARM_PC], cpu->gprs[ARM_LR]);
+		fprintf(stderr, "write%d %08X = %08X pc %08X lr %08X line %d\n", size, addr, v, cpu->gprs[ARM_PC], cpu->gprs[ARM_LR],
+		        ((struct GBA *) cpu->master)->video.vcount);
 	}
 }
 static void tStore32(struct ARMCore *c, uint32_t a, int32_t v, int *cy) { wHit(c, a, 32, v); origMem.store32(c, a, v, cy); }

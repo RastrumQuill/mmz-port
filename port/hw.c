@@ -1,11 +1,12 @@
 /* The GBA hardware around the game code, for the PC build: the scanline
  * clock, interrupts, timed DMA, timers and the sound FIFOs.
  *
- * There is no CPU emulation, so time is counted in memory reads: every
- * READS_PER_LINE reads by the game the display moves on one scanline (drawn
- * by ppu.c), with the H-blank, V-count and V-blank events of real hardware.
- * The game's busy-wait loops read memory, so they wait as they would on a
- * GBA. Interrupt handlers run between two reads, from the current state.
+ * There is no CPU emulation: the lifted code counts the CPU cycles its
+ * instructions and memory accesses would take (lift_cycles), and every 1232
+ * cycles the display moves on one scanline (drawn by ppu.c), with the
+ * H-blank, V-count and V-blank events of real hardware. The game's busy-wait
+ * loops take time like any code, so they wait as they would on a GBA.
+ * Interrupt handlers run between two memory accesses.
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -17,10 +18,9 @@
 #define IO16(o) (*(u16 *)(io + (o)))
 #define IO32(o) (*(u32 *)(io + (o)))
 
-int hw_reads_per_line = 220;
 int hw_line;           /* VCOUNT */
-static int readCount;
-static int busy;       /* no time passes inside interrupt handlers and drawing */
+static int inLine;     /* in next_line: the clock does not move (its DMA and handlers take no time) */
+static int inIrq;      /* in an interrupt handler: no nested interrupts */
 
 /* ------------------------------------------------------------------ DMA */
 
@@ -120,7 +120,7 @@ static const struct { u16 bit; u8 slot; } sIrqOrder[] = {
 };
 
 static void irq_dispatch(void) {
-	if (busy || !(IO16(0x208) & 1)) return;
+	if (inIrq || !(IO16(0x208) & 1)) return;
 	u16 pending = IO16(0x200) & IO16(0x202);
 	if (!pending) return;
 	u32 handler = 0;
@@ -132,7 +132,7 @@ static void irq_dispatch(void) {
 			break;
 		}
 	if (!bit) return;
-	busy = 1;
+	inIrq = 1;
 	IO16(0x202) &= ~bit;
 	u16 ie = IO16(0x200);
 	IO16(0x200) = 0x29CE & ie;   /* (the dispatcher writes 0x29CE; nesting is not modelled) */
@@ -148,7 +148,7 @@ static void irq_dispatch(void) {
 	lift_pc = savedPc; lift_tail_lr = savedTailLr; lift_tail_lr2 = savedTailLr2; lift_ret = savedRet;
 	lift_tail = savedTail;
 	IO16(0x200) = ie;
-	busy = 0;
+	inIrq = 0;
 }
 
 void hw_irq(u16 bit) {
@@ -161,9 +161,8 @@ void hw_irq(u16 bit) {
 static void next_line(void) {
 	u16 stat = IO16(0x004);
 	int line = hw_line;
-	busy = 1;
+	inLine = 1;
 	if (line < 160) ppu_draw_line(line);
-	busy = 0;
 	/* H-blank */
 	IO16(0x004) = stat | 2;
 	if (line < 160) dma_timed(2);
@@ -176,10 +175,8 @@ static void next_line(void) {
 	if (line == 160) {
 		stat |= 1;
 		IO16(0x004) = stat;
-		busy = 1;
 		ppu_vblank();
 		frontend_frame();
-		busy = 0;
 		dma_timed(1);
 		if (stat & 8) hw_irq(1);
 	} else if (line == 227) {
@@ -195,12 +192,18 @@ static void next_line(void) {
 	IO16(0x004) = (IO16(0x004) & 0xFF00) | (stat & 0xFF);
 	IO16(0x006) = line;
 	audio_line();
+	inLine = 0;
 }
 
+/* Called on every memory access: the display moves on when a line's worth
+ * of CPU cycles (1232) has gone by. */
+static u32 lineStart;
+int hw_cycle_scale = 120;   /* percent: the cycle counts are low by about this much (measured against mGBA) */
 void rt_tick(void) {
-	if (busy) return;
-	if (++readCount >= hw_reads_per_line) {
-		readCount = 0;
+	if (inLine) return;
+	u32 line = 1232 * 100 / hw_cycle_scale;
+	while (lift_cycles - lineStart >= line) {
+		lineStart += line;
 		next_line();
 	}
 }
@@ -213,7 +216,10 @@ void rt_io_read(u32 o) {
 	}
 }
 
+static u32 traceIoLo = 1, traceIoHi;
 void rt_io_write(u32 o, u32 old) {
+	if (o >= traceIoLo && o < traceIoHi)
+		fprintf(stderr, "io %03X = %04X line %d\n", o, IO16(o), hw_line);
 	if (o >= 0x100 && o < 0x110) {
 		int i = (o - 0x100) / 4;
 		u16 v = IO16(o);
@@ -245,9 +251,11 @@ void rt_io_write(u32 o, u32 old) {
 }
 
 void hw_reset(void) {
+	/* TRACEIO=LO-HI: log writes to those I/O registers (offsets) with the line */
+	if (getenv("TRACEIO")) sscanf(getenv("TRACEIO"), "%x-%x", &traceIoLo, &traceIoHi);
 	memset(dma, 0, sizeof dma);
 	memset(timers, 0, sizeof timers);
 	hw_line = 0;
-	readCount = 0;
-	busy = 0;
+	lineStart = lift_cycles;
+	inLine = inIrq = 0;
 }

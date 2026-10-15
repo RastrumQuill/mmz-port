@@ -116,6 +116,7 @@ void lift_sub_08000300(void) {
 	lift_write32(saveSp, cpu.r[13]);
 	t->resumePc = lr;
 	t->resumeSp = cpu.r[13];
+	if (getenv("TRACEYIELD")) fprintf(stderr, "yield slot %d at %08X line %d\n", (int)(t - tasks), lr, hw_line);
 	/* the scheduler's side: its registers, and back from sub_080002DC */
 	cpu.r[13] = schedSp;
 	load_regs();
