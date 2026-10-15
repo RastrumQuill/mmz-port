@@ -4,8 +4,7 @@
 #include "global.h"
 #include "camera.h"
 
-typedef void (*CameraUpdate)(struct Camera *);
-#define sCameraModes ((const CameraUpdate *)0x0829FF8C)
+#define sCameraModes ((const u32 *)0x0829FF8C)   // code addresses
 
 void Camera_SetMode(struct Camera *cam, u32 mode) {
     cam->mode = mode;
@@ -18,7 +17,7 @@ void Camera_SetMode(struct Camera *cam, u32 mode) {
 void Camera_Init(struct Camera *cam, const struct CameraTemplate *t) {
     if (t == NULL) {
         Camera_SetMode(cam, 0);
-        cam->follow = NULL;
+        cam->follow = 0;
         cam->chaseMode = CHASE_JUMP;
         cam->easeTimer = 0;
         return;
@@ -26,7 +25,7 @@ void Camera_Init(struct Camera *cam, const struct CameraTemplate *t) {
     Camera_SetMode(cam, t->mode);
     cam->chaseMode = t->chaseMode | CHASE_EASING;
     cam->easeTimer = 0;
-    cam->follow = NULL;
+    cam->follow = 0;
     cam->targetX = t->targetX;
     cam->targetY = t->targetY;
     cam->speedX = t->speedX;

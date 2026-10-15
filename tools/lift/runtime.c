@@ -60,9 +60,17 @@ static u8 *ptr(u32 a, int write) {
 	return NULL;
 }
 
+/* Hooks for the PC build (pc/hw.c): time passing (every memory read), an
+ * I/O register about to be read, an I/O register written. The equivalence
+ * check uses these empty versions. */
+__attribute__((weak)) void rt_tick(void) {}
+__attribute__((weak)) void rt_io_read(u32 o) { (void)o; }
+__attribute__((weak)) void rt_io_write(u32 o, u32 old) { (void)o; (void)old; }
+
 static void tick(void) {
 	if (--budget < 0)
 		fail("too long", cpu.r[15]);
+	rt_tick();
 }
 
 /* Unmapped reads return the opcode the CPU prefetched: in Thumb the
@@ -97,9 +105,9 @@ static u32 bios_read(u32 a, int size) {
 	u32 v = ror32(biosBus, (a & 3) * 8);
 	return size == 1 ? v & 0xFF : size == 2 ? v & 0xFFFF : v;
 }
-u32 lift_read8(u32 a) { u8 *p = ptr(a, 0); tick(); if (!p) { if (a < 0x4000) return bios_read(a, 1); if (rom_oob(a)) return rom_oob_read(a, 1); unmapped(a); return open_bus(a) & 0xFF; } return *p; }
-u32 lift_read16(u32 a) { if ((a >> 25) == 7) return lift_read8(a) * 0x101; u8 *p = ptr(a, 0); tick(); if (!p) { if (a < 0x4000) return bios_read(a, 2); if (rom_oob(a)) return rom_oob_read(a, 2); unmapped(a); return open_bus(a) & 0xFFFF; } return p ? p[0] | p[1] << 8 : 0; }
-u32 lift_read32(u32 a) { if ((a >> 25) == 7) return lift_read8(a) * 0x01010101; u8 *p = ptr(a, 0); tick(); if (!p) { if (a < 0x4000) return bios_read(a, 4); if (rom_oob(a)) return rom_oob_read(a, 4); unmapped(a); return open_bus(a); } return p ? p[0] | p[1] << 8 | p[2] << 16 | (u32)p[3] << 24 : 0; }
+u32 lift_read8(u32 a) { if ((a >> 24) == 4) rt_io_read(a & 0x3FE); u8 *p = ptr(a, 0); tick(); if (!p) { if (a < 0x4000) return bios_read(a, 1); if (rom_oob(a)) return rom_oob_read(a, 1); unmapped(a); return open_bus(a) & 0xFF; } return *p; }
+u32 lift_read16(u32 a) { if ((a >> 25) == 7) return lift_read8(a) * 0x101; if ((a >> 24) == 4) rt_io_read(a & 0x3FE); u8 *p = ptr(a, 0); tick(); if (!p) { if (a < 0x4000) return bios_read(a, 2); if (rom_oob(a)) return rom_oob_read(a, 2); unmapped(a); return open_bus(a) & 0xFFFF; } return p ? p[0] | p[1] << 8 : 0; }
+u32 lift_read32(u32 a) { if ((a >> 25) == 7) return lift_read8(a) * 0x01010101; if ((a >> 24) == 4) { rt_io_read(a & 0x3FC); rt_io_read((a & 0x3FC) + 2); } u8 *p = ptr(a, 0); tick(); if (!p) { if (a < 0x4000) return bios_read(a, 4); if (rom_oob(a)) return rom_oob_read(a, 4); unmapped(a); return open_bus(a); } return p ? p[0] | p[1] << 8 | p[2] << 16 | (u32)p[3] << 24 : 0; }
 
 static void dma_check(u32 reg);
 
@@ -126,7 +134,9 @@ static void io_store16(u32 o, u32 v) {
 	u16 m = io_mask(o);
 	u16 old = io[o] | io[o + 1] << 8;
 	u16 n = (old & ~m) | (v & m);
+	if (o == 0x202) n = old & ~v;  /* IF: writing 1 acknowledges */
 	io[o] = n; io[o + 1] = n >> 8;
+	rt_io_write(o, old);
 }
 
 void lift_write8(u32 a, u32 v) {

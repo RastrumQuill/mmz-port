@@ -107,4 +107,8 @@ ghidra-ref:
 		-processor ARM:LE:32:v4t -loader BinaryLoader -loader-baseAddr 0x08000000 -noanalysis \
 		-scriptPath tools/ghidra -postScript Decompile.py build_lift/funcs.tsv ref/ghidra -deleteProject
 
-.PHONY: lift harness check-lifted ghidra-ref
+# The PC build (build_pc/mmz): the game compiled natively, with SDL2.
+pc:
+	$(MAKE) -C pc
+
+.PHONY: lift harness check-lifted ghidra-ref pc

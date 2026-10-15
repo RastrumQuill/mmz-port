@@ -5,9 +5,11 @@
 
 // The stage camera (gCamera, 0x02022C44). Positions are 24.8 fixed point;
 // the viewport position is the centre of the screen.
+// Addresses in game structures are u32 (GBA addresses), not pointers, so the
+// layout is the same in the 64-bit PC build.
 struct Camera {
     u8 unk_00[0x14];
-    void (*update)(struct Camera *);  // per mode, from sCameraModes
+    u32 update;          // code address of the mode's update, from sCameraModes
     u8 mode;
     u8 chaseMode;        // how the viewport follows the target; bit 3: ease
     u16 unk_1A;
@@ -19,7 +21,7 @@ struct Camera {
     s32 targetX, targetY;
     s32 x, y;            // the viewport
     s32 speedX, speedY;  // forced scrolling, per frame
-    void *follow;        // the followed position
+    u32 follow;          // address of the followed position
     s32 dx, ddx, dy, ddy;
     s32 left, right, top, bottom;
 };
