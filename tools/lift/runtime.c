@@ -60,7 +60,7 @@ static u8 *ptr(u32 a, int write) {
 	return NULL;
 }
 
-/* Hooks for the PC build (pc/hw.c): time passing (every memory read), an
+/* Hooks for the PC build (pc/hw.c): time passing (every memory access), an
  * I/O register about to be read, an I/O register written. The equivalence
  * check uses these empty versions. */
 __attribute__((weak)) void rt_tick(void) {}
@@ -140,6 +140,7 @@ static void io_store16(u32 o, u32 v) {
 }
 
 void lift_write8(u32 a, u32 v) {
+	rt_tick();
 	u32 r = a >> 24;
 	if (r == 7 || (r == 6 && (a & 0x1FFFF) >= 0x10000))
 		return;                        /* byte writes to OAM and OBJ VRAM are ignored */
@@ -160,6 +161,7 @@ void lift_write8(u32 a, u32 v) {
 	if (p) *p = v;
 }
 void lift_write16(u32 a, u32 v) {
+	rt_tick();
 	if ((a >> 25) == 7) { sram[a & 0x7FFF] = ror32(v, (a & 1) * 8); return; }
 	if ((a >> 24) == 4) {
 		if ((a & 0xFFFFFF) < 0x400) { io_store16(a & 0x3FE, v); dma_check(a); }
@@ -170,6 +172,7 @@ void lift_write16(u32 a, u32 v) {
 	if ((a >> 24) == 4) dma_check(a);
 }
 void lift_write32(u32 a, u32 v) {
+	rt_tick();
 	if ((a >> 25) == 7) { sram[a & 0x7FFF] = ror32(v, (a & 3) * 8); return; }
 	if ((a >> 24) == 4) {
 		if ((a & 0xFFFFFF) < 0x400) { io_store16(a & 0x3FE, v); io_store16((a & 0x3FE) + 2, v >> 16); dma_check(a); dma_check(a + 2); }

@@ -77,7 +77,7 @@ static void save_flush(void) {
 
 static FILE *route;
 static long routeFrame = -1;
-static char routeCmd[64], routeArg1[256], routeArg2[64];
+static char routeCmd[64], routeArg1[256], routeArg2[64], routeArg3[256];
 
 static int keymask(const char *s) {
 	static const char *names[] = { "A", "B", "SELECT", "START", "RIGHT", "LEFT", "UP", "DOWN", "R", "L" };
@@ -110,8 +110,8 @@ static void route_step(void) {
 		if (routeFrame < 0) {
 			char line[512];
 			if (!fgets(line, sizeof line, route)) { save_flush(); exit(0); }
-			routeArg1[0] = routeArg2[0] = 0;
-			if (line[0] == '#' || sscanf(line, "%ld %63s %255s %63s", &routeFrame, routeCmd, routeArg1, routeArg2) < 2) {
+			routeArg1[0] = routeArg2[0] = routeArg3[0] = 0;
+			if (line[0] == '#' || sscanf(line, "%ld %63s %255s %63s %255s", &routeFrame, routeCmd, routeArg1, routeArg2, routeArg3) < 2) {
 				routeFrame = -1;
 				continue;
 			}
@@ -120,7 +120,11 @@ static void route_step(void) {
 		if (!strcmp(routeCmd, "shot")) write_ppm(routeArg1);
 		else if (!strcmp(routeCmd, "end")) { save_flush(); exit(0); }
 		else if (!strcmp(routeCmd, "poke")) *(u8 *)(uintptr_t)strtoul(routeArg1, 0, 0) = strtoul(routeArg2, 0, 0);
-		else if (!strcmp(routeCmd, "dump")) { /* not needed here */ }
+		else if (!strcmp(routeCmd, "dump")) {   /* dump ADDR LEN FILE */
+			u32 a = strtoul(routeArg1, 0, 0), len = strtoul(routeArg2, 0, 0);
+			FILE *o = fopen(routeArg3, "wb");
+			if (o) { fwrite((void *)(uintptr_t)a, 1, len, o); fclose(o); }
+		}
 		else keys = strcmp(routeCmd, "-") ? keymask(routeCmd) : 0;
 		routeFrame = -1;
 	}
