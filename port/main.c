@@ -265,6 +265,7 @@ static void route_step(void) {
 		if (!strcmp(routeCmd, "shot")) write_ppm(routeArg1);
 		else if (!strcmp(routeCmd, "end")) { save_flush(); exit(0); }
 		else if (!strcmp(routeCmd, "poke")) *(u8 *)(uintptr_t)strtoul(routeArg1, 0, 0) = strtoul(routeArg2, 0, 0);
+		else if (!strcmp(routeCmd, "ff")) debug.fastForward = atoi(routeArg1);   /* ff 1 / ff 0: Tab held or not */
 		else if (!strcmp(routeCmd, "dump")) {   /* dump ADDR LEN FILE */
 			u32 a = strtoul(routeArg1, 0, 0), len = strtoul(routeArg2, 0, 0);
 			FILE *o = fopen(routeArg3, "wb");
@@ -442,12 +443,51 @@ static void wav_write(void) {
 	wav_header();
 }
 
+/* The log (log = 1 in mmz.ini, or FRAMELOG): frames that took long in real
+   time, and stretches where the game finished no frames of its own. */
+static FILE *logFile;
+static void frame_log(void) {
+	static int on = -1;
+	static Uint64 last;
+	static long lastCommits, quiet;
+	extern long sprite_commits;
+	if (on < 0) {
+		on = settings.log || getenv("FRAMELOG");
+		if (settings.log) {
+			char p[600], *base = SDL_GetBasePath();
+			snprintf(p, sizeof p, "%smmz.log", base ? base : "");
+			SDL_free(base);
+			logFile = fopen(p, "w");
+		}
+		if (!logFile) logFile = stderr;
+		if (on) fprintf(logFile, "mmz log: view %s %dx%d, cpu %d%%, scale %d, fullscreen %d, threads %d\n",
+		                kViewNames[settings.viewMode], view_w, view_h, settings.cpuSpeed, settings.scale, settings.fullscreen, SDL_GetCPUCount());
+	}
+	if (!on) return;
+	Uint64 now = SDL_GetPerformanceCounter();
+	double ms = last ? (now - last) * 1000.0 / SDL_GetPerformanceFrequency() : 0;
+	last = now;
+	u8 mode = *(u8 *)0x020236E1;
+	u16 event = *(u16 *)0x02022B6E;
+	if (ms > 100) fprintf(logFile, "stall: frame %ld took %.0f ms (mode %02X event %04X ff %d cpu %d%%)\n", frameCount, ms, mode, event, debug.fastForward, hw_cpu_speed);
+	/* the game finishing no frames for 2 seconds while the window runs */
+	quiet = sprite_commits == lastCommits ? quiet + 1 : 0;
+	lastCommits = sprite_commits;
+	if (quiet == 120) fprintf(logFile, "game stuck: no frames finished since frame %ld (mode %02X event %04X cpu %d%%)\n", frameCount - 120, mode, event, hw_cpu_speed);
+	if (frameCount % 600 == 0) fprintf(logFile, "frame %ld mode %02X event %04X view %dx%d cpu %d%% ff %d\n", frameCount, mode, event, view_w, view_h, hw_cpu_speed, debug.fastForward);
+	fflush(logFile);
+}
+
 void frontend_frame(void) {
 	frameCount++;
 	ui_game_frame(frameCount);
 	if (headless && wavFile) wav_write();
 	if (headless) route_step();
-	else sdl_frame();
+	else {
+		sdl_frame();
+		if (route) route_step();   /* testing: scripted input in the window too */
+		frame_log();
+	}
 	/* hand-written C reads the register directly */
 	*(u16 *)0x04000130 = frontend_keys();
 	if (frameCount % 60 == 0) save_flush();
@@ -528,6 +568,7 @@ int main(int argc, char **argv) {
 	biosBus = 0xE129F000;
 	budget = INT64_MAX;
 	if (getenv("MMZ_CYCLE_SCALE")) hw_cycle_scale = atoi(getenv("MMZ_CYCLE_SCALE"));
+	if (getenv("MMZ_FASTFORWARD")) debug.fastForward = 1;   /* testing: as if Tab were held */
 	if (getenv("MMZ_LAYERS")) debug.layerMask = strtol(getenv("MMZ_LAYERS"), NULL, 0);   /* bits: BG0-BG3, OBJ */
 	hw_reset();
 	tasks_reset();

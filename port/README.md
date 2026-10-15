@@ -63,6 +63,10 @@ frames; the game still runs at the GBA's 59.73 frames a second (faster only
 while fast-forwarding), and music and effects keep their timing. "GBA" puts
 the original slowdown back (`cpu_speed` in `mmz.ini`, `--cpu-speed`).
 
+**Reporting problems.** Set `log = 1` in `mmz.ini`: `mmz.log` next to the
+executable then lists frames that took long (stalls) and stretches where the
+game finished no frames, with the game's state.
+
 **Debug tools (F2).**
 * Status: frame, speed, scanline, game mode, mission, area, camera position.
 * Speed: pause, frame step, fast-forward, and the timing calibration.

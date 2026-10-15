@@ -176,6 +176,7 @@ static void apply(const char *key, const char *value) {
 	else if (!strcmp(key, "view_window_height")) settings.viewHeight = atoi(value);
 	else if (!strcmp(key, "hud_edges")) settings.hudEdges = atoi(value);
 	else if (!strcmp(key, "cpu_speed")) settings.cpuSpeed = atoi(value);
+	else if (!strcmp(key, "log")) settings.log = atoi(value);
 	else if (!strcmp(key, "stick_moves")) settings.stickMoves = atoi(value);
 	else if (!strcmp(key, "stick_deadzone")) settings.deadzone = atoi(value);
 	else if (!strncmp(key, "key_", 4) || !strncmp(key, "pad_", 4) || !strncmp(key, "joy_", 4)) {
@@ -228,6 +229,7 @@ void settings_save(void) {
 	fprintf(f, "view = %s\nview_width = %d\nview_height = %d\nview_window_height = %d\nhud_edges = %d\n",
 	        kViewNames[settings.viewMode], settings.viewW, settings.viewH, settings.viewHeight, settings.hudEdges);
 	fprintf(f, "\n# CPU time the game gets per frame, percent of the GBA's (100: the GBA's slowdown)\ncpu_speed = %d\n", settings.cpuSpeed);
+	fprintf(f, "\n# 1: write mmz.log next to this file (for reporting problems)\nlog = %d\n", settings.log);
 	fprintf(f, "\n# keyboard (SDL key names)\n");
 	for (int i = 0; i < 10; i++) fprintf(f, "key_%s = %s\n", kButtonNames[i], SDL_GetScancodeName(settings.keys[i]));
 	char buf[32];
