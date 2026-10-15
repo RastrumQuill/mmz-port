@@ -3,8 +3,9 @@
 
 __attribute__((weak)) void lift_sub_080580F4(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_080580F4:;
     cpu.r[13] -= 4;
     W32(cpu.r[13] + 0, cpu.r[14]);
@@ -49,6 +50,7 @@ L_08058130:;
 L_08058134:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x080580F4: goto L_080580F4;
     case 0x08058118: goto L_08058118;
@@ -57,16 +59,18 @@ do_jump:
     case 0x08058130: goto L_08058130;
     case 0x08058134: goto L_08058134;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_08058138(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_08058138:;
     cpu.r[13] -= 8;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -161,6 +165,7 @@ L_080581BC:;
 L_080581C4:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x08058138: goto L_08058138;
     case 0x08058152: goto L_08058152;
@@ -174,16 +179,18 @@ do_jump:
     case 0x080581BC: goto L_080581BC;
     case 0x080581C4: goto L_080581C4;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_080581C8(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_080581C8:;
     cpu.r[13] -= 8;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -314,6 +321,7 @@ L_08058292:;
 L_08058298:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x080581C8: goto L_080581C8;
     case 0x080581E4: goto L_080581E4;
@@ -322,16 +330,18 @@ do_jump:
     case 0x08058292: goto L_08058292;
     case 0x08058298: goto L_08058298;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805829C(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805829C:;
     cpu.r[13] -= 8;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -463,6 +473,7 @@ L_0805836C:;
 L_08058370:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805829C: goto L_0805829C;
     case 0x080582BA: goto L_080582BA;
@@ -472,16 +483,18 @@ do_jump:
     case 0x0805836C: goto L_0805836C;
     case 0x08058370: goto L_08058370;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_08058374(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_08058374:;
     cpu.r[13] -= 16;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -663,6 +676,7 @@ L_08058492:;
     jt = cpu.r[0]; goto do_jump;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x08058374: goto L_08058374;
     case 0x080583A2: goto L_080583A2;
@@ -675,16 +689,18 @@ do_jump:
     case 0x08058490: goto L_08058490;
     case 0x08058492: goto L_08058492;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_08058498(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_08058498:;
     cpu.r[13] -= 16;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -864,6 +880,7 @@ L_080585A8:;
 L_080585B0:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x08058498: goto L_08058498;
     case 0x080584D0: goto L_080584D0;
@@ -877,16 +894,18 @@ do_jump:
     case 0x080585A8: goto L_080585A8;
     case 0x080585B0: goto L_080585B0;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_080585B4(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_080585B4:;
     cpu.r[2] = ADDS(cpu.r[0], 0x0);
     cpu.r[1] = ADDS(cpu.r[2], 0x0);
@@ -936,6 +955,7 @@ L_080585F2:;
 L_08058600:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x080585B4: goto L_080585B4;
     case 0x080585CA: goto L_080585CA;
@@ -943,16 +963,18 @@ do_jump:
     case 0x080585F2: goto L_080585F2;
     case 0x08058600: goto L_08058600;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_08058604(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_08058604:;
     cpu.r[13] -= 12;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -1062,6 +1084,7 @@ L_080586BC:;
 L_080586C0:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x08058604: goto L_08058604;
     case 0x08058698: goto L_08058698;
@@ -1069,16 +1092,18 @@ do_jump:
     case 0x080586BC: goto L_080586BC;
     case 0x080586C0: goto L_080586C0;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_080586C4(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_080586C4:;
     cpu.r[13] -= 16;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -1142,6 +1167,7 @@ L_08058720:;
 L_08058724:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x080586C4: goto L_080586C4;
     case 0x080586FC: goto L_080586FC;
@@ -1149,16 +1175,18 @@ do_jump:
     case 0x08058720: goto L_08058720;
     case 0x08058724: goto L_08058724;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_08058728(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_08058728:;
     cpu.r[13] -= 8;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -1210,6 +1238,7 @@ L_08058770:;
 L_08058774:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x08058728: goto L_08058728;
     case 0x08058760: goto L_08058760;
@@ -1218,16 +1247,18 @@ do_jump:
     case 0x08058770: goto L_08058770;
     case 0x08058774: goto L_08058774;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_08058778(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_08058778:;
     cpu.r[13] -= 20;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -1430,6 +1461,7 @@ L_080588AC:;
 L_080588B8:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x08058778: goto L_08058778;
     case 0x080587A8: goto L_080587A8;
@@ -1444,16 +1476,18 @@ do_jump:
     case 0x080588AC: goto L_080588AC;
     case 0x080588B8: goto L_080588B8;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_080588BC(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_080588BC:;
     cpu.r[13] -= 20;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -1641,6 +1675,7 @@ L_080589EE:;
 L_080589F8:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x080588BC: goto L_080588BC;
     case 0x080588E8: goto L_080588E8;
@@ -1657,16 +1692,18 @@ do_jump:
     case 0x080589EE: goto L_080589EE;
     case 0x080589F8: goto L_080589F8;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_080589FC(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_080589FC:;
     cpu.r[13] -= 4;
     W32(cpu.r[13] + 0, cpu.r[14]);
@@ -1711,6 +1748,7 @@ L_08058A38:;
 L_08058A3C:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x080589FC: goto L_080589FC;
     case 0x08058A20: goto L_08058A20;
@@ -1719,16 +1757,18 @@ do_jump:
     case 0x08058A38: goto L_08058A38;
     case 0x08058A3C: goto L_08058A3C;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_08058A40(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_08058A40:;
     cpu.r[13] -= 8;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -1754,20 +1794,23 @@ L_08058A40:;
 L_08058A60:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x08058A40: goto L_08058A40;
     case 0x08058A60: goto L_08058A60;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_08058A64(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_08058A64:;
     cpu.r[13] -= 4;
     W32(cpu.r[13] + 0, cpu.r[14]);
@@ -1786,20 +1829,23 @@ L_08058A64:;
 L_08058A78:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x08058A64: goto L_08058A64;
     case 0x08058A78: goto L_08058A78;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_08058A7C(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_08058A7C:;
     cpu.r[13] -= 8;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -1888,6 +1934,7 @@ L_08058AFC:;
 L_08058B00:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x08058A7C: goto L_08058A7C;
     case 0x08058A96: goto L_08058A96;
@@ -1897,16 +1944,18 @@ do_jump:
     case 0x08058AFC: goto L_08058AFC;
     case 0x08058B00: goto L_08058B00;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_08058B04(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_08058B04:;
     cpu.r[13] -= 8;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -2003,6 +2052,7 @@ L_08058B8C:;
 L_08058B94:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x08058B04: goto L_08058B04;
     case 0x08058B22: goto L_08058B22;
@@ -2012,16 +2062,18 @@ do_jump:
     case 0x08058B8C: goto L_08058B8C;
     case 0x08058B94: goto L_08058B94;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_08058B98(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_08058B98:;
     cpu.r[13] -= 8;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -2093,21 +2145,24 @@ L_08058BFA:;
     jt = cpu.r[0]; goto do_jump;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x08058B98: goto L_08058B98;
     case 0x08058BB0: goto L_08058BB0;
     case 0x08058BFA: goto L_08058BFA;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_08058C00(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_08058C00:;
     cpu.r[13] -= 16;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -2302,6 +2357,7 @@ L_08058D28:;
 L_08058D30:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x08058C00: goto L_08058C00;
     case 0x08058C28: goto L_08058C28;
@@ -2321,16 +2377,18 @@ do_jump:
     case 0x08058D28: goto L_08058D28;
     case 0x08058D30: goto L_08058D30;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_08058D34(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_08058D34:;
     cpu.r[13] -= 20;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -2550,6 +2608,7 @@ L_08058E6C:;
     jt = cpu.r[0]; goto do_jump;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x08058D34: goto L_08058D34;
     case 0x08058D54: goto L_08058D54;
@@ -2567,16 +2626,18 @@ do_jump:
     case 0x08058E58: goto L_08058E58;
     case 0x08058E6C: goto L_08058E6C;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_08058E78(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_08058E78:;
     cpu.r[13] -= 12;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -2654,22 +2715,25 @@ L_08058EE4:;
     jt = cpu.r[0]; goto do_jump;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x08058E78: goto L_08058E78;
     case 0x08058E9E: goto L_08058E9E;
     case 0x08058EA6: goto L_08058EA6;
     case 0x08058EE4: goto L_08058EE4;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_08058EEC(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_08058EEC:;
     cpu.r[13] -= 8;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -2754,6 +2818,7 @@ L_08058F60:;
     jt = cpu.r[0]; goto do_jump;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x08058EEC: goto L_08058EEC;
     case 0x08058F04: goto L_08058F04;
@@ -2762,16 +2827,18 @@ do_jump:
     case 0x08058F54: goto L_08058F54;
     case 0x08058F60: goto L_08058F60;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_08058F68(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_08058F68:;
     cpu.r[13] -= 20;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -3109,6 +3176,7 @@ L_0805917A:;
     jt = cpu.r[0]; goto do_jump;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x08058F68: goto L_08058F68;
     case 0x08058FA6: goto L_08058FA6;
@@ -3129,16 +3197,18 @@ do_jump:
     case 0x08059172: goto L_08059172;
     case 0x0805917A: goto L_0805917A;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805918C(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805918C:;
     cpu.r[13] -= 8;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -3238,6 +3308,7 @@ L_08059220:;
 L_08059228:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805918C: goto L_0805918C;
     case 0x080591A4: goto L_080591A4;
@@ -3248,16 +3319,18 @@ do_jump:
     case 0x08059220: goto L_08059220;
     case 0x08059228: goto L_08059228;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805922C(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805922C:;
     cpu.r[13] -= 8;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -3334,21 +3407,24 @@ L_08059296:;
     jt = cpu.r[0]; goto do_jump;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805922C: goto L_0805922C;
     case 0x0805924A: goto L_0805924A;
     case 0x08059296: goto L_08059296;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805929C(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805929C:;
     cpu.r[13] -= 8;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -3445,6 +3521,7 @@ L_08059326:;
     jt = cpu.r[0]; goto do_jump;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805929C: goto L_0805929C;
     case 0x080592D0: goto L_080592D0;
@@ -3453,16 +3530,18 @@ do_jump:
     case 0x0805931A: goto L_0805931A;
     case 0x08059326: goto L_08059326;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805932C(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805932C:;
     cpu.r[2] = ADDS(cpu.r[0], 0x0);
     cpu.r[1] = ADDS(cpu.r[2], 0x0);
@@ -3510,6 +3589,7 @@ L_0805936A:;
 L_08059374:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805932C: goto L_0805932C;
     case 0x08059342: goto L_08059342;
@@ -3517,16 +3597,18 @@ do_jump:
     case 0x0805936A: goto L_0805936A;
     case 0x08059374: goto L_08059374;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_08059378(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_08059378:;
     cpu.r[13] -= 16;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -3708,6 +3790,7 @@ L_080594A0:;
 L_080594A4:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x08059378: goto L_08059378;
     case 0x080593CE: goto L_080593CE;
@@ -3719,16 +3802,18 @@ do_jump:
     case 0x080594A0: goto L_080594A0;
     case 0x080594A4: goto L_080594A4;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_080594A8(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_080594A8:;
     cpu.r[13] -= 12;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -3999,6 +4084,7 @@ L_08059664:;
 L_08059668:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x080594A8: goto L_080594A8;
     case 0x0805950C: goto L_0805950C;
@@ -4016,16 +4102,18 @@ do_jump:
     case 0x08059664: goto L_08059664;
     case 0x08059668: goto L_08059668;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805966C(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805966C:;
     cpu.r[13] -= 12;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -4074,6 +4162,7 @@ L_080596B0:;
 L_080596B4:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805966C: goto L_0805966C;
     case 0x0805968A: goto L_0805968A;
@@ -4081,16 +4170,18 @@ do_jump:
     case 0x080596B0: goto L_080596B0;
     case 0x080596B4: goto L_080596B4;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_080596B8(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_080596B8:;
     cpu.r[13] -= 16;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -4151,6 +4242,7 @@ L_08059708:;
 L_0805970C:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x080596B8: goto L_080596B8;
     case 0x080596FA: goto L_080596FA;
@@ -4159,16 +4251,18 @@ do_jump:
     case 0x08059708: goto L_08059708;
     case 0x0805970C: goto L_0805970C;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_08059710(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_08059710:;
     cpu.r[13] -= 16;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -4236,6 +4330,7 @@ L_08059770:;
 L_08059774:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x08059710: goto L_08059710;
     case 0x08059760: goto L_08059760;
@@ -4243,16 +4338,18 @@ do_jump:
     case 0x08059770: goto L_08059770;
     case 0x08059774: goto L_08059774;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_08059778(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_08059778:;
     cpu.r[13] -= 8;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -4353,6 +4450,7 @@ L_08059802:;
     jt = cpu.r[0]; goto do_jump;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x08059778: goto L_08059778;
     case 0x0805978E: goto L_0805978E;
@@ -4363,16 +4461,18 @@ do_jump:
     case 0x080597F8: goto L_080597F8;
     case 0x08059802: goto L_08059802;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_08059808(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_08059808:;
     cpu.r[2] = 0x082AEADC;
     lift_pc = 0x0805980B;
@@ -4390,20 +4490,23 @@ L_08059808:;
 L_0805981C:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x08059808: goto L_08059808;
     case 0x0805981C: goto L_0805981C;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_08059820(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_08059820:;
     cpu.r[2] = ADDS(cpu.r[0], 0x0);
     cpu.r[0] = 0x1; N = 0; Z = 0;
@@ -4444,6 +4547,7 @@ L_08059858:;
     jt = cpu.r[14]; goto do_jump;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x08059820: goto L_08059820;
     case 0x08059848: goto L_08059848;
@@ -4452,16 +4556,18 @@ do_jump:
     case 0x08059854: goto L_08059854;
     case 0x08059858: goto L_08059858;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805985C(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805985C:;
     cpu.r[13] -= 16;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -4565,6 +4671,7 @@ L_080598E8:;
     jt = cpu.r[1]; goto do_jump;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805985C: goto L_0805985C;
     case 0x08059880: goto L_08059880;
@@ -4578,16 +4685,18 @@ do_jump:
     case 0x080598E2: goto L_080598E2;
     case 0x080598E8: goto L_080598E8;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_080598F0(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_080598F0:;
     cpu.r[13] -= 16;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -4693,6 +4802,7 @@ L_08059984:;
     jt = cpu.r[1]; goto do_jump;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x080598F0: goto L_080598F0;
     case 0x0805992C: goto L_0805992C;
@@ -4706,16 +4816,18 @@ do_jump:
     case 0x08059982: goto L_08059982;
     case 0x08059984: goto L_08059984;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805998C(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805998C:;
     cpu.r[13] -= 8;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -4745,20 +4857,23 @@ L_080599A8:;
     jt = cpu.r[0]; goto do_jump;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805998C: goto L_0805998C;
     case 0x080599A8: goto L_080599A8;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_080599B0(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_080599B0:;
     cpu.r[13] -= 20;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -5000,6 +5115,7 @@ L_08059B42:;
     jt = cpu.r[1]; goto do_jump;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x080599B0: goto L_080599B0;
     case 0x080599BE: goto L_080599BE;
@@ -5030,16 +5146,18 @@ do_jump:
     case 0x08059B40: goto L_08059B40;
     case 0x08059B42: goto L_08059B42;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_08059B48(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_08059B48:;
     cpu.r[13] -= 16;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -5199,6 +5317,7 @@ L_08059C4A:;
     jt = cpu.r[1]; goto do_jump;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x08059B48: goto L_08059B48;
     case 0x08059B74: goto L_08059B74;
@@ -5221,16 +5340,18 @@ do_jump:
     case 0x08059C48: goto L_08059C48;
     case 0x08059C4A: goto L_08059C4A;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_08059C50(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_08059C50:;
     cpu.r[13] -= 20;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -5463,6 +5584,7 @@ L_08059DDA:;
     jt = cpu.r[0]; goto do_jump;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x08059C50: goto L_08059C50;
     case 0x08059CC0: goto L_08059CC0;
@@ -5486,16 +5608,18 @@ do_jump:
     case 0x08059DC6: goto L_08059DC6;
     case 0x08059DDA: goto L_08059DDA;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_08059DE0(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_08059DE0:;
     cpu.r[13] -= 20;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -5925,6 +6049,7 @@ L_0805A0AE:;
 L_0805A0B4:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x08059DE0: goto L_08059DE0;
     case 0x08059E2A: goto L_08059E2A;
@@ -5958,16 +6083,18 @@ do_jump:
     case 0x0805A0AE: goto L_0805A0AE;
     case 0x0805A0B4: goto L_0805A0B4;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805A0B8(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805A0B8:;
     cpu.r[13] -= 4;
     W32(cpu.r[13] + 0, cpu.r[14]);
@@ -5986,20 +6113,23 @@ L_0805A0B8:;
 L_0805A0CC:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805A0B8: goto L_0805A0B8;
     case 0x0805A0CC: goto L_0805A0CC;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805A0D0(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805A0D0:;
     lift_pc = 0x0805A0D1;
     cpu.r[1] = R32(cpu.r[0] + 0x40);
@@ -6018,20 +6148,23 @@ L_0805A0D0:;
 L_0805A0E4:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805A0D0: goto L_0805A0D0;
     case 0x0805A0E4: goto L_0805A0E4;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805A0E8(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805A0E8:;
     cpu.r[13] -= 16;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -6262,6 +6395,7 @@ L_0805A258:;
 L_0805A25C:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805A0E8: goto L_0805A0E8;
     case 0x0805A110: goto L_0805A110;
@@ -6287,16 +6421,18 @@ do_jump:
     case 0x0805A258: goto L_0805A258;
     case 0x0805A25C: goto L_0805A25C;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805A260(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805A260:;
     cpu.r[13] -= 8;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -6356,22 +6492,25 @@ L_0805A2B4:;
 L_0805A2B8:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805A260: goto L_0805A260;
     case 0x0805A2AE: goto L_0805A2AE;
     case 0x0805A2B4: goto L_0805A2B4;
     case 0x0805A2B8: goto L_0805A2B8;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805A2BC(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805A2BC:;
     cpu.r[13] -= 12;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -6490,6 +6629,7 @@ L_0805A374:;
 L_0805A37C:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805A2BC: goto L_0805A2BC;
     case 0x0805A30C: goto L_0805A30C;
@@ -6499,16 +6639,18 @@ do_jump:
     case 0x0805A374: goto L_0805A374;
     case 0x0805A37C: goto L_0805A37C;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805A380(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805A380:;
     cpu.r[13] -= 8;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -6584,6 +6726,7 @@ L_0805A3F2:;
     jt = cpu.r[0]; goto do_jump;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805A380: goto L_0805A380;
     case 0x0805A3D0: goto L_0805A3D0;
@@ -6591,16 +6734,18 @@ do_jump:
     case 0x0805A3D8: goto L_0805A3D8;
     case 0x0805A3F2: goto L_0805A3F2;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805A3F8(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805A3F8:;
     cpu.r[13] -= 8;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -6660,22 +6805,25 @@ L_0805A44C:;
 L_0805A450:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805A3F8: goto L_0805A3F8;
     case 0x0805A446: goto L_0805A446;
     case 0x0805A44C: goto L_0805A44C;
     case 0x0805A450: goto L_0805A450;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805A454(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805A454:;
     cpu.r[13] -= 16;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -7023,6 +7171,7 @@ L_0805A6A0:;
     jt = cpu.r[0]; goto do_jump;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805A454: goto L_0805A454;
     case 0x0805A460: goto L_0805A460;
@@ -7064,16 +7213,18 @@ do_jump:
     case 0x0805A69C: goto L_0805A69C;
     case 0x0805A6A0: goto L_0805A6A0;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805A6A8(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805A6A8:;
     cpu.r[13] -= 12;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -7181,6 +7332,7 @@ L_0805A74E:;
 L_0805A754:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805A6A8: goto L_0805A6A8;
     case 0x0805A6B8: goto L_0805A6B8;
@@ -7190,16 +7342,18 @@ do_jump:
     case 0x0805A74E: goto L_0805A74E;
     case 0x0805A754: goto L_0805A754;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805A758(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805A758:;
     cpu.r[13] -= 16;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -7520,6 +7674,7 @@ L_0805A972:;
     jt = cpu.r[0]; goto do_jump;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805A758: goto L_0805A758;
     case 0x0805A764: goto L_0805A764;
@@ -7551,16 +7706,18 @@ do_jump:
     case 0x0805A946: goto L_0805A946;
     case 0x0805A972: goto L_0805A972;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805A978(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805A978:;
     cpu.r[13] -= 16;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -7845,6 +8002,7 @@ L_0805AB62:;
     jt = cpu.r[0]; goto do_jump;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805A978: goto L_0805A978;
     case 0x0805A98C: goto L_0805A98C;
@@ -7871,16 +8029,18 @@ do_jump:
     case 0x0805AB36: goto L_0805AB36;
     case 0x0805AB62: goto L_0805AB62;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805AB68(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805AB68:;
     cpu.r[13] -= 12;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -8010,6 +8170,7 @@ L_0805AC34:;
 L_0805AC3C:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805AB68: goto L_0805AB68;
     case 0x0805AB7C: goto L_0805AB7C;
@@ -8022,16 +8183,18 @@ do_jump:
     case 0x0805AC34: goto L_0805AC34;
     case 0x0805AC3C: goto L_0805AC3C;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805AC40(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805AC40:;
     cpu.r[13] -= 16;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -8303,6 +8466,7 @@ L_0805ADFC:;
 L_0805AE00:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805AC40: goto L_0805AC40;
     case 0x0805AC50: goto L_0805AC50;
@@ -8328,16 +8492,18 @@ do_jump:
     case 0x0805ADFC: goto L_0805ADFC;
     case 0x0805AE00: goto L_0805AE00;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805AE04(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805AE04:;
     cpu.r[13] -= 12;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -8663,6 +8829,7 @@ L_0805B02A:;
     jt = cpu.r[0]; goto do_jump;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805AE04: goto L_0805AE04;
     case 0x0805AE18: goto L_0805AE18;
@@ -8696,16 +8863,18 @@ do_jump:
     case 0x0805AFFE: goto L_0805AFFE;
     case 0x0805B02A: goto L_0805B02A;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805B030(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805B030:;
     cpu.r[3] = ADDS(cpu.r[0], 0x0);
     cpu.r[1] = 0x02022AD0;
@@ -8781,6 +8950,7 @@ L_0805B0A0:;
 L_0805B0A4:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805B030: goto L_0805B030;
     case 0x0805B048: goto L_0805B048;
@@ -8791,16 +8961,18 @@ do_jump:
     case 0x0805B0A0: goto L_0805B0A0;
     case 0x0805B0A4: goto L_0805B0A4;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805B0A8(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805B0A8:;
     cpu.r[13] -= 12;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -8963,6 +9135,7 @@ L_0805B1BA:;
     jt = cpu.r[0]; goto do_jump;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805B0A8: goto L_0805B0A8;
     case 0x0805B0B8: goto L_0805B0B8;
@@ -8980,16 +9153,18 @@ do_jump:
     case 0x0805B184: goto L_0805B184;
     case 0x0805B1BA: goto L_0805B1BA;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805B1C0(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805B1C0:;
     cpu.r[13] -= 20;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -9191,6 +9366,7 @@ L_0805B314:;
 L_0805B318:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805B1C0: goto L_0805B1C0;
     case 0x0805B1D4: goto L_0805B1D4;
@@ -9214,16 +9390,18 @@ do_jump:
     case 0x0805B314: goto L_0805B314;
     case 0x0805B318: goto L_0805B318;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805B31C(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805B31C:;
     cpu.r[13] -= 8;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -9333,6 +9511,7 @@ L_0805B3B8:;
 L_0805B3BC:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805B31C: goto L_0805B31C;
     case 0x0805B372: goto L_0805B372;
@@ -9341,16 +9520,18 @@ do_jump:
     case 0x0805B3B8: goto L_0805B3B8;
     case 0x0805B3BC: goto L_0805B3BC;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805B3C0(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805B3C0:;
     cpu.r[13] -= 12;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -9447,6 +9628,7 @@ L_0805B458:;
 L_0805B45C:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805B3C0: goto L_0805B3C0;
     case 0x0805B3D2: goto L_0805B3D2;
@@ -9458,16 +9640,18 @@ do_jump:
     case 0x0805B458: goto L_0805B458;
     case 0x0805B45C: goto L_0805B45C;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805B460(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805B460:;
     cpu.r[13] -= 12;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -9713,6 +9897,7 @@ L_0805B5EA:;
 L_0805B5F4:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805B460: goto L_0805B460;
     case 0x0805B476: goto L_0805B476;
@@ -9734,16 +9919,18 @@ do_jump:
     case 0x0805B5EA: goto L_0805B5EA;
     case 0x0805B5F4: goto L_0805B5F4;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805B5F8(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805B5F8:;
     cpu.r[13] -= 12;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -9799,6 +9986,7 @@ L_0805B644:;
 L_0805B648:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805B5F8: goto L_0805B5F8;
     case 0x0805B634: goto L_0805B634;
@@ -9807,16 +9995,18 @@ do_jump:
     case 0x0805B644: goto L_0805B644;
     case 0x0805B648: goto L_0805B648;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805B64C(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805B64C:;
     cpu.r[13] -= 16;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -9871,22 +10061,25 @@ L_0805B698:;
 L_0805B69C:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805B64C: goto L_0805B64C;
     case 0x0805B694: goto L_0805B694;
     case 0x0805B698: goto L_0805B698;
     case 0x0805B69C: goto L_0805B69C;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805B6A0(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805B6A0:;
     cpu.r[13] -= 12;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -9992,6 +10185,7 @@ L_0805B734:;
 L_0805B73C:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805B6A0: goto L_0805B6A0;
     case 0x0805B6D0: goto L_0805B6D0;
@@ -10000,16 +10194,18 @@ do_jump:
     case 0x0805B734: goto L_0805B734;
     case 0x0805B73C: goto L_0805B73C;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805B740(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805B740:;
     cpu.r[2] = 0x082AEADC;
     lift_pc = 0x0805B743;
@@ -10027,20 +10223,23 @@ L_0805B740:;
 L_0805B754:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805B740: goto L_0805B740;
     case 0x0805B754: goto L_0805B754;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805B758(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805B758:;
     lift_pc = 0x0805B759;
     cpu.r[1] = R32(cpu.r[0] + 0x40);
@@ -10066,22 +10265,25 @@ L_0805B76E:;
 L_0805B774:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805B758: goto L_0805B758;
     case 0x0805B76C: goto L_0805B76C;
     case 0x0805B76E: goto L_0805B76E;
     case 0x0805B774: goto L_0805B774;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805B778(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805B778:;
     cpu.r[13] -= 16;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -10134,6 +10336,7 @@ L_0805B7B8:;
 L_0805B7BC:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805B778: goto L_0805B778;
     case 0x0805B79A: goto L_0805B79A;
@@ -10141,16 +10344,18 @@ do_jump:
     case 0x0805B7B8: goto L_0805B7B8;
     case 0x0805B7BC: goto L_0805B7BC;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805B7C0(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805B7C0:;
     cpu.r[13] -= 16;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -10246,6 +10451,7 @@ L_0805B84E:;
     jt = cpu.r[1]; goto do_jump;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805B7C0: goto L_0805B7C0;
     case 0x0805B7DA: goto L_0805B7DA;
@@ -10259,16 +10465,18 @@ do_jump:
     case 0x0805B84C: goto L_0805B84C;
     case 0x0805B84E: goto L_0805B84E;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805B854(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805B854:;
     cpu.r[13] -= 20;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -10448,6 +10656,7 @@ L_0805B96C:;
     jt = cpu.r[0]; goto do_jump;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805B854: goto L_0805B854;
     case 0x0805B8A8: goto L_0805B8A8;
@@ -10464,16 +10673,18 @@ do_jump:
     case 0x0805B95C: goto L_0805B95C;
     case 0x0805B96C: goto L_0805B96C;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805B980(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805B980:;
     cpu.r[13] -= 20;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -10785,6 +10996,7 @@ L_0805BB90:;
 L_0805BB94:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805B980: goto L_0805B980;
     case 0x0805B9D8: goto L_0805B9D8;
@@ -10817,16 +11029,18 @@ do_jump:
     case 0x0805BB90: goto L_0805BB90;
     case 0x0805BB94: goto L_0805BB94;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805BB98(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805BB98:;
     cpu.r[13] -= 4;
     W32(cpu.r[13] + 0, cpu.r[14]);
@@ -10845,20 +11059,23 @@ L_0805BB98:;
 L_0805BBAC:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805BB98: goto L_0805BB98;
     case 0x0805BBAC: goto L_0805BBAC;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805BBB0(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805BBB0:;
     cpu.r[13] -= 12;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -11012,6 +11229,7 @@ L_0805BC9C:;
 L_0805BCA0:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805BBB0: goto L_0805BBB0;
     case 0x0805BBD8: goto L_0805BBD8;
@@ -11023,16 +11241,18 @@ do_jump:
     case 0x0805BC9C: goto L_0805BC9C;
     case 0x0805BCA0: goto L_0805BCA0;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805BCA4(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805BCA4:;
     cpu.r[13] -= 8;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -11069,22 +11289,25 @@ L_0805BCCE:;
     jt = cpu.r[0]; goto do_jump;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805BCA4: goto L_0805BCA4;
     case 0x0805BCB8: goto L_0805BCB8;
     case 0x0805BCCA: goto L_0805BCCA;
     case 0x0805BCCE: goto L_0805BCCE;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805BCD4(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805BCD4:;
     cpu.r[13] -= 8;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -11108,37 +11331,43 @@ L_0805BCEA:;
     jt = cpu.r[0]; goto do_jump;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805BCD4: goto L_0805BCD4;
     case 0x0805BCEA: goto L_0805BCEA;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805BCF0(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805BCF0:;
     jt = cpu.r[14]; goto do_jump;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805BCF0: goto L_0805BCF0;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805BCF4(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805BCF4:;
     cpu.r[13] -= 8;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -11276,6 +11505,7 @@ L_0805BDC0:;
     jt = cpu.r[0]; goto do_jump;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805BCF4: goto L_0805BCF4;
     case 0x0805BD08: goto L_0805BD08;
@@ -11291,16 +11521,18 @@ do_jump:
     case 0x0805BD94: goto L_0805BD94;
     case 0x0805BDC0: goto L_0805BDC0;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805BDC8(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805BDC8:;
     cpu.r[13] -= 8;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -11428,6 +11660,7 @@ L_0805BE8A:;
     jt = cpu.r[0]; goto do_jump;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805BDC8: goto L_0805BDC8;
     case 0x0805BDD8: goto L_0805BDD8;
@@ -11441,16 +11674,18 @@ do_jump:
     case 0x0805BE58: goto L_0805BE58;
     case 0x0805BE8A: goto L_0805BE8A;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805BE90(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805BE90:;
     cpu.r[13] -= 8;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -11518,22 +11753,25 @@ L_0805BEEC:;
     jt = cpu.r[0]; goto do_jump;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805BE90: goto L_0805BE90;
     case 0x0805BEA0: goto L_0805BEA0;
     case 0x0805BEB0: goto L_0805BEB0;
     case 0x0805BEEC: goto L_0805BEEC;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805BEF4(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805BEF4:;
     cpu.r[13] -= 8;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -11650,6 +11888,7 @@ L_0805BFB0:;
 L_0805BFB4:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805BEF4: goto L_0805BEF4;
     case 0x0805BF04: goto L_0805BF04;
@@ -11664,16 +11903,18 @@ do_jump:
     case 0x0805BFB0: goto L_0805BFB0;
     case 0x0805BFB4: goto L_0805BFB4;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805BFB8(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805BFB8:;
     cpu.r[13] -= 16;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -11783,6 +12024,7 @@ L_0805C058:;
 L_0805C05C:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805BFB8: goto L_0805BFB8;
     case 0x0805BFC8: goto L_0805BFC8;
@@ -11792,16 +12034,18 @@ do_jump:
     case 0x0805C058: goto L_0805C058;
     case 0x0805C05C: goto L_0805C05C;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805C060(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805C060:;
     cpu.r[13] -= 8;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -11914,6 +12158,7 @@ L_0805C100:;
 L_0805C108:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805C060: goto L_0805C060;
     case 0x0805C070: goto L_0805C070;
@@ -11925,16 +12170,18 @@ do_jump:
     case 0x0805C100: goto L_0805C100;
     case 0x0805C108: goto L_0805C108;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805C10C(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805C10C:;
     cpu.r[13] -= 12;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -12143,6 +12390,7 @@ L_0805C25C:;
 L_0805C260:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805C10C: goto L_0805C10C;
     case 0x0805C122: goto L_0805C122;
@@ -12165,16 +12413,18 @@ do_jump:
     case 0x0805C25C: goto L_0805C25C;
     case 0x0805C260: goto L_0805C260;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805C264(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805C264:;
     cpu.r[13] -= 8;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -12282,6 +12532,7 @@ L_0805C2FE:;
 L_0805C304:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805C264: goto L_0805C264;
     case 0x0805C274: goto L_0805C274;
@@ -12292,16 +12543,18 @@ do_jump:
     case 0x0805C2FE: goto L_0805C2FE;
     case 0x0805C304: goto L_0805C304;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805C308(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805C308:;
     cpu.r[13] -= 12;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -12466,6 +12719,7 @@ L_0805C408:;
 L_0805C40C:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805C308: goto L_0805C308;
     case 0x0805C31E: goto L_0805C31E;
@@ -12480,16 +12734,18 @@ do_jump:
     case 0x0805C408: goto L_0805C408;
     case 0x0805C40C: goto L_0805C40C;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805C410(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805C410:;
     cpu.r[13] -= 12;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -12616,6 +12872,7 @@ L_0805C4CC:;
 L_0805C4D4:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805C410: goto L_0805C410;
     case 0x0805C45C: goto L_0805C45C;
@@ -12628,16 +12885,18 @@ do_jump:
     case 0x0805C4CC: goto L_0805C4CC;
     case 0x0805C4D4: goto L_0805C4D4;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805C4D8(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805C4D8:;
     cpu.r[13] -= 12;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -12734,6 +12993,7 @@ L_0805C570:;
 L_0805C574:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805C4D8: goto L_0805C4D8;
     case 0x0805C4EA: goto L_0805C4EA;
@@ -12745,16 +13005,18 @@ do_jump:
     case 0x0805C570: goto L_0805C570;
     case 0x0805C574: goto L_0805C574;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805C578(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805C578:;
     cpu.r[13] -= 16;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -12951,6 +13213,7 @@ L_0805C6B2:;
 L_0805C6BC:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805C578: goto L_0805C578;
     case 0x0805C58E: goto L_0805C58E;
@@ -12968,16 +13231,18 @@ do_jump:
     case 0x0805C6B2: goto L_0805C6B2;
     case 0x0805C6BC: goto L_0805C6BC;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805C6C0(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805C6C0:;
     cpu.r[13] -= 12;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -13179,6 +13444,7 @@ L_0805C7FE:;
 L_0805C808:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805C6C0: goto L_0805C6C0;
     case 0x0805C6D6: goto L_0805C6D6;
@@ -13197,16 +13463,18 @@ do_jump:
     case 0x0805C7FE: goto L_0805C7FE;
     case 0x0805C808: goto L_0805C808;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805C80C(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805C80C:;
     cpu.r[13] -= 8;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -13253,6 +13521,7 @@ L_0805C84C:;
 L_0805C850:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805C80C: goto L_0805C80C;
     case 0x0805C83E: goto L_0805C83E;
@@ -13261,16 +13530,18 @@ do_jump:
     case 0x0805C84C: goto L_0805C84C;
     case 0x0805C850: goto L_0805C850;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805C854(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805C854:;
     cpu.r[13] -= 16;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -13369,21 +13640,24 @@ L_0805C8BC:;
 L_0805C8F0:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805C854: goto L_0805C854;
     case 0x0805C8BC: goto L_0805C8BC;
     case 0x0805C8F0: goto L_0805C8F0;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805C8F4(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805C8F4:;
     cpu.r[13] -= 4;
     W32(cpu.r[13] + 0, cpu.r[14]);
@@ -13440,6 +13714,7 @@ L_0805C948:;
 L_0805C94C:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805C8F4: goto L_0805C8F4;
     case 0x0805C91C: goto L_0805C91C;
@@ -13449,16 +13724,18 @@ do_jump:
     case 0x0805C948: goto L_0805C948;
     case 0x0805C94C: goto L_0805C94C;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805C950(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805C950:;
     cpu.r[13] -= 16;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -13569,6 +13846,7 @@ L_0805C9EC:;
 L_0805C9F0:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805C950: goto L_0805C950;
     case 0x0805C974: goto L_0805C974;
@@ -13581,16 +13859,18 @@ do_jump:
     case 0x0805C9EC: goto L_0805C9EC;
     case 0x0805C9F0: goto L_0805C9F0;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805C9F4(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805C9F4:;
     cpu.r[13] -= 8;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -13642,20 +13922,23 @@ L_0805CA06:;
     jt = cpu.r[0]; goto do_jump;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805C9F4: goto L_0805C9F4;
     case 0x0805CA06: goto L_0805CA06;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805CA38(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805CA38:;
     cpu.r[13] -= 8;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -13701,19 +13984,22 @@ L_0805CA38:;
     jt = cpu.r[0]; goto do_jump;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805CA38: goto L_0805CA38;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805CA78(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805CA78:;
     cpu.r[13] -= 12;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -13773,6 +14059,7 @@ L_0805CAC8:;
 L_0805CACC:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805CA78: goto L_0805CA78;
     case 0x0805CABA: goto L_0805CABA;
@@ -13781,16 +14068,18 @@ do_jump:
     case 0x0805CAC8: goto L_0805CAC8;
     case 0x0805CACC: goto L_0805CACC;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805CAD0(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805CAD0:;
     cpu.r[13] -= 8;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -13844,6 +14133,7 @@ L_0805CB1C:;
 L_0805CB20:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805CAD0: goto L_0805CAD0;
     case 0x0805CB0C: goto L_0805CB0C;
@@ -13852,16 +14142,18 @@ do_jump:
     case 0x0805CB1C: goto L_0805CB1C;
     case 0x0805CB20: goto L_0805CB20;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805CB24(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805CB24:;
     cpu.r[13] -= 8;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -13915,6 +14207,7 @@ L_0805CB70:;
 L_0805CB74:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805CB24: goto L_0805CB24;
     case 0x0805CB60: goto L_0805CB60;
@@ -13923,16 +14216,18 @@ do_jump:
     case 0x0805CB70: goto L_0805CB70;
     case 0x0805CB74: goto L_0805CB74;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805CB78(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805CB78:;
     cpu.r[13] -= 8;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -13986,6 +14281,7 @@ L_0805CBC4:;
 L_0805CBC8:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805CB78: goto L_0805CB78;
     case 0x0805CBB4: goto L_0805CBB4;
@@ -13994,16 +14290,18 @@ do_jump:
     case 0x0805CBC4: goto L_0805CBC4;
     case 0x0805CBC8: goto L_0805CBC8;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805CBCC(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805CBCC:;
     cpu.r[13] -= 4;
     W32(cpu.r[13] + 0, cpu.r[14]);
@@ -14022,20 +14320,23 @@ L_0805CBCC:;
 L_0805CBE0:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805CBCC: goto L_0805CBCC;
     case 0x0805CBE0: goto L_0805CBE0;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805CBE4(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805CBE4:;
     cpu.r[13] -= 4;
     W32(cpu.r[13] + 0, cpu.r[14]);
@@ -14086,6 +14387,7 @@ L_0805CC28:;
 L_0805CC2C:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805CBE4: goto L_0805CBE4;
     case 0x0805CC10: goto L_0805CC10;
@@ -14094,16 +14396,18 @@ do_jump:
     case 0x0805CC28: goto L_0805CC28;
     case 0x0805CC2C: goto L_0805CC2C;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805CC30(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805CC30:;
     cpu.r[13] -= 4;
     W32(cpu.r[13] + 0, cpu.r[14]);
@@ -14154,6 +14458,7 @@ L_0805CC74:;
 L_0805CC78:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805CC30: goto L_0805CC30;
     case 0x0805CC5C: goto L_0805CC5C;
@@ -14162,67 +14467,78 @@ do_jump:
     case 0x0805CC74: goto L_0805CC74;
     case 0x0805CC78: goto L_0805CC78;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805CC7C(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805CC7C:;
     jt = cpu.r[14]; goto do_jump;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805CC7C: goto L_0805CC7C;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805CC80(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805CC80:;
     jt = cpu.r[14]; goto do_jump;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805CC80: goto L_0805CC80;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805CC84(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805CC84:;
     jt = cpu.r[14]; goto do_jump;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805CC84: goto L_0805CC84;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805CC88(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805CC88:;
     cpu.r[13] -= 20;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -14319,21 +14635,24 @@ L_0805CD1C:;
 L_0805CD20:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805CC88: goto L_0805CC88;
     case 0x0805CD1C: goto L_0805CD1C;
     case 0x0805CD20: goto L_0805CD20;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805CD24(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805CD24:;
     cpu.r[13] -= 8;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -14407,6 +14726,7 @@ L_0805CD90:;
 L_0805CD98:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805CD24: goto L_0805CD24;
     case 0x0805CD74: goto L_0805CD74;
@@ -14416,16 +14736,18 @@ do_jump:
     case 0x0805CD90: goto L_0805CD90;
     case 0x0805CD98: goto L_0805CD98;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805CD9C(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805CD9C:;
     cpu.r[13] -= 20;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -14664,6 +14986,7 @@ L_0805CF26:;
 L_0805CF34:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805CD9C: goto L_0805CD9C;
     case 0x0805CDE6: goto L_0805CDE6;
@@ -14688,16 +15011,18 @@ do_jump:
     case 0x0805CF26: goto L_0805CF26;
     case 0x0805CF34: goto L_0805CF34;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805CF38(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805CF38:;
     cpu.r[13] -= 8;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -14749,20 +15074,23 @@ L_0805CF4E:;
     jt = cpu.r[0]; goto do_jump;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805CF38: goto L_0805CF38;
     case 0x0805CF4E: goto L_0805CF4E;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805CF80(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805CF80:;
     cpu.r[13] -= 8;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -14826,21 +15154,24 @@ L_0805CFD6:;
     jt = cpu.r[0]; goto do_jump;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805CF80: goto L_0805CF80;
     case 0x0805CF98: goto L_0805CF98;
     case 0x0805CFD6: goto L_0805CFD6;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805CFDC(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805CFDC:;
     cpu.r[13] -= 8;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -14951,6 +15282,7 @@ L_0805D08A:;
     jt = cpu.r[0]; goto do_jump;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805CFDC: goto L_0805CFDC;
     case 0x0805CFF8: goto L_0805CFF8;
@@ -14962,16 +15294,18 @@ do_jump:
     case 0x0805D074: goto L_0805D074;
     case 0x0805D08A: goto L_0805D08A;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805D090(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805D090:;
     cpu.r[13] -= 8;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -15038,21 +15372,24 @@ L_0805D0EC:;
     jt = cpu.r[0]; goto do_jump;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805D090: goto L_0805D090;
     case 0x0805D0A8: goto L_0805D0A8;
     case 0x0805D0EC: goto L_0805D0EC;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805D0F4(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805D0F4:;
     cpu.r[13] -= 20;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -15169,21 +15506,24 @@ L_0805D1A8:;
 L_0805D1AC:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805D0F4: goto L_0805D0F4;
     case 0x0805D1A8: goto L_0805D1A8;
     case 0x0805D1AC: goto L_0805D1AC;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805D1B0(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805D1B0:;
     cpu.r[13] -= 8;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -15257,6 +15597,7 @@ L_0805D218:;
 L_0805D220:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805D1B0: goto L_0805D1B0;
     case 0x0805D200: goto L_0805D200;
@@ -15265,16 +15606,18 @@ do_jump:
     case 0x0805D218: goto L_0805D218;
     case 0x0805D220: goto L_0805D220;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805D224(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805D224:;
     cpu.r[13] -= 20;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -15447,6 +15790,7 @@ L_0805D338:;
 L_0805D33C:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805D224: goto L_0805D224;
     case 0x0805D266: goto L_0805D266;
@@ -15460,16 +15804,18 @@ do_jump:
     case 0x0805D338: goto L_0805D338;
     case 0x0805D33C: goto L_0805D33C;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805D340(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805D340:;
     cpu.r[13] -= 8;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -15521,20 +15867,23 @@ L_0805D356:;
     jt = cpu.r[0]; goto do_jump;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805D340: goto L_0805D340;
     case 0x0805D356: goto L_0805D356;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805D388(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805D388:;
     cpu.r[13] -= 8;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -15598,21 +15947,24 @@ L_0805D3DE:;
     jt = cpu.r[0]; goto do_jump;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805D388: goto L_0805D388;
     case 0x0805D3A0: goto L_0805D3A0;
     case 0x0805D3DE: goto L_0805D3DE;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805D3E4(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805D3E4:;
     cpu.r[13] -= 8;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -15726,6 +16078,7 @@ L_0805D498:;
 L_0805D49C:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805D3E4: goto L_0805D3E4;
     case 0x0805D400: goto L_0805D400;
@@ -15738,16 +16091,18 @@ do_jump:
     case 0x0805D498: goto L_0805D498;
     case 0x0805D49C: goto L_0805D49C;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805D4A0(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805D4A0:;
     cpu.r[13] -= 8;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -15815,21 +16170,24 @@ L_0805D4FE:;
     jt = cpu.r[0]; goto do_jump;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805D4A0: goto L_0805D4A0;
     case 0x0805D4BA: goto L_0805D4BA;
     case 0x0805D4FE: goto L_0805D4FE;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805D504(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805D504:;
     cpu.r[13] -= 20;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -15933,21 +16291,24 @@ L_0805D5A4:;
 L_0805D5A8:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805D504: goto L_0805D504;
     case 0x0805D5A4: goto L_0805D5A4;
     case 0x0805D5A8: goto L_0805D5A8;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805D5AC(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805D5AC:;
     cpu.r[13] -= 8;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -16021,6 +16382,7 @@ L_0805D614:;
 L_0805D61C:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805D5AC: goto L_0805D5AC;
     case 0x0805D5FC: goto L_0805D5FC;
@@ -16029,16 +16391,18 @@ do_jump:
     case 0x0805D614: goto L_0805D614;
     case 0x0805D61C: goto L_0805D61C;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805D620(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805D620:;
     cpu.r[13] -= 20;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -16265,6 +16629,7 @@ L_0805D794:;
 L_0805D7A0:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805D620: goto L_0805D620;
     case 0x0805D66C: goto L_0805D66C;
@@ -16286,16 +16651,18 @@ do_jump:
     case 0x0805D794: goto L_0805D794;
     case 0x0805D7A0: goto L_0805D7A0;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805D7A4(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805D7A4:;
     cpu.r[13] -= 8;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -16347,20 +16714,23 @@ L_0805D7BA:;
     jt = cpu.r[0]; goto do_jump;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805D7A4: goto L_0805D7A4;
     case 0x0805D7BA: goto L_0805D7BA;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805D7EC(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805D7EC:;
     cpu.r[13] -= 8;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -16412,20 +16782,23 @@ L_0805D82C:;
     jt = cpu.r[0]; goto do_jump;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805D7EC: goto L_0805D7EC;
     case 0x0805D82C: goto L_0805D82C;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805D834(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805D834:;
     cpu.r[13] -= 8;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -16529,6 +16902,7 @@ L_0805D8C6:;
 L_0805D8CC:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805D834: goto L_0805D834;
     case 0x0805D84C: goto L_0805D84C;
@@ -16539,16 +16913,18 @@ do_jump:
     case 0x0805D8C6: goto L_0805D8C6;
     case 0x0805D8CC: goto L_0805D8CC;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805D8D0(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805D8D0:;
     cpu.r[13] -= 8;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -16624,21 +17000,24 @@ L_0805D938:;
     jt = cpu.r[0]; goto do_jump;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805D8D0: goto L_0805D8D0;
     case 0x0805D8E8: goto L_0805D8E8;
     case 0x0805D938: goto L_0805D938;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805D940(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805D940:;
     cpu.r[13] -= 8;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -16685,6 +17064,7 @@ L_0805D980:;
 L_0805D984:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805D940: goto L_0805D940;
     case 0x0805D972: goto L_0805D972;
@@ -16693,16 +17073,18 @@ do_jump:
     case 0x0805D980: goto L_0805D980;
     case 0x0805D984: goto L_0805D984;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805D988(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805D988:;
     cpu.r[13] -= 8;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -16759,22 +17141,25 @@ L_0805D9E0:;
 L_0805D9E4:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805D988: goto L_0805D988;
     case 0x0805D9DC: goto L_0805D9DC;
     case 0x0805D9E0: goto L_0805D9E0;
     case 0x0805D9E4: goto L_0805D9E4;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805D9E8(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805D9E8:;
     cpu.r[13] -= 4;
     W32(cpu.r[13] + 0, cpu.r[14]);
@@ -16831,6 +17216,7 @@ L_0805DA3C:;
 L_0805DA40:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805D9E8: goto L_0805D9E8;
     case 0x0805DA10: goto L_0805DA10;
@@ -16840,16 +17226,18 @@ do_jump:
     case 0x0805DA3C: goto L_0805DA3C;
     case 0x0805DA40: goto L_0805DA40;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805DA44(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805DA44:;
     cpu.r[13] -= 12;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -16966,6 +17354,7 @@ L_0805DAF8:;
 L_0805DAFC:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805DA44: goto L_0805DA44;
     case 0x0805DA84: goto L_0805DA84;
@@ -16979,33 +17368,38 @@ do_jump:
     case 0x0805DAF8: goto L_0805DAF8;
     case 0x0805DAFC: goto L_0805DAFC;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805DB00(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805DB00:;
     jt = cpu.r[14]; goto do_jump;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805DB00: goto L_0805DB00;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805DB04(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805DB04:;
     cpu.r[1] = ADDS(cpu.r[0], 0x0);
     lift_pc = 0x0805DB07;
@@ -17024,20 +17418,23 @@ L_0805DB18:;
     jt = cpu.r[14]; goto do_jump;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805DB04: goto L_0805DB04;
     case 0x0805DB18: goto L_0805DB18;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805DB1C(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805DB1C:;
     cpu.r[13] -= 16;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -17079,21 +17476,24 @@ L_0805DB48:;
 L_0805DB50:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805DB1C: goto L_0805DB1C;
     case 0x0805DB48: goto L_0805DB48;
     case 0x0805DB50: goto L_0805DB50;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805DB54(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805DB54:;
     cpu.r[13] -= 20;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -17258,6 +17658,7 @@ L_0805DC56:;
 L_0805DC64:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805DB54: goto L_0805DB54;
     case 0x0805DB9C: goto L_0805DB9C;
@@ -17275,16 +17676,18 @@ do_jump:
     case 0x0805DC56: goto L_0805DC56;
     case 0x0805DC64: goto L_0805DC64;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805DC68(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805DC68:;
     cpu.r[2] = ADDS(cpu.r[0], 0x0);
     lift_pc = 0x0805DC6B;
@@ -17326,6 +17729,7 @@ L_0805DCA8:;
 L_0805DCAC:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805DC68: goto L_0805DC68;
     case 0x0805DC8E: goto L_0805DC8E;
@@ -17333,16 +17737,18 @@ do_jump:
     case 0x0805DCA8: goto L_0805DCA8;
     case 0x0805DCAC: goto L_0805DCAC;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805DCB0(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805DCB0:;
     cpu.r[13] -= 20;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -17656,6 +18062,7 @@ L_0805DEC2:;
     jt = cpu.r[0]; goto do_jump;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805DCB0: goto L_0805DCB0;
     case 0x0805DCBE: goto L_0805DCBE;
@@ -17696,16 +18103,18 @@ do_jump:
     case 0x0805DEB4: goto L_0805DEB4;
     case 0x0805DEC2: goto L_0805DEC2;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805DEC8(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805DEC8:;
     cpu.r[13] -= 20;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -17997,6 +18406,7 @@ L_0805E0B6:;
     jt = cpu.r[1]; goto do_jump;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805DEC8: goto L_0805DEC8;
     case 0x0805DED6: goto L_0805DED6;
@@ -18035,16 +18445,18 @@ do_jump:
     case 0x0805E0A8: goto L_0805E0A8;
     case 0x0805E0B6: goto L_0805E0B6;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805E0C0(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805E0C0:;
     cpu.r[13] -= 12;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -18187,6 +18599,7 @@ L_0805E19C:;
 L_0805E1B0:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805E0C0: goto L_0805E0C0;
     case 0x0805E0EC: goto L_0805E0EC;
@@ -18204,16 +18617,18 @@ do_jump:
     case 0x0805E19C: goto L_0805E19C;
     case 0x0805E1B0: goto L_0805E1B0;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805E1B4(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805E1B4:;
     cpu.r[13] -= 20;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -18339,6 +18754,7 @@ L_0805E266:;
     jt = cpu.r[0]; goto do_jump;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805E1B4: goto L_0805E1B4;
     case 0x0805E23A: goto L_0805E23A;
@@ -18350,16 +18766,18 @@ do_jump:
     case 0x0805E260: goto L_0805E260;
     case 0x0805E266: goto L_0805E266;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805E280(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805E280:;
     cpu.r[13] -= 20;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -18685,6 +19103,7 @@ L_0805E4A2:;
 L_0805E4A8:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805E280: goto L_0805E280;
     case 0x0805E29E: goto L_0805E29E;
@@ -18714,16 +19133,18 @@ do_jump:
     case 0x0805E4A2: goto L_0805E4A2;
     case 0x0805E4A8: goto L_0805E4A8;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805E4AC(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805E4AC:;
     cpu.r[13] -= 4;
     W32(cpu.r[13] + 0, cpu.r[14]);
@@ -18742,20 +19163,23 @@ L_0805E4AC:;
 L_0805E4C0:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805E4AC: goto L_0805E4AC;
     case 0x0805E4C0: goto L_0805E4C0;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805E4C4(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805E4C4:;
     lift_pc = 0x0805E4C5;
     cpu.r[1] = R32(cpu.r[0] + 0x40);
@@ -18774,54 +19198,63 @@ L_0805E4C4:;
 L_0805E4D8:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805E4C4: goto L_0805E4C4;
     case 0x0805E4D8: goto L_0805E4D8;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805E4DC(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805E4DC:;
     jt = cpu.r[14]; goto do_jump;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805E4DC: goto L_0805E4DC;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805E4E0(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805E4E0:;
     jt = cpu.r[14]; goto do_jump;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805E4E0: goto L_0805E4E0;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805E4E4(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805E4E4:;
     cpu.r[13] -= 8;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -18993,6 +19426,7 @@ L_0805E5F0:;
     jt = cpu.r[0]; goto do_jump;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805E4E4: goto L_0805E4E4;
     case 0x0805E4F4: goto L_0805E4F4;
@@ -19009,16 +19443,18 @@ do_jump:
     case 0x0805E5C4: goto L_0805E5C4;
     case 0x0805E5F0: goto L_0805E5F0;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805E5F8(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805E5F8:;
     cpu.r[13] -= 8;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -19172,6 +19608,7 @@ L_0805E6EE:;
     jt = cpu.r[0]; goto do_jump;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805E5F8: goto L_0805E5F8;
     case 0x0805E608: goto L_0805E608;
@@ -19188,16 +19625,18 @@ do_jump:
     case 0x0805E6C2: goto L_0805E6C2;
     case 0x0805E6EE: goto L_0805E6EE;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805E6F4(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805E6F4:;
     cpu.r[13] -= 20;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -19490,6 +19929,7 @@ L_0805E8C2:;
 L_0805E8C8:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805E6F4: goto L_0805E6F4;
     case 0x0805E704: goto L_0805E704;
@@ -19519,16 +19959,18 @@ do_jump:
     case 0x0805E8C2: goto L_0805E8C2;
     case 0x0805E8C8: goto L_0805E8C8;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805E8CC(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805E8CC:;
     cpu.r[13] -= 8;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -19601,6 +20043,7 @@ L_0805E930:;
     jt = cpu.r[0]; goto do_jump;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805E8CC: goto L_0805E8CC;
     case 0x0805E8DC: goto L_0805E8DC;
@@ -19608,16 +20051,18 @@ do_jump:
     case 0x0805E904: goto L_0805E904;
     case 0x0805E930: goto L_0805E930;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805E938(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805E938:;
     cpu.r[13] -= 20;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -19953,6 +20398,7 @@ L_0805EB52:;
     jt = cpu.r[0]; goto do_jump;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805E938: goto L_0805E938;
     case 0x0805E94A: goto L_0805E94A;
@@ -19984,16 +20430,18 @@ do_jump:
     case 0x0805EB28: goto L_0805EB28;
     case 0x0805EB52: goto L_0805EB52;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805EB60(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805EB60:;
     cpu.r[13] -= 12;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -20224,6 +20672,7 @@ L_0805ECDC:;
 L_0805ECE0:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805EB60: goto L_0805EB60;
     case 0x0805EB72: goto L_0805EB72;
@@ -20252,16 +20701,18 @@ do_jump:
     case 0x0805ECDC: goto L_0805ECDC;
     case 0x0805ECE0: goto L_0805ECE0;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805ECE4(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805ECE4:;
     cpu.r[13] -= 12;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -20636,6 +21087,7 @@ L_0805EF52:;
 L_0805EF5C:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805ECE4: goto L_0805ECE4;
     case 0x0805ECF2: goto L_0805ECF2;
@@ -20677,16 +21129,18 @@ do_jump:
     case 0x0805EF52: goto L_0805EF52;
     case 0x0805EF5C: goto L_0805EF5C;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805EF60(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805EF60:;
     cpu.r[13] -= 12;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -20996,6 +21450,7 @@ L_0805F162:;
 L_0805F16C:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805EF60: goto L_0805EF60;
     case 0x0805EF6E: goto L_0805EF6E;
@@ -21029,16 +21484,18 @@ do_jump:
     case 0x0805F162: goto L_0805F162;
     case 0x0805F16C: goto L_0805F16C;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805F170(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805F170:;
     cpu.r[13] -= 12;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -21151,6 +21608,7 @@ L_0805F218:;
 L_0805F21C:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805F170: goto L_0805F170;
     case 0x0805F1BE: goto L_0805F1BE;
@@ -21161,16 +21619,18 @@ do_jump:
     case 0x0805F218: goto L_0805F218;
     case 0x0805F21C: goto L_0805F21C;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805F220(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805F220:;
     cpu.r[13] -= 8;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -21272,6 +21732,7 @@ L_0805F2C8:;
 L_0805F2CC:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805F220: goto L_0805F220;
     case 0x0805F260: goto L_0805F260;
@@ -21284,16 +21745,18 @@ do_jump:
     case 0x0805F2C8: goto L_0805F2C8;
     case 0x0805F2CC: goto L_0805F2CC;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805F2D0(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805F2D0:;
     cpu.r[13] -= 20;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -21516,6 +21979,7 @@ L_0805F434:;
 L_0805F438:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805F2D0: goto L_0805F2D0;
     case 0x0805F31C: goto L_0805F31C;
@@ -21535,16 +21999,18 @@ do_jump:
     case 0x0805F434: goto L_0805F434;
     case 0x0805F438: goto L_0805F438;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805F43C(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805F43C:;
     cpu.r[13] -= 12;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -21595,6 +22061,7 @@ L_0805F484:;
 L_0805F488:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805F43C: goto L_0805F43C;
     case 0x0805F454: goto L_0805F454;
@@ -21602,16 +22069,18 @@ do_jump:
     case 0x0805F484: goto L_0805F484;
     case 0x0805F488: goto L_0805F488;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805F48C(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805F48C:;
     lift_pc = 0x0805F48D;
     cpu.r[1] = R32(cpu.r[0] + 0x40);
@@ -21630,37 +22099,43 @@ L_0805F48C:;
 L_0805F4A0:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805F48C: goto L_0805F48C;
     case 0x0805F4A0: goto L_0805F4A0;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805F4A4(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805F4A4:;
     jt = cpu.r[14]; goto do_jump;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805F4A4: goto L_0805F4A4;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805F4A8(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805F4A8:;
     cpu.r[13] -= 16;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -21805,6 +22280,7 @@ L_0805F58A:;
 L_0805F590:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805F4A8: goto L_0805F4A8;
     case 0x0805F4B8: goto L_0805F4B8;
@@ -21821,16 +22297,18 @@ do_jump:
     case 0x0805F58A: goto L_0805F58A;
     case 0x0805F590: goto L_0805F590;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805F594(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805F594:;
     cpu.r[13] -= 8;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -21906,6 +22384,7 @@ L_0805F5F6:;
     jt = cpu.r[0]; goto do_jump;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805F594: goto L_0805F594;
     case 0x0805F5A4: goto L_0805F5A4;
@@ -21914,16 +22393,18 @@ do_jump:
     case 0x0805F5CA: goto L_0805F5CA;
     case 0x0805F5F6: goto L_0805F5F6;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805F5FC(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805F5FC:;
     cpu.r[13] -= 8;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -22007,6 +22488,7 @@ L_0805F66A:;
 L_0805F670:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805F5FC: goto L_0805F5FC;
     case 0x0805F60C: goto L_0805F60C;
@@ -22015,16 +22497,18 @@ do_jump:
     case 0x0805F66A: goto L_0805F66A;
     case 0x0805F670: goto L_0805F670;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805F674(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805F674:;
     cpu.r[13] -= 16;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -22123,6 +22607,7 @@ L_0805F702:;
 L_0805F708:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805F674: goto L_0805F674;
     case 0x0805F684: goto L_0805F684;
@@ -22130,16 +22615,18 @@ do_jump:
     case 0x0805F702: goto L_0805F702;
     case 0x0805F708: goto L_0805F708;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805F70C(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805F70C:;
     cpu.r[13] -= 12;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -22218,6 +22705,7 @@ L_0805F770:;
     jt = cpu.r[0]; goto do_jump;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805F70C: goto L_0805F70C;
     case 0x0805F71E: goto L_0805F71E;
@@ -22225,16 +22713,18 @@ do_jump:
     case 0x0805F740: goto L_0805F740;
     case 0x0805F770: goto L_0805F770;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805F778(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805F778:;
     cpu.r[13] -= 20;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -22349,6 +22839,7 @@ L_0805F822:;
     jt = cpu.r[1]; goto do_jump;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805F778: goto L_0805F778;
     case 0x0805F792: goto L_0805F792;
@@ -22364,16 +22855,18 @@ do_jump:
     case 0x0805F820: goto L_0805F820;
     case 0x0805F822: goto L_0805F822;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805F828(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805F828:;
     lift_pc = 0x0805F829;
     cpu.r[1] = R8(cpu.r[0] + 0x12);
@@ -22384,19 +22877,22 @@ L_0805F828:;
     jt = cpu.r[14]; goto do_jump;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805F828: goto L_0805F828;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805F834(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805F834:;
     cpu.r[13] -= 20;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -22621,6 +23117,7 @@ L_0805F990:;
 L_0805F9A4:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805F834: goto L_0805F834;
     case 0x0805F8E2: goto L_0805F8E2;
@@ -22639,16 +23136,18 @@ do_jump:
     case 0x0805F990: goto L_0805F990;
     case 0x0805F9A4: goto L_0805F9A4;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805F9A8(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805F9A8:;
     cpu.r[13] -= 20;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -22995,6 +23494,7 @@ L_0805FBE8:;
 L_0805FBEC:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805F9A8: goto L_0805F9A8;
     case 0x0805F9DC: goto L_0805F9DC;
@@ -23028,16 +23528,18 @@ do_jump:
     case 0x0805FBE8: goto L_0805FBE8;
     case 0x0805FBEC: goto L_0805FBEC;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805FBF0(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805FBF0:;
     cpu.r[13] -= 4;
     W32(cpu.r[13] + 0, cpu.r[14]);
@@ -23056,20 +23558,23 @@ L_0805FBF0:;
 L_0805FC04:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805FBF0: goto L_0805FBF0;
     case 0x0805FC04: goto L_0805FC04;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805FC08(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805FC08:;
     lift_pc = 0x0805FC09;
     cpu.r[1] = R32(cpu.r[0] + 0x40);
@@ -23088,37 +23593,43 @@ L_0805FC08:;
 L_0805FC1C:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805FC08: goto L_0805FC08;
     case 0x0805FC1C: goto L_0805FC1C;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805FC20(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805FC20:;
     jt = cpu.r[14]; goto do_jump;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805FC20: goto L_0805FC20;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805FC24(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805FC24:;
     cpu.r[13] -= 8;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -23256,6 +23767,7 @@ L_0805FCF8:;
     jt = cpu.r[0]; goto do_jump;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805FC24: goto L_0805FC24;
     case 0x0805FC34: goto L_0805FC34;
@@ -23273,16 +23785,18 @@ do_jump:
     case 0x0805FCF2: goto L_0805FCF2;
     case 0x0805FCF8: goto L_0805FCF8;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805FD00(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805FD00:;
     cpu.r[13] -= 8;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -23350,6 +23864,7 @@ L_0805FD58:;
     jt = cpu.r[0]; goto do_jump;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805FD00: goto L_0805FD00;
     case 0x0805FD10: goto L_0805FD10;
@@ -23357,16 +23872,18 @@ do_jump:
     case 0x0805FD2C: goto L_0805FD2C;
     case 0x0805FD58: goto L_0805FD58;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805FD60(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805FD60:;
     cpu.r[13] -= 16;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -23537,6 +24054,7 @@ L_0805FE5E:;
     jt = cpu.r[0]; goto do_jump;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805FD60: goto L_0805FD60;
     case 0x0805FD70: goto L_0805FD70;
@@ -23556,16 +24074,18 @@ do_jump:
     case 0x0805FE4E: goto L_0805FE4E;
     case 0x0805FE5E: goto L_0805FE5E;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805FE64(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805FE64:;
     cpu.r[13] -= 8;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -23692,6 +24212,7 @@ L_0805FF24:;
     jt = cpu.r[0]; goto do_jump;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805FE64: goto L_0805FE64;
     case 0x0805FE74: goto L_0805FE74;
@@ -23706,16 +24227,18 @@ do_jump:
     case 0x0805FF00: goto L_0805FF00;
     case 0x0805FF24: goto L_0805FF24;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }
 
 __attribute__((weak)) void lift_sub_0805FF2C(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
-    const u32 entry_lr = LIFT_ENTRY_LR();
-    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
+    u32 entry_lr, entry_lr2;
+    LIFT_ENTRY_LRS(entry_lr, entry_lr2);
+    (void)N; (void)Z; (void)C; (void)V; (void)jt;
 L_0805FF2C:;
     cpu.r[13] -= 20;
     W32(cpu.r[13] + 0, cpu.r[4]);
@@ -24040,6 +24563,7 @@ L_0806013A:;
 L_08060148:;
     return;
 do_jump:
+    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }
     switch (jt & ~1u) {
     case 0x0805FF2C: goto L_0805FF2C;
     case 0x0805FF64: goto L_0805FF64;
@@ -24063,8 +24587,9 @@ do_jump:
     case 0x0806013A: goto L_0806013A;
     case 0x08060148: goto L_08060148;
     }
-    if ((jt & ~1u) == (entry_lr & ~1u)) return;
-    LIFT_TAIL(entry_lr);
-    lift_call(jt);
-    return;
+    { u32 ret = cpu.r[14];
+      LIFT_TAIL2(entry_lr, ret);
+      lift_call(jt);
+      jt = lift_ret;
+      LIFT_AFTER_TAIL(); }
 }

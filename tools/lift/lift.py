@@ -117,6 +117,13 @@ for unit in units:
         else:
             addr += 4
 
+def trampoline_reg(f):
+    """N if the function is only `bx rN`, else None."""
+    insns = [t for a, k, t in f.items if k == 'insn']
+    if len(insns) == 1 and re.match(r'bx r(\d+)$', insns[0]):
+        return int(insns[0][4:])
+    return None
+
 def ends_with_exit(items):
     last = [t for a, k, t in items if k == 'insn']
     if not last:
@@ -216,7 +223,8 @@ class Gen:
         if o is None:
             return 'lift_fail(0x%08X); /* branch to unknown %s */' % (addr, tgt)
         callee = o.name if tgt == o.name else '%s__%s' % (o.name, tgt)
-        return '{ LIFT_TAIL(entry_lr); %s(); return; }' % cname(callee)
+        self.uses_jump = True
+        return '{ u32 ret = cpu.r[14]; LIFT_TAIL2(entry_lr, ret); %s(); jt = lift_ret; LIFT_AFTER_TAIL(); }' % cname(callee)
 
     def mem(self, op, rest, addr):
         ops = split_ops(rest)
@@ -456,6 +464,14 @@ class Gen:
                 e('lift_fail(0x%08X); /* call to unknown %s */' % (addr, tgt))
                 return
             callee = o.name if tgt == o.name else '%s__%s' % (o.name, tgt)
+            tramp = trampoline_reg(o) if tgt == o.name else None
+            if tramp is not None:
+                # `bl` to a lone `bx rN` (the call_via_rN idiom): a call
+                # through rN, or a return when rN is our return address
+                e('cpu.r[14] = 0x%08X; jt = cpu.r[%d];' % (ret, tramp))
+                e('if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }')
+                e('lift_call(jt);')
+                return
             e('cpu.r[14] = 0x%08X; %s();' % (ret, cname(callee)))
             return
         if op == 'bx':
@@ -627,22 +643,30 @@ class Gen:
         f = self.f
         h = ['__attribute__((weak)) void %s(void) {' % cname(name),
              '    u32 N = 0, Z = 0, C = 0, V = 0, jt;',
-             '    const u32 entry_lr = LIFT_ENTRY_LR();',
-             '    (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;']
+             '    u32 entry_lr, entry_lr2;',
+             '    LIFT_ENTRY_LRS(entry_lr, entry_lr2);',
+             '    (void)N; (void)Z; (void)C; (void)V; (void)jt;']
         if start_label:
             h.append('    goto L_%08X;' % f.labels[start_label])
         tail = []
         if self.uses_jump:
             tail.append('do_jump:')
+            # a return first: the caller can be code inlined in this function
+            tail.append('    if (LIFT_IS_RET(jt)) { lift_ret = jt; return; }')
             tail.append('    switch (jt & ~1u) {')
             for a in sorted(self.emitted):
                 if a & 1 == 0:
                     tail.append('    case 0x%08X: goto L_%08X;' % (a, a))
             tail.append('    }')
-            tail.append('    if ((jt & ~1u) == (entry_lr & ~1u)) return;')
-            tail.append('    LIFT_TAIL(entry_lr);')
-            tail.append('    lift_call(jt);')
-            tail.append('    return;')
+            # a jump to other code: it comes back either to what lr holds
+            # now (the hardware's return address; this can be in this
+            # function, after a `bl` to a trampoline inlined here) or to our
+            # own return address (code that pops the frame we pushed)
+            tail.append('    { u32 ret = cpu.r[14];')
+            tail.append('      LIFT_TAIL2(entry_lr, ret);')
+            tail.append('      lift_call(jt);')
+            tail.append('      jt = lift_ret;')
+            tail.append('      LIFT_AFTER_TAIL(); }')
         return '\n'.join(h + self.lines + tail + ['}', ''])
 
 os.makedirs(outdir, exist_ok=True)
@@ -700,6 +724,11 @@ with open(os.path.join(outdir, 'table.c'), 'w') as fp:
     fp.write('\n')
     fp.write('const struct LiftEntry gLiftTable[] = {\n')
     for a, n in table:
-        fp.write('    { 0x%08X, %s, %d },\n' % (a, cname(n), 0 if '__' in n else 1))
+        # not tested on their own: entries into the middle of a function,
+        # and `bx rN` trampolines (the game also uses them to return two
+        # levels up, which is not a call that returns)
+        o = label_owner.get(n)
+        tramp = o is not None and o.name == n and trampoline_reg(o) is not None
+        fp.write('    { 0x%08X, %s, %d },\n' % (a, cname(n), 0 if '__' in n or tramp else 1))
     fp.write('};\nconst int gLiftTableSize = %d;\n' % len(table))
 print('lifted %d functions (%d entries) into %d files' % (lifted, len(table), len(files)), file=sys.stderr)

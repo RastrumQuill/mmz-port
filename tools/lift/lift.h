@@ -48,9 +48,23 @@ void lift_fail(u32 addr);
  * return to, whatever LR holds by then. */
 /* address of the instruction doing the current load (bit 0: Thumb) */
 extern u32 lift_pc;
-extern u32 lift_tail_lr;
+extern u32 lift_tail_lr, lift_tail_lr2;
 extern int lift_tail;
-#define LIFT_TAIL(lr) do { lift_tail_lr = (lr); lift_tail = 1; } while (0)
+/* where the function that just returned went back to */
+extern u32 lift_ret;
+/* A jump to another function: it will come back to one of two addresses,
+ * the return address of the function jumping (if the code pops the frame
+ * that function pushed) or what LR holds (a return through LR). */
+#define LIFT_TAIL2(lr, lr2) do { lift_tail_lr = (lr); lift_tail_lr2 = (lr2); lift_tail = 1; } while (0)
+#define LIFT_TAIL(lr) LIFT_TAIL2(lr, lr)
+#define LIFT_ENTRY_LRS(lr, lr2) do { \
+    if (lift_tail) { lift_tail = 0; lr = lift_tail_lr; lr2 = lift_tail_lr2; } \
+    else lr = lr2 = cpu.r[14]; } while (0)
+#define LIFT_IS_RET(a) ((((a) ^ entry_lr) & ~1u) == 0 || (((a) ^ entry_lr2) & ~1u) == 0)
+/* after a jump came back to jt: return too, or go on in this function */
+#define LIFT_AFTER_TAIL() do { \
+    if (LIFT_IS_RET(jt)) return; \
+    goto do_jump; } while (0)
 #define LIFT_ENTRY_LR() (lift_tail ? (lift_tail = 0, lift_tail_lr) : cpu.r[14])
 
 /* ------------------------------------ bridges to and from hand-written C
@@ -70,9 +84,9 @@ extern int lift_void;
 typedef u32 (*LiftFn4)(u32, u32, u32, u32);
 #define LIFT_ARGS cpu.r[0], cpu.r[1], cpu.r[2], cpu.r[3]
 #define LIFT_EXPORT_VOID(name) \
-    void lift_##name(void) { (void)LIFT_ENTRY_LR(); ((void (*)(u32, u32, u32, u32))(name))(LIFT_ARGS); lift_void = 1; }
+    void lift_##name(void) { u32 _lr = LIFT_ENTRY_LR(); ((void (*)(u32, u32, u32, u32))(name))(LIFT_ARGS); lift_void = 1; lift_ret = _lr; }
 #define LIFT_EXPORT(type, name) \
-    void lift_##name(void) { (void)LIFT_ENTRY_LR(); cpu.r[0] = (u32)((type (*)(u32, u32, u32, u32))(name))(LIFT_ARGS); lift_void = 0; }
+    void lift_##name(void) { u32 _lr = LIFT_ENTRY_LR(); cpu.r[0] = (u32)((type (*)(u32, u32, u32, u32))(name))(LIFT_ARGS); lift_void = 0; lift_ret = _lr; }
 /* a return address no lifted code jumps to, so the callee returns to us */
 #define LIFT_RETURN_MAGIC 0xFFFFFFF1u
 #define LIFT_CALL(name, a0, a1, a2, a3) ({ \

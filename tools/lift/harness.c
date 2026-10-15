@@ -293,6 +293,9 @@ int main(int argc, char **argv) {
 				memcpy(snap.r, arm->gprs, sizeof snap.r);
 				grab(gba, snap.ewram_, snap.iwram_, snap.io_, snap.pal_, snap.vram_, snap.oam_);
 				if (gba->memory.savedata.data) memcpy(snap.sram_, gba->memory.savedata.data, 0x8000);
+				/* KEYINPUT is made when it is read; give the C what a read returns now */
+				u16 keyinput = 0x3FF & ~keys;
+				snap.io_[0x130] = keyinput; snap.io_[0x131] = keyinput >> 8;
 				open = idx;
 				openLR = arm->gprs[ARM_LR];
 				openSP = arm->gprs[ARM_SP];

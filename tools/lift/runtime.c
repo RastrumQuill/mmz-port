@@ -10,7 +10,7 @@
 #include "lift.h"
 
 struct Cpu cpu;
-u32 lift_tail_lr;
+u32 lift_tail_lr, lift_tail_lr2, lift_ret;
 u32 lift_pc;
 int lift_tail;
 int lift_void;
@@ -98,6 +98,8 @@ static u16 io_mask(u32 o) {
 	switch (o & 0x3FE) {
 	case 0x000: return 0xFFF7;  /* DISPCNT */
 	case 0x008: case 0x00A: return 0xDFFF; case 0x00C: case 0x00E: return 0xFFFF;  /* BGxCNT */
+	case 0x010: case 0x012: case 0x014: case 0x016:
+	case 0x018: case 0x01A: case 0x01C: case 0x01E: return 0x01FF;  /* BGxHOFS, BGxVOFS */
 	case 0x048: case 0x04A: return 0x3F3F;  /* WININ, WINOUT */
 	case 0x050: return 0x3FFF;  /* BLDCNT */
 	case 0x052: return 0x1F1F;  /* BLDALPHA */
