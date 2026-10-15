@@ -8,6 +8,7 @@ __pycache__/
 /build/
 /build_nm/
 /build_lift/
+/build_*/
 /tools/agbcc/
 /tools/emu/runner
 /games/*/build/
