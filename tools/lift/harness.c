@@ -11,7 +11,8 @@
  * (r4-r11, sp) and all of memory (EWRAM, IWRAM, palette, VRAM, OAM, SRAM and
  * the I/O registers that do not change on their own). Tests interrupted by an
  * IRQ, or longer than the step limit, are dropped.
- * Environment: SAVE=file (start from a save), SPACING=frames, VERBOSE=1.
+ * Environment: SAVE=file (start from a save), SPACING=frames, VERBOSE=1,
+ * ONLY=address (test one function, e.g. ONLY=080491BD).
  */
 #include <mgba/core/core.h>
 #include <mgba/core/log.h>
@@ -190,6 +191,7 @@ int main(int argc, char **argv) {
 	for (int i = 0; i < 0x200000; i++) entryAt[i] = -1;
 	for (int i = 0; i < tableSize; i++) {
 		u32 a = table[i].addr;
+		if (getenv("ONLY") && a != strtoul(getenv("ONLY"), 0, 16)) continue;
 		if ((a & 1) && table[i].isFunction && a >= 0x08000000 && a < 0x08400000) entryAt[(a - 0x08000000) >> 1] = i;
 	}
 

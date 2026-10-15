@@ -80,6 +80,16 @@ static u32 open_bus(u32 a) {
 	}
 	return ror32(v, (a & 3) * 8);
 }
+/* Reads past the end of the cartridge: the bus returns the address halved
+ * (as mGBA does). 1 when a is such an address. */
+static int rom_oob(u32 a) {
+	return (a >> 24) >= 8 && (a >> 24) <= 0xD && (a & 0x1FFFFFF) >= romSize;
+}
+static u32 rom_oob_read(u32 a, int size) {
+	if (size == 1) return ((a >> 1) >> ((a & 1) * 8)) & 0xFF;
+	if (size == 2) return (a >> 1) & 0xFFFF;
+	return (((a & ~3u) >> 1) & 0xFFFF) | ((((a & ~3u) + 2) >> 1) << 16);
+}
 static void unmapped(u32 a) {
 	if (getenv("VERBOSE")) fprintf(stderr, "unmapped read %08X at %08X\n", a, lift_pc);
 }
@@ -87,9 +97,9 @@ static u32 bios_read(u32 a, int size) {
 	u32 v = ror32(biosBus, (a & 3) * 8);
 	return size == 1 ? v & 0xFF : size == 2 ? v & 0xFFFF : v;
 }
-u32 lift_read8(u32 a) { u8 *p = ptr(a, 0); tick(); if (!p) { if (a < 0x4000) return bios_read(a, 1); unmapped(a); return open_bus(a) & 0xFF; } return *p; }
-u32 lift_read16(u32 a) { if ((a >> 25) == 7) return lift_read8(a) * 0x101; u8 *p = ptr(a, 0); tick(); if (!p) { if (a < 0x4000) return bios_read(a, 2); unmapped(a); return open_bus(a) & 0xFFFF; } return p ? p[0] | p[1] << 8 : 0; }
-u32 lift_read32(u32 a) { if ((a >> 25) == 7) return lift_read8(a) * 0x01010101; u8 *p = ptr(a, 0); tick(); if (!p) { if (a < 0x4000) return bios_read(a, 4); unmapped(a); return open_bus(a); } return p ? p[0] | p[1] << 8 | p[2] << 16 | (u32)p[3] << 24 : 0; }
+u32 lift_read8(u32 a) { u8 *p = ptr(a, 0); tick(); if (!p) { if (a < 0x4000) return bios_read(a, 1); if (rom_oob(a)) return rom_oob_read(a, 1); unmapped(a); return open_bus(a) & 0xFF; } return *p; }
+u32 lift_read16(u32 a) { if ((a >> 25) == 7) return lift_read8(a) * 0x101; u8 *p = ptr(a, 0); tick(); if (!p) { if (a < 0x4000) return bios_read(a, 2); if (rom_oob(a)) return rom_oob_read(a, 2); unmapped(a); return open_bus(a) & 0xFFFF; } return p ? p[0] | p[1] << 8 : 0; }
+u32 lift_read32(u32 a) { if ((a >> 25) == 7) return lift_read8(a) * 0x01010101; u8 *p = ptr(a, 0); tick(); if (!p) { if (a < 0x4000) return bios_read(a, 4); if (rom_oob(a)) return rom_oob_read(a, 4); unmapped(a); return open_bus(a); } return p ? p[0] | p[1] << 8 | p[2] << 16 | (u32)p[3] << 24 : 0; }
 
 static void dma_check(u32 reg);
 
