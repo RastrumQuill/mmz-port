@@ -197,15 +197,21 @@ static void next_line(void) {
 }
 
 /* Called on every memory access: the display moves on when a line's worth
- * of CPU cycles (1232) has gone by. */
-static u32 lineStart;
+ * of CPU cycles (1232) has gone by. With more CPU (hw_cpu_speed), the game's
+ * own code takes that much less of a line; interrupt handlers (some run every
+ * line) keep the GBA's cost, so they still fit in a line. */
+static uint64_t vclock, vLineStart;   /* cycles * 100, scaled */
+static u32 lastCycles;
 int hw_cycle_scale = 120;   /* percent: the cycle counts are low by about this much (measured against mGBA) */
-int hw_cpu_speed = 100;     /* percent of the GBA's CPU per line (more: no lag frames; timers keep real time) */
+int hw_cpu_speed = 100;     /* percent of the GBA's CPU for the game's code (more: no lag frames; timers keep real time) */
 void rt_tick(void) {
 	if (inLine) return;
-	u32 line = (u32)(1232LL * 100 * 100 / ((long long)hw_cycle_scale * hw_cpu_speed));
-	while (lift_cycles - lineStart >= line) {
-		lineStart += line;
+	u32 d = lift_cycles - lastCycles;
+	lastCycles = lift_cycles;
+	vclock += inIrq || hw_cpu_speed <= 100 ? (uint64_t)d * 100 : (uint64_t)d * 10000 / hw_cpu_speed;
+	uint64_t line = (uint64_t)(1232 * 100 / hw_cycle_scale) * 100;   /* (as the GBA-speed clock always rounded) */
+	while (vclock - vLineStart >= line) {
+		vLineStart += line;
 		next_line();
 	}
 }
@@ -260,6 +266,7 @@ void hw_reset(void) {
 	memset(dma, 0, sizeof dma);
 	memset(timers, 0, sizeof timers);
 	hw_line = 0;
-	lineStart = lift_cycles;
+	lastCycles = lift_cycles;
+	vLineStart = vclock;
 	inLine = inIrq = 0;
 }
