@@ -64,7 +64,7 @@ void settings_defaults(void) {
 	settings.mute = 0;
 	settings.integerScale = 1;
 	settings.smooth = 0;
-	settings.viewMode = VIEW_GBA;
+	settings.viewMode = VIEW_MMX;   /* Mega Man X: 256x224 */
 	settings.viewW = 400;
 	settings.viewH = 240;
 	settings.viewHeight = 240;

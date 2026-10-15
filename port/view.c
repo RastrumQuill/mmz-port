@@ -26,6 +26,7 @@
  *   +0x54 bg           BG number in bits 4-7 (and 1 << BG in bits 0-3)
  * (the same layout as Mega Man Zero 3's StageLayer, see docs/notes.md)
  */
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "lift.h"
@@ -42,6 +43,9 @@
 #define TRANSPARENT 0x8000
 
 int view_w = SCREEN_W, view_h = SCREEN_H;   /* the view size asked for */
+/* the screen-sized cells around the GBA screen the view needs sprites from
+   (sprites.c), counted from the GBA screen */
+int view_cells_left, view_cells_right, view_cells_up, view_cells_down;
 int view_active;                            /* the last frame was drawn wide */
 u32 *view_frame;                            /* view_w x view_h, 0x00RRGGBB */
 
@@ -68,11 +72,86 @@ static int rom_ptr(u32 a) {
 	return a >= 0x08000000 && a - 0x08000000 < romSize;
 }
 
+/* ---------------------------------------------------------- areas
+ *
+ * Mega Man Zero's world is one map of 128x128 screen-sized chunks (global
+ * coordinates; the stage layers use coordinates from the stage's corner).
+ * Each chunk belongs to an area, and needs one of the area's graphics sets
+ * (two per chunk, background tiles at 0x4000 and more): the game loads them
+ * as the camera moves (sub_08006D3C). A chunk is drawn only if it is in the
+ * current area and the graphics it needs are the ones loaded, so nothing is
+ * drawn with the wrong tiles.
+ */
+#define CHUNK_COL ((const u8 *)0x082915ECu)    /* metatile column -> chunk column */
+#define CHUNK_ROW ((const u8 *)0x08290DECu)    /* metatile row -> chunk row */
+#define CHUNK_AREA ((const u8 *)0x082921ECu)   /* [row * 128 + column] & 15: area */
+#define AREA_TABLE 0x08293BECu                 /* area -> descriptors by area state */
+#define CUR_AREA (*(u16 *)0x0200520C)
+#define AREA_STATES (*(u32 *)0x02005208)
+#define GFX_SET_A (*(u16 *)0x02005430)         /* loaded set: area << 8 | set */
+#define GFX_SET_B (*(u16 *)0x02005432)
+#define CAMERA_X (*(s32 *)0x02005200)          /* global, 24.8, the screen's centre */
+#define CAMERA_Y (*(s32 *)0x02005204)
+
+static s32 stageX, stageY;      /* global pixel position of the stage layers' origin */
+static s32 areaLeft, areaTop, areaRight, areaBottom;   /* the current area, global pixels */
+static u8 chunkOk[128][128];    /* 0 unknown, 1 drawable, 2 not */
+
+static const u8 *area_desc(int area) {
+	u32 list = *(u32 *)(uintptr_t)(AREA_TABLE + area * 4);
+	return (const u8 *)(uintptr_t)*(u32 *)(uintptr_t)(list + ((AREA_STATES >> (area * 2)) & 3) * 4);
+}
+
+static int set_loaded(int set, u16 loaded, int area) {
+	return (loaded >> 8) == area && set == (loaded & 0xFF);
+}
+
+/* the graphics-set byte of a global chunk in its area, or -1 */
+static int chunk_sets(int cx, int cy, int area) {
+	const u8 *d = area_desc(area);
+	s32 left = *(s32 *)(d + 0x6C), top = *(s32 *)(d + 0x70);
+	const u8 *g = (const u8 *)(uintptr_t)*(u32 *)(d + 0x74);
+	int col = cx - left, row = cy - top;
+	if (col < 0 || row < 0 || col >= g[2] || row >= g[3]) return -1;
+	return g[4 + (row << g[0]) + col];
+}
+
+static int chunk_drawable(int cx, int cy) {
+	if (cx < 0 || cy < 0 || cx >= 128 || cy >= 128) return 0;
+	if (chunkOk[cy][cx]) return chunkOk[cy][cx] == 1;
+	int ok = 0, area = CUR_AREA & 0x7F;
+	if ((CHUNK_AREA[cy * 128 + cx] & 15) == area) {
+		int b = chunk_sets(cx, cy, area);
+		if (b >= 0) {
+			int hi = b >> 4, lo = b & 15;
+			/* 14: the set of the chunk to the right, 15: of the one below */
+			int hx = cx + (hi == 14), hy = cy + (hi == 15), lx = cx + (lo == 14), ly = cy + (lo == 15);
+			if (hi >= 14) { int n = chunk_sets(hx, hy, area); hi = n >= 0 ? n >> 4 : -1; }
+			if (lo >= 14) { int n = chunk_sets(lx, ly, area); lo = n >= 0 ? n & 15 : -1; }
+			ok = hi >= 0 && lo >= 0 && set_loaded(hi, GFX_SET_A, area) && set_loaded(lo, GFX_SET_B, area);
+		}
+	}
+	chunkOk[cy][cx] = ok ? 1 : 2;
+	return ok;
+}
+
+/* the current area's rectangle, in global pixels */
+static void find_area(void) {
+	int area = CUR_AREA & 0x7F;
+	const u8 *d = area_desc(area);
+	const u8 *g = (const u8 *)(uintptr_t)*(u32 *)(d + 0x74);
+	areaLeft = *(s32 *)(d + 0x6C) * 240;
+	areaTop = *(s32 *)(d + 0x70) * 160;
+	areaRight = areaLeft + g[2] * 240;
+	areaBottom = areaTop + g[3] * 160;
+}
+
 /* the tilemap entry the level has at a world pixel (0: nothing there) */
 static int level_entry(const struct Layer *L, s32 wx, s32 wy, u16 *out) {
 	if (wx < 0 || wy < 0) return 0;
 	int cx = wx / 240, cy = wy / 160;
 	if (cx >= L->w || cy >= L->h) return 0;
+	if (!chunk_drawable((wx + stageX) / 240, (wy + stageY) / 160)) return 0;
 	int cid = L->map[4 + cy * L->stride + cx];
 	if (cid == L->null) return 0;
 	u16 mt = L->chunks[cid * 150 + ((wy % 160) >> 4) * 15 + ((wx % 240) >> 4)];
@@ -213,8 +292,22 @@ static void draw_sprite_row(int line, int vy, int ox, int oy, int w) {
 	int oneD = dispcnt & 0x40;
 	for (int x = 0; x < w; x++) { objColor[x] = TRANSPARENT; objPrio[x] = 4; objSemi[x] = 0; objWin[x] = 0; }
 	int ry = vy - oy;   /* the row in GBA screen coordinates */
-	for (int i = 0; i < 128; i++) {
-		u16 a0 = *(u16 *)(oam + i * 8), a1 = *(u16 *)(oam + i * 8 + 2), a2 = *(u16 *)(oam + i * 8 + 4);
+	/* the extended list (sprites.c) when there is one, else OAM */
+	int count = view_sprite_count >= 0 ? view_sprite_count : 128;
+	for (int i = 0; i < count; i++) {
+		u16 a0, a1, a2;
+		int sx, sy;
+		if (view_sprite_count >= 0) {
+			const struct ExtSprite *e = &view_sprites[i];
+			a0 = e->a0; a1 = e->a1; a2 = e->a2;
+			sx = e->x; sy = e->y;
+		} else {
+			a0 = *(u16 *)(oam + i * 8); a1 = *(u16 *)(oam + i * 8 + 2); a2 = *(u16 *)(oam + i * 8 + 4);
+			sy = a0 & 0xFF;
+			if (sy >= 160 + 32) sy -= 256;       /* above the screen */
+			sx = a1 & 0x1FF;
+			if (sx >= 240 + 64) sx -= 512;       /* left of the screen */
+		}
 		int affine = a0 & 0x100;
 		if (!affine && (a0 & 0x200)) continue;
 		int mode = (a0 >> 10) & 3, shape = a0 >> 14;
@@ -222,12 +315,8 @@ static void draw_sprite_row(int line, int vy, int ox, int oy, int w) {
 		int sw = sObjSize[shape][a1 >> 14][0], sh = sObjSize[shape][a1 >> 14][1];
 		int bw = sw, bh = sh;
 		if (affine && (a0 & 0x200)) { bw *= 2; bh *= 2; }
-		int sy = a0 & 0xFF;
-		if (sy >= 160 + 32) sy -= 256;       /* above the screen */
 		int iy = ry - sy;
 		if (iy < 0 || iy >= bh) continue;
-		int sx = a1 & 0x1FF;
-		if (sx >= 240 + 64) sx -= 512;       /* left of the screen */
 		int bpp8 = a0 & 0x2000;
 		u32 tileBase = a2 & 0x3FF;
 		int prio = (a2 >> 10) & 3, palBank = a2 >> 12;
@@ -297,8 +386,11 @@ static int in_range(int v, int a, int b, int max) {
 }
 
 /* Draws the view; 0 if this frame is not a stage (the GBA picture is shown). */
+static int cells(int pixels, int cell) { return pixels > 0 ? (pixels + cell - 1) / cell : 0; }
+
 int view_render(void) {
 	view_active = 0;
+	view_cells_left = view_cells_right = view_cells_up = view_cells_down = 0;
 	if (view_w == SCREEN_W && view_h == SCREEN_H) return 0;
 	find_layers();
 	if (!layers[1].map && !layers[2].map && !layers[3].map) return 0;
@@ -310,15 +402,44 @@ int view_render(void) {
 	   stage when the stage is big enough */
 	const struct Layer *T = layers[1].map ? &layers[1] : layers[2].map ? &layers[2] : &layers[3];
 	s32 x0 = line_world_x(T, 0), y0 = line_world_y(T, 0);
+	/* the stage's origin in the world: the camera's top-left (global) minus
+	   the layer's (whole chunks apart) */
+	stageX = ((CAMERA_X >> 8) - 120) - T->x;
+	stageY = ((CAMERA_Y >> 8) - 80) - T->y;
+	stageX = (stageX + 120) / 240 * 240;
+	stageY = (stageY + 80) / 160 * 160;
+	find_area();
+	memset(chunkOk, 0, sizeof chunkOk);
+	static int dbg = -1;
+	if (dbg < 0) dbg = getenv("VIEWDEBUG") != NULL;
+	if (dbg) fprintf(stderr, "cam %d,%d layer %d,%d stage %d,%d area %d..%d x %d..%d (area %d) x0 %d y0 %d\n",
+	        CAMERA_X >> 8, CAMERA_Y >> 8, T->x, T->y, stageX, stageY, areaLeft, areaRight, areaTop, areaBottom, CUR_AREA, x0, y0);
+	/* the GBA screen itself must be drawable from the level data (not during
+	   area changes or anything else the level data does not show) */
+	{
+		int bad = 0;
+		for (int k = 0; k < 4; k++) {
+			s32 gx = x0 + stageX + (k & 1) * (SCREEN_W - 1), gy = y0 + stageY + (k >> 1) * (SCREEN_H - 1);
+			if (!chunk_drawable(gx / 240, gy / 160)) bad++;
+		}
+		if (bad) return 0;
+	}
 	int ox = (w - SCREEN_W) / 2, oy = (h - SCREEN_H) / 2;
-	s32 stageW = T->w * 240, stageH = T->h * 160;
+	/* kept inside the current area (stage coordinates) when it is big enough */
+	s32 aL = areaLeft - stageX, aT = areaTop - stageY, aW = areaRight - areaLeft, aH = areaBottom - areaTop;
 	s32 left = x0 - ox, top = y0 - oy;
-	if (stageW >= w) { if (left < 0) left = 0; if (left > stageW - w) left = stageW - w; }
-	else left = (stageW - w) / 2;
-	if (stageH >= h) { if (top < 0) top = 0; if (top > stageH - h) top = stageH - h; }
-	else top = (stageH - h) / 2;
+	if (aW >= w) { if (left < aL) left = aL; if (left > aL + aW - w) left = aL + aW - w; }
+	else left = aL + (aW - w) / 2;
+	if (aH >= h) { if (top < aT) top = aT; if (top > aT + aH - h) top = aT + aH - h; }
+	else top = aT + (aH - h) / 2;
 	if (x0 >= left && x0 + SCREEN_W <= left + w) ox = x0 - left;
 	if (y0 >= top && y0 + SCREEN_H <= top + h) oy = y0 - top;
+	/* sprites for the next frames: the cells the view covers, plus what can
+	   reach into it (sprite pieces are at most 64 pixels) */
+	view_cells_left = cells(ox + 64, 240);
+	view_cells_right = cells(w - ox - SCREEN_W, 240);
+	view_cells_up = cells(oy + 64, 160);
+	view_cells_down = cells(h - oy - SCREEN_H, 160);
 
 	for (int vy = 0; vy < h; vy++) {
 		int line = vy - oy;

@@ -238,6 +238,8 @@ void rt_io_write(u32 o, u32 old) {
 		u16 cnt = IO16(o);
 		dma[ch].cnt = cnt;
 		if ((cnt & 0x8000) && !(old & 0x8000)) {
+			/* the game copying its OAM buffer to OAM */
+			if (IO32(0xB0 + ch * 12) == 0x03001BB0 && IO32(0xB4 + ch * 12) == 0x07000000) sprites_commit();
 			dma[ch].src = IO32(0xB0 + ch * 12);
 			dma[ch].dst = IO32(0xB4 + ch * 12);
 			dma[ch].active = ((cnt >> 12) & 3) != 0;   /* immediate ones already ran */

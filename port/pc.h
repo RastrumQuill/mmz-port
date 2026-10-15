@@ -18,7 +18,14 @@ void ppu_draw_line(int line);
 void ppu_vblank(void);
 void ppu_affine_written(u32 o);
 
+/* sprites.c: sprites beyond the GBA screen, for the zoomed-out view */
+struct ExtSprite { int x, y; u16 a0, a1, a2; };   /* x, y from the GBA screen's top-left */
+extern const struct ExtSprite *view_sprites;
+extern int view_sprite_count;                     /* -1: not made (OAM is used) */
+void sprites_commit(void);
+
 /* view.c: the zoomed-out view */
+extern int view_cells_left, view_cells_right, view_cells_up, view_cells_down;
 extern int view_w, view_h, view_active;
 extern u32 *view_frame;
 void view_record_line(int line);
