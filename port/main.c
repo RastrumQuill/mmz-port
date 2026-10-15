@@ -11,19 +11,25 @@
  * none of its code is run.
  */
 #include <errno.h>
+#include <stdarg.h>
 #include <setjmp.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifdef _WIN32
+#include <windows.h>
+#else
 #include <sys/mman.h>
+#endif
 #include <SDL.h>
 #include "lift.h"
 #include "pc.h"
+#include "settings.h"
 
 extern u32 romSize, biosBus;
 extern jmp_buf failJmp;
 extern char failReason[128];
-extern long budget;
+extern int64_t budget;
 void lift_AgbMain(void);
 
 static int headless;
@@ -32,26 +38,88 @@ static u32 wavBytes, wavRate;
 static long frameCount;
 static u16 keys;   /* pressed buttons, GBA bit order */
 
+/* Errors: a message box when there is a window to go with it (on Windows
+ * the game has no console). */
+static void fatal(const char *fmt, ...) {
+	char msg[1024];
+	va_list ap;
+	va_start(ap, fmt);
+	vsnprintf(msg, sizeof msg, fmt, ap);
+	va_end(ap);
+	fprintf(stderr, "%s\n", msg);
+	if (!headless) SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Mega Man Zero", msg, NULL);
+	exit(1);
+}
+
 /* ------------------------------------------------------------- memory */
 
+/* The GBA memory at its own addresses, so game pointers work as they are. */
 static void *map_at(u32 addr, u32 size) {
+#ifdef _WIN32
+	void *p = VirtualAlloc((void *)(uintptr_t)addr, size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+	if (p != (void *)(uintptr_t)addr) {
+		fatal("Cannot reserve the GBA memory at %08X (error %lu).", addr, GetLastError());
+	}
+#else
 	void *p = mmap((void *)(uintptr_t)addr, size, PROT_READ | PROT_WRITE,
 	               MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED_NOREPLACE, -1, 0);
 	if (p == MAP_FAILED || p != (void *)(uintptr_t)addr) {
-		fprintf(stderr, "cannot map GBA memory at %08X: %s\n", addr, strerror(errno));
-		exit(1);
+		fatal("Cannot map the GBA memory at %08X: %s", addr, strerror(errno));
 	}
+#endif
 	return p;
+}
+
+/* 1 if the file is Mega Man Zero (USA): the code is made for that ROM */
+static int is_game_rom(const char *path) {
+	FILE *f = fopen(path, "rb");
+	if (!f) return 0;
+	char h[0xB0];
+	size_t n = fread(h, 1, sizeof h, f);
+	fclose(f);
+	return n == sizeof h && !memcmp(h + 0xA0, "MEGAMAN ZERO", 12) && !memcmp(h + 0xAC, "AZCE", 4);
+}
+
+/* The ROM: the setting (as it is, or next to the executable), else ask. */
+static const char *find_rom(void) {
+	static char p[1024];
+	if (is_game_rom(settings.rom)) return settings.rom;
+	char *base = SDL_GetBasePath();
+	snprintf(p, sizeof p, "%s%s", base ? base : "", settings.rom);
+	SDL_free(base);
+	if (is_game_rom(p)) return p;
+	if (headless) return settings.rom;
+#ifdef _WIN32
+	SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_INFORMATION, "Mega Man Zero",
+	                         "Choose your Mega Man Zero (USA) ROM. It is read for the game's data; "
+	                         "the choice is kept in mmz.ini.", NULL);
+	OPENFILENAMEA ofn = { 0 };
+	p[0] = 0;
+	ofn.lStructSize = sizeof ofn;
+	ofn.lpstrFilter = "GBA ROM (*.gba)\0*.gba\0All files\0*.*\0";
+	ofn.lpstrFile = p;
+	ofn.nMaxFile = sizeof p;
+	ofn.Flags = OFN_FILEMUSTEXIST | OFN_NOCHANGEDIR;
+	if (!GetOpenFileNameA(&ofn)) exit(0);
+	if (!is_game_rom(p)) fatal("%s is not Mega Man Zero (USA).", p);
+	snprintf(settings.rom, sizeof settings.rom, "%s", p);
+	settings_save();
+	return settings.rom;
+#else
+	fatal("Mega Man Zero (USA) ROM not found: put it next to the game as baserom.gba, "
+	      "or set rom = PATH in %s.", settings_path());
+	return NULL;
+#endif
 }
 
 static void load_rom(const char *path) {
 	FILE *f = fopen(path, "rb");
-	if (!f) { fprintf(stderr, "cannot open ROM %s\n", path); exit(1); }
+	if (!f) fatal("Cannot open the ROM %s.", path);
 	fseek(f, 0, SEEK_END);
 	romSize = ftell(f);
 	rewind(f);
 	u8 *rom = map_at(0x08000000, (romSize + 0xFFF) & ~0xFFFu);
-	if (fread(rom, 1, romSize, f) != romSize) { fprintf(stderr, "cannot read ROM\n"); exit(1); }
+	if (fread(rom, 1, romSize, f) != romSize) fatal("Cannot read the ROM %s.", path);
 	fclose(f);
 }
 
@@ -153,6 +221,7 @@ static void sdl_init(int scale) {
 	                          SCREEN_W * scale, SCREEN_H * scale, SDL_WINDOW_RESIZABLE);
 	renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
 	SDL_RenderSetLogicalSize(renderer, SCREEN_W, SCREEN_H);
+	if (settings.fullscreen) SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN_DESKTOP);
 	texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGB888, SDL_TEXTUREACCESS_STREAMING, SCREEN_W, SCREEN_H);
 	SDL_AudioSpec want = { 0 }, have;
 	want.freq = 48000;
@@ -175,6 +244,8 @@ static void sdl_audio(void) {
 		audioStream = SDL_NewAudioStream(AUDIO_S16SYS, 2, rate, AUDIO_S16SYS, 2, 48000);
 		audioStreamRate = rate;
 	}
+	if (settings.volume != 100)
+		for (int i = 0; i < n * 2; i++) buf[i] = buf[i] * settings.volume / 100;
 	SDL_AudioStreamPut(audioStream, buf, n * 4);
 	static s16 outBuf[16384 * 2];
 	int got = SDL_AudioStreamGet(audioStream, outBuf, sizeof outBuf);
@@ -186,28 +257,20 @@ static void sdl_audio(void) {
 static void sdl_frame(void) {
 	SDL_Event e;
 	while (SDL_PollEvent(&e)) {
-		if (e.type == SDL_QUIT) { save_flush(); exit(0); }
+		if (e.type == SDL_QUIT) { save_flush(); settings_save(); exit(0); }
 		if (e.type == SDL_CONTROLLERDEVICEADDED && !pad) pad = SDL_GameControllerOpen(e.cdevice.which);
+		if (e.type == SDL_KEYDOWN && e.key.keysym.scancode == SDL_SCANCODE_F11) {
+			settings.fullscreen = !settings.fullscreen;
+			SDL_SetWindowFullscreen(window, settings.fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0);
+		}
 	}
 	const Uint8 *k = SDL_GetKeyboardState(NULL);
 	u16 m = 0;
-	if (k[SDL_SCANCODE_X]) m |= 1;            /* A */
-	if (k[SDL_SCANCODE_Z]) m |= 2;            /* B */
-	if (k[SDL_SCANCODE_BACKSPACE] || k[SDL_SCANCODE_RSHIFT]) m |= 4;   /* Select */
-	if (k[SDL_SCANCODE_RETURN]) m |= 8;       /* Start */
-	if (k[SDL_SCANCODE_RIGHT]) m |= 16;
-	if (k[SDL_SCANCODE_LEFT]) m |= 32;
-	if (k[SDL_SCANCODE_UP]) m |= 64;
-	if (k[SDL_SCANCODE_DOWN]) m |= 128;
-	if (k[SDL_SCANCODE_S]) m |= 256;          /* R */
-	if (k[SDL_SCANCODE_A]) m |= 512;          /* L */
+	for (int i = 0; i < 10; i++)
+		if (k[settings.keys[i]]) m |= 1 << i;
 	if (pad) {
-		static const SDL_GameControllerButton b[10] = {
-			SDL_CONTROLLER_BUTTON_B, SDL_CONTROLLER_BUTTON_A, SDL_CONTROLLER_BUTTON_BACK, SDL_CONTROLLER_BUTTON_START,
-			SDL_CONTROLLER_BUTTON_DPAD_RIGHT, SDL_CONTROLLER_BUTTON_DPAD_LEFT, SDL_CONTROLLER_BUTTON_DPAD_UP,
-			SDL_CONTROLLER_BUTTON_DPAD_DOWN, SDL_CONTROLLER_BUTTON_RIGHTSHOULDER, SDL_CONTROLLER_BUTTON_LEFTSHOULDER };
 		for (int i = 0; i < 10; i++)
-			if (SDL_GameControllerGetButton(pad, b[i])) m |= 1 << i;
+			if (SDL_GameControllerGetButton(pad, settings.pad[i])) m |= 1 << i;
 		int ax = SDL_GameControllerGetAxis(pad, SDL_CONTROLLER_AXIS_LEFTX);
 		int ay = SDL_GameControllerGetAxis(pad, SDL_CONTROLLER_AXIS_LEFTY);
 		if (ax > 16000) m |= 16;
@@ -265,12 +328,13 @@ u16 frontend_keys(void) {
 /* --------------------------------------------------------------- start */
 
 int main(int argc, char **argv) {
-	const char *romPath = "baserom.gba";
-	int scale = 3;
+	const char *romArg = NULL, *configArg = NULL;
+	int scale = 0;
 	savePath = NULL;
 	for (int i = 1; i < argc; i++) {
-		if (!strcmp(argv[i], "--rom") && i + 1 < argc) romPath = argv[++i];
+		if (!strcmp(argv[i], "--rom") && i + 1 < argc) romArg = argv[++i];
 		else if (!strcmp(argv[i], "--save") && i + 1 < argc) savePath = argv[++i];
+		else if (!strcmp(argv[i], "--config") && i + 1 < argc) configArg = argv[++i];
 		else if (!strcmp(argv[i], "--scale") && i + 1 < argc) scale = atoi(argv[++i]);
 		else if (!strcmp(argv[i], "--headless")) headless = 1;
 		else if (!strcmp(argv[i], "--wav") && i + 1 < argc) {
@@ -282,10 +346,18 @@ int main(int argc, char **argv) {
 			route = fopen(argv[++i], "r");
 			if (!route) { fprintf(stderr, "cannot open route %s\n", argv[i]); return 1; }
 		}
-		else { fprintf(stderr, "usage: mmz [--rom FILE] [--save FILE] [--scale N] [--headless --route FILE]\n"); return 1; }
+		else {
+			fprintf(stderr, "usage: mmz [--rom FILE] [--save FILE] [--config FILE] [--scale N]\n"
+			                "       mmz --headless --route FILE [--wav FILE] [--rom FILE] [--save FILE]\n");
+			return 1;
+		}
 	}
 	if (headless && !route) { fprintf(stderr, "--headless needs --route\n"); return 1; }
-	static char defaultSave[512];
+	settings_load(configArg);
+	if (scale > 0) settings.scale = scale;
+	const char *romPath = romArg ? romArg : find_rom();
+	static char defaultSave[1024];
+	if (!savePath && settings.save[0]) savePath = settings.save;
 	if (!savePath) {
 		snprintf(defaultSave, sizeof defaultSave, "%s", romPath);
 		char *dot = strrchr(defaultSave, '.');
@@ -303,21 +375,20 @@ int main(int argc, char **argv) {
 	map_at(0x0E000000, 0x8000);    /* cartridge SRAM */
 	load_rom(romPath);
 	save_load();
-	if (!headless) sdl_init(scale);
+	if (!headless) sdl_init(settings.scale > 0 ? settings.scale : 3);
 
 	/* the state the BIOS leaves, and the start-up code (crt0) */
 	*(u16 *)0x04000130 = 0x3FF;    /* KEYINPUT */
 	*(u16 *)0x04000088 = 0x200;    /* SOUNDBIAS */
 	*(u16 *)0x04000000 = 0x80;     /* DISPCNT: forced blank */
 	biosBus = 0xE129F000;
-	budget = 0x7FFFFFFFFFFFFFFFL;
+	budget = INT64_MAX;
 	if (getenv("MMZ_CYCLE_SCALE")) hw_cycle_scale = atoi(getenv("MMZ_CYCLE_SCALE"));
 	hw_reset();
 	tasks_reset();
 	if (setjmp(failJmp)) {
-		fprintf(stderr, "stopped: %s (frame %ld)\n", failReason, frameCount);
 		save_flush();
-		return 1;
+		fatal("The game stopped: %s (frame %ld).", failReason, frameCount);
 	}
 	*(u32 *)0x03007FFC = 0x080000FC;   /* IntrMain */
 	for (;;) {

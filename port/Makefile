@@ -3,19 +3,39 @@
 # (port/). Run from the repository root: make -C port, or make port.
 ROOT := ..
 OUT ?= $(ROOT)/build_port
-CC ?= cc
 OPT ?= -O2
-CFLAGS := -std=gnu11 $(OPT) -g -fwrapv -w -fno-pie -I $(ROOT)/tools/lift -I $(ROOT)/lifted -I $(ROOT)/include $(shell sdl2-config --cflags)
-LIBS := $(shell sdl2-config --libs)
+# WINDOWS=1 SDL2_DIR=.../SDL2-x.y.z/x86_64-w64-mingw32: cross-compile mmz.exe
+ifeq ($(WINDOWS),1)
+CC := x86_64-w64-mingw32-gcc
+OUT := $(ROOT)/build_port_win
+EXE := mmz.exe
+SDL_CFLAGS := -I $(SDL2_DIR)/include/SDL2 -Dmain=SDL_main
+SDL_LIBS := -L $(SDL2_DIR)/lib -lmingw32 -lSDL2main -lSDL2 -lcomdlg32 -mwindows
+# a low image base keeps the game's RAM addresses within reach of the code
+LDFLAGS := -Wl,--allow-multiple-definition -Wl,--image-base=0x10000000 -Wl,--disable-dynamicbase -Wl,--disable-high-entropy-va -static-libgcc
+else
+CC ?= cc
+EXE := mmz
+SDL_CFLAGS := $(shell sdl2-config --cflags)
+SDL_LIBS := $(shell sdl2-config --libs)
+LDFLAGS := -no-pie
+endif
+CFLAGS := -std=gnu11 $(OPT) -g -fwrapv -w -fno-pie -I $(ROOT)/tools/lift -I $(ROOT)/lifted -I $(ROOT)/include $(SDL_CFLAGS)
+LIBS := $(SDL_LIBS)
 
 LIFTED := $(wildcard $(ROOT)/lifted/*.c)
 HAND := $(wildcard $(ROOT)/src/*.c)
 PC := $(wildcard *.c)
-OBJS := $(LIFTED:$(ROOT)/lifted/%.c=$(OUT)/lifted/%.o) $(HAND:$(ROOT)/src/%.c=$(OUT)/src/%.o) \
-        $(PC:%.c=$(OUT)/pc/%.o) $(OUT)/runtime.o
+# the hand-written C and the port first: on Windows the first definition of
+# a function wins over the lifted one (see LIFT_WEAK in lift.h)
+OBJS := $(HAND:$(ROOT)/src/%.c=$(OUT)/src/%.o) $(PC:%.c=$(OUT)/pc/%.o) $(OUT)/runtime.o \
+        $(LIFTED:$(ROOT)/lifted/%.c=$(OUT)/lifted/%.o)
 
-$(OUT)/mmz: $(OBJS)
-	$(CC) -no-pie -o $@ $(OBJS) $(ROOT)/sym_ram.ld $(LIBS)
+$(OUT)/$(EXE): $(OBJS)
+	$(CC) $(LDFLAGS) -o $@ $(OBJS) $(ROOT)/sym_ram.ld $(LIBS)
+ifeq ($(WINDOWS),1)
+	cp $(SDL2_DIR)/bin/SDL2.dll $(OUT)/
+endif
 
 $(OUT)/lifted/%.o: $(ROOT)/lifted/%.c $(ROOT)/tools/lift/lift.h | $(OUT)/lifted
 	$(CC) $(CFLAGS) -c -o $@ $<
@@ -29,6 +49,14 @@ $(OUT)/runtime.o: $(ROOT)/tools/lift/runtime.c $(ROOT)/tools/lift/lift.h | $(OUT
 $(OUT) $(OUT)/lifted $(OUT)/src $(OUT)/pc:
 	mkdir -p $@
 
-.PHONY: clean
+.PHONY: clean dist
+# dist (with WINDOWS=1): a zip to hand out, without debug information
+dist: $(OUT)/$(EXE)
+	rm -rf $(OUT)/dist && mkdir -p $(OUT)/dist/mmz
+	$(if $(filter 1,$(WINDOWS)),x86_64-w64-mingw32-strip,strip) -o $(OUT)/dist/mmz/$(EXE) $(OUT)/$(EXE)
+	$(if $(filter 1,$(WINDOWS)),cp $(OUT)/SDL2.dll $(OUT)/dist/mmz/,)
+	cp README.md $(OUT)/dist/mmz/README.txt
+	cd $(OUT)/dist && zip -qr ../mmz-$(if $(filter 1,$(WINDOWS)),windows,linux).zip mmz
+
 clean:
 	rm -rf $(OUT)

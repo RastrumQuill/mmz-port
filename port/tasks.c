@@ -2,29 +2,43 @@
  * stacks. On the GBA a task switch swaps the stack pointer: sub_080002DC
  * runs a task, sub_08000300 yields back to the scheduler and sub_08000328
  * ends a task. The lifted C keeps return addresses on the native stack, so
- * each task gets its own native stack (ucontext). What these functions do
+ * each task gets its own native stack (ucontext, or a fiber on Windows).
+ * What these functions do
  * to the GBA registers and stacks is kept exactly as in the original.
  */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <ucontext.h>
 #include "lift.h"
 #include "pc.h"
+
+/* coroutines: ucontext, or fibers on Windows */
+#ifdef _WIN32
+#include <windows.h>
+typedef LPVOID Context;
+static Context schedCtx;
+static void ctx_switch(Context *save, Context *to) { (void)save; SwitchToFiber(*to); }
+static void ctx_jump(Context *to) { SwitchToFiber(*to); }
+#else
+#include <ucontext.h>
+typedef ucontext_t Context;
+static Context schedCtx;
+static void ctx_switch(Context *save, Context *to) { swapcontext(save, to); }
+static void ctx_jump(Context *to) { setcontext(to); }
+#endif
 
 #define TASK_STACK (1 << 20)
 #define SLOTS 0x03001748u
 
 struct Task {
-	ucontext_t ctx;
-	void *stack;
+	Context ctx;
+	void *stack;      /* (the fiber, on Windows) */
 	int alive;       /* has a native context */
 	u32 resumePc;    /* where it continues: the GBA return address it saved */
 	u32 resumeSp;
 };
 static struct Task tasks[3];
 static struct Task *current;
-static ucontext_t schedCtx;
 static void *deadStack;   /* stack of a task that ended; freed from the scheduler */
 
 /* start values for a new task, read by task_main on its own stack */
@@ -65,6 +79,30 @@ static void task_main(void) {
 	}
 }
 
+#ifdef _WIN32
+static void WINAPI fiber_main(LPVOID arg) { (void)arg; task_main(); }
+static void task_new(struct Task *t) {
+	if (!schedCtx) schedCtx = ConvertThreadToFiber(NULL);
+	t->ctx = CreateFiber(TASK_STACK, fiber_main, NULL);
+	t->stack = t->ctx;
+	t->alive = 1;
+}
+static void task_free(struct Task *t) { DeleteFiber(t->ctx); t->stack = NULL; }
+static void stack_free(void *s) { DeleteFiber(s); }
+#else
+static void task_new(struct Task *t) {
+	t->stack = malloc(TASK_STACK);
+	t->alive = 1;
+	getcontext(&t->ctx);
+	t->ctx.uc_stack.ss_sp = t->stack;
+	t->ctx.uc_stack.ss_size = TASK_STACK;
+	t->ctx.uc_link = NULL;
+	makecontext(&t->ctx, task_main, 0);
+}
+static void task_free(struct Task *t) { free(t->stack); t->stack = NULL; }
+static void stack_free(void *s) { free(s); }
+#endif
+
 static int slot_of(u32 slotAddr) {
 	int i = (int)(slotAddr - SLOTS) / 24;
 	if (i < 0 || i > 2 || slotAddr != SLOTS + i * 24) {
@@ -78,26 +116,20 @@ static int slot_of(u32 slotAddr) {
 void lift_sub_080002DC(void) {
 	(void)LIFT_ENTRY_LR();
 	u32 slotAddr = cpu.r[0], pc = cpu.r[1], sp = cpu.r[2], save = cpu.r[3];
-	if (deadStack) { free(deadStack); deadStack = NULL; }
+	if (deadStack) { stack_free(deadStack); deadStack = NULL; }
 	save_regs(1);
 	lift_write32(save, cpu.r[13]);
 	struct Task *t = &tasks[slot_of(slotAddr)];
 	current = t;
 	if (t->alive && t->resumePc == pc && t->resumeSp == sp) {
 		resumeSp = sp;
-		swapcontext(&schedCtx, &t->ctx);
+		ctx_switch(&schedCtx, &t->ctx);
 	} else {
-		if (t->alive) free(t->stack);   /* restarted: the old one is dropped */
-		t->stack = malloc(TASK_STACK);
-		t->alive = 1;
-		getcontext(&t->ctx);
-		t->ctx.uc_stack.ss_sp = t->stack;
-		t->ctx.uc_stack.ss_size = TASK_STACK;
-		t->ctx.uc_link = NULL;
-		makecontext(&t->ctx, task_main, 0);
+		if (t->alive) task_free(t);   /* restarted: the old one is dropped */
+		task_new(t);
 		startPc = pc;
 		startSp = sp;
-		swapcontext(&schedCtx, &t->ctx);
+		ctx_switch(&schedCtx, &t->ctx);
 	}
 	/* back from a yield or an exit, with the scheduler's registers loaded */
 	current = NULL;
@@ -121,7 +153,7 @@ void lift_sub_08000300(void) {
 	cpu.r[13] = schedSp;
 	load_regs();
 	cpu.r[14] = cpu.r[3] = pop();
-	swapcontext(&t->ctx, &schedCtx);
+	ctx_switch(&t->ctx, &schedCtx);
 	/* resumed by sub_080002DC: its pops, then return to where we yielded */
 	cpu.r[13] = resumeSp;
 	load_regs();
@@ -139,7 +171,7 @@ void lift_sub_08000328(void) {
 	t->alive = 0;
 	deadStack = t->stack;
 	t->stack = NULL;
-	setcontext(&schedCtx);
+	ctx_jump(&schedCtx);
 }
 
 void tasks_reset(void) {

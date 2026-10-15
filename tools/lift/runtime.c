@@ -31,7 +31,7 @@ u32 lift_cycles;
 u32 romSize;
 jmp_buf failJmp;
 char failReason[128];
-long budget;
+int64_t budget;
 u32 biosBus;  /* what reads of the BIOS area return: the last BIOS opcode fetched */
 
 static void fail(const char *why, u32 a) {

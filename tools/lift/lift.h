@@ -13,6 +13,15 @@
 
 #include <stdint.h>
 
+/* Lifted functions can be replaced by hand-written C. ELF has weak symbols
+ * for that; on Windows the lifted objects are linked last with duplicates
+ * allowed, so the first definition (the hand-written one) is used. */
+#ifdef _WIN32
+#define LIFT_WEAK
+#else
+#define LIFT_WEAK __attribute__((weak))
+#endif
+
 typedef uint8_t u8;
 typedef uint16_t u16;
 typedef uint32_t u32;

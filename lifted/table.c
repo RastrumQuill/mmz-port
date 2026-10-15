@@ -2,11 +2,11 @@
 #include "lifted.h"
 
 /* Functions the runtime has to provide (ARM code, task switching). */
-__attribute__((weak)) void lift_sub_08000000(void) { lift_fail(0x08000000); }
-__attribute__((weak)) void lift_IntrMain(void) { lift_fail(0x080000FC); }
-__attribute__((weak)) void lift_sub_080002DC(void) { lift_fail(0x080002DD); }
-__attribute__((weak)) void lift_sub_08000300(void) { lift_fail(0x08000301); }
-__attribute__((weak)) void lift_sub_08000328(void) { lift_fail(0x08000329); }
+LIFT_WEAK void lift_sub_08000000(void) { lift_fail(0x08000000); }
+LIFT_WEAK void lift_IntrMain(void) { lift_fail(0x080000FC); }
+LIFT_WEAK void lift_sub_080002DC(void) { lift_fail(0x080002DD); }
+LIFT_WEAK void lift_sub_08000300(void) { lift_fail(0x08000301); }
+LIFT_WEAK void lift_sub_08000328(void) { lift_fail(0x08000329); }
 
 const struct LiftEntry gLiftTable[] = {
     { 0x03000001, lift_sub_080C6894, 1 },

@@ -19,7 +19,7 @@
 extern u32 romSize, biosBus;
 extern jmp_buf failJmp;
 extern char failReason[128];
-extern long budget;
+extern int64_t budget;
 
 static void map(int fd, unsigned off, unsigned addr, unsigned size) {
 	void *p = mmap((void *)addr, size, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_FIXED_NOREPLACE, fd, off);
