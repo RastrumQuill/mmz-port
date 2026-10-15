@@ -53,6 +53,33 @@ extern int lift_tail;
 #define LIFT_TAIL(lr) do { lift_tail_lr = (lr); lift_tail = 1; } while (0)
 #define LIFT_ENTRY_LR() (lift_tail ? (lift_tail = 0, lift_tail_lr) : cpu.r[14])
 
+/* ------------------------------------ bridges to and from hand-written C
+ *
+ * Every lifted function is a weak lift_NAME. Hand-written C replaces one by
+ * defining a strong lift_NAME with these macros, next to the C function:
+ *     LIFT_EXPORT_VOID(Name)         void Name(up to 4 arguments)
+ *     LIFT_EXPORT(type, Name)        type Name(up to 4 arguments)
+ * The arguments come from r0-r3 and a result goes to r0. A void function
+ * sets lift_void, so the check does not compare r0 (whatever the original
+ * left there is not part of its output).
+ *
+ * Hand-written C calls code that is still lifted with
+ *     LIFT_CALL(Name, a0, a1, a2, a3)   (returns r0; pass 0 for unused)
+ */
+extern int lift_void;
+typedef u32 (*LiftFn4)(u32, u32, u32, u32);
+#define LIFT_ARGS cpu.r[0], cpu.r[1], cpu.r[2], cpu.r[3]
+#define LIFT_EXPORT_VOID(name) \
+    void lift_##name(void) { (void)LIFT_ENTRY_LR(); ((void (*)(u32, u32, u32, u32))(name))(LIFT_ARGS); lift_void = 1; }
+#define LIFT_EXPORT(type, name) \
+    void lift_##name(void) { (void)LIFT_ENTRY_LR(); cpu.r[0] = (u32)((type (*)(u32, u32, u32, u32))(name))(LIFT_ARGS); lift_void = 0; }
+/* a return address no lifted code jumps to, so the callee returns to us */
+#define LIFT_RETURN_MAGIC 0xFFFFFFF1u
+#define LIFT_CALL(name, a0, a1, a2, a3) ({ \
+    extern void lift_##name(void); \
+    cpu.r[0] = (u32)(a0); cpu.r[1] = (u32)(a1); cpu.r[2] = (u32)(a2); cpu.r[3] = (u32)(a3); \
+    cpu.r[14] = LIFT_RETURN_MAGIC; lift_tail = 0; lift_##name(); cpu.r[0]; })
+
 static inline u32 ror32(u32 v, u32 n) {
     n &= 31;
     return n ? (v >> n) | (v << (32 - n)) : v;
