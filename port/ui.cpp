@@ -209,6 +209,27 @@ static void settings_window() {
 			settings.fullscreen = fs;
 			SDL_SetWindowFullscreen(sWindow, fs ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0);
 		}
+		static const char *const views[VIEW_MODES] = {
+			"GBA (240x160)", "x2 (480x320)", "x3 (720x480)", "x4 (960x640)",
+			"Mega Man X (256x224)", "Custom", "Window (fit to the window's shape)",
+		};
+		ImGui::SetNextItemWidth(260);
+		ImGui::Combo("View", &settings.viewMode, views, VIEW_MODES);
+		if (settings.viewMode == VIEW_CUSTOM) {
+			ImGui::SetNextItemWidth(120);
+			ImGui::InputInt("Width", &settings.viewW, 16, 64);
+			ImGui::SameLine();
+			ImGui::SetNextItemWidth(120);
+			ImGui::InputInt("Height", &settings.viewH, 16, 64);
+		} else if (settings.viewMode == VIEW_WINDOW) {
+			ImGui::SetNextItemWidth(260);
+			ImGui::SliderInt("World pixels high", &settings.viewHeight, 160, 720);
+			ImGui::TextDisabled("The width follows the window (wide and ultra-wide screens).");
+		}
+		int vw, vh, ww, wh;
+		SDL_GetRendererOutputSize(sRenderer, &ww, &wh);
+		settings_view_size(ww, wh, &vw, &vh);
+		ImGui::TextDisabled("Showing %dx%d of the world in stages (%.2fx the GBA's area).", vw, vh, vw * vh / (240.0 * 160));
 		bool is = settings.integerScale, sm = settings.smooth;
 		if (ImGui::Checkbox("Whole-number scaling only", &is)) settings.integerScale = is;
 		if (ImGui::Checkbox("Smooth (filtered) pixels", &sm)) settings.smooth = sm;
@@ -585,10 +606,13 @@ static void test_step() {
 extern "C" void ui_present(SDL_Texture *game) {
 	int ww, wh;
 	SDL_GetRendererOutputSize(sRenderer, &ww, &wh);
-	// the game picture: as large as fits, keeping 3:2
-	float s = ww / (float)SCREEN_W < wh / (float)SCREEN_H ? ww / (float)SCREEN_W : wh / (float)SCREEN_H;
+	// the game picture (the GBA's 240x160 or the zoomed-out view): as large
+	// as fits, keeping its shape
+	int tw, th;
+	SDL_QueryTexture(game, nullptr, nullptr, &tw, &th);
+	float s = ww / (float)tw < wh / (float)th ? ww / (float)tw : wh / (float)th;
 	if (settings.integerScale && s >= 1) s = (float)(int)s;
-	SDL_Rect dst = { (int)(ww - SCREEN_W * s) / 2, (int)(wh - SCREEN_H * s) / 2, (int)(SCREEN_W * s), (int)(SCREEN_H * s) };
+	SDL_Rect dst = { (int)(ww - tw * s) / 2, (int)(wh - th * s) / 2, (int)(tw * s), (int)(th * s) };
 	SDL_SetTextureScaleMode(game, settings.smooth ? SDL_ScaleModeLinear : SDL_ScaleModeNearest);
 	SDL_SetRenderDrawColor(sRenderer, 0, 0, 0, 255);
 	SDL_RenderClear(sRenderer);

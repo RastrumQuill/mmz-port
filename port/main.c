@@ -163,15 +163,18 @@ static int keymask(const char *s) {
 }
 
 static void write_ppm(const char *path) {
+	/* the zoomed-out view when there is one, else the GBA picture */
+	const u32 *src = view_active ? view_frame : ppu_frame;
+	int w = view_active ? view_w : SCREEN_W, h = view_active ? view_h : SCREEN_H;
 	char p[300];
 	snprintf(p, sizeof p, "%s", path);
 	char *dot = strrchr(p, '.');
 	if (dot && !strcmp(dot, ".png")) strcpy(dot, ".ppm");
 	FILE *f = fopen(p, "wb");
 	if (!f) { fprintf(stderr, "cannot write %s\n", p); return; }
-	fprintf(f, "P6\n%d %d\n255\n", SCREEN_W, SCREEN_H);
-	for (int i = 0; i < SCREEN_W * SCREEN_H; i++) {
-		u32 c = ppu_frame[i];
+	fprintf(f, "P6\n%d %d\n255\n", w, h);
+	for (int i = 0; i < w * h; i++) {
+		u32 c = src[i];
 		fputc(c >> 16, f); fputc(c >> 8, f); fputc(c, f);
 	}
 	fclose(f);
@@ -207,6 +210,8 @@ static void route_step(void) {
 static SDL_Window *window;
 static SDL_Renderer *renderer;
 static SDL_Texture *texture;
+static SDL_Texture *viewTexture;   /* the zoomed-out view, view_w x view_h */
+static int viewTexW, viewTexH;
 static SDL_GameController *pad;
 static SDL_AudioDeviceID audioDev;
 static SDL_AudioStream *audioStream;
@@ -289,12 +294,31 @@ static u16 read_buttons(void) {
 	return m;
 }
 
+/* the picture to show: the zoomed-out view, or the GBA's */
+static SDL_Texture *frame_texture(void) {
+	if (!view_active) {
+		SDL_UpdateTexture(texture, NULL, ppu_frame, SCREEN_W * 4);
+		return texture;
+	}
+	if (!viewTexture || viewTexW != view_w || viewTexH != view_h) {
+		if (viewTexture) SDL_DestroyTexture(viewTexture);
+		viewTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGB888, SDL_TEXTUREACCESS_STREAMING, view_w, view_h);
+		viewTexW = view_w;
+		viewTexH = view_h;
+	}
+	SDL_UpdateTexture(viewTexture, NULL, view_frame, view_w * 4);
+	return viewTexture;
+}
+
 static void sdl_frame(void) {
-	SDL_UpdateTexture(texture, NULL, ppu_frame, SCREEN_W * 4);
+	SDL_Texture *shown = frame_texture();
+	int ww, wh;
+	SDL_GetRendererOutputSize(renderer, &ww, &wh);
+	settings_view_size(ww, wh, &view_w, &view_h);   /* (used from the next frame) */
 	sdl_events();
 	/* paused (or in the settings): the game waits here, at the frame's end */
 	while ((debug.paused && !debug.step) || ui_pauses_game()) {
-		ui_present(texture);
+		ui_present(shown);
 		SDL_Delay(16);
 		sdl_events();
 		nextFrameTime = SDL_GetPerformanceCounter();
@@ -304,7 +328,7 @@ static void sdl_frame(void) {
 	/* fast-forward: show every 4th frame, do not wait */
 	static int skip;
 	if (debug.fastForward && ++skip % 4) return;
-	ui_present(texture);
+	ui_present(shown);
 	sdl_audio();
 	if (debug.fastForward) { nextFrameTime = SDL_GetPerformanceCounter(); return; }
 	/* 59.73 frames a second, as on the GBA */
@@ -352,7 +376,7 @@ u16 frontend_keys(void) {
 /* --------------------------------------------------------------- start */
 
 int main(int argc, char **argv) {
-	const char *romArg = NULL, *configArg = NULL;
+	const char *romArg = NULL, *configArg = NULL, *viewArg = NULL;
 	int scale = 0;
 	savePath = NULL;
 	for (int i = 1; i < argc; i++) {
@@ -361,6 +385,7 @@ int main(int argc, char **argv) {
 		else if (!strcmp(argv[i], "--config") && i + 1 < argc) configArg = argv[++i];
 		else if (!strcmp(argv[i], "--scale") && i + 1 < argc) scale = atoi(argv[++i]);
 		else if (!strcmp(argv[i], "--headless")) headless = 1;
+		else if (!strcmp(argv[i], "--view") && i + 1 < argc) viewArg = argv[++i];
 		else if (!strcmp(argv[i], "--ui-test") && i + 1 < argc) ui_test(argv[++i]);
 		else if (!strcmp(argv[i], "--wav") && i + 1 < argc) {
 			wavFile = fopen(argv[++i], "wb");
@@ -380,6 +405,12 @@ int main(int argc, char **argv) {
 	if (headless && !route) { fprintf(stderr, "--headless needs --route\n"); return 1; }
 	settings_load(configArg);
 	if (scale > 0) settings.scale = scale;
+	if (viewArg) {   /* a mode name, or WIDTHxHEIGHT */
+		int vw, vh;
+		if (sscanf(viewArg, "%dx%d", &vw, &vh) == 2) { settings.viewMode = VIEW_CUSTOM; settings.viewW = vw; settings.viewH = vh; }
+		else for (int i = 0; i < VIEW_MODES; i++) if (!strcmp(viewArg, kViewNames[i])) settings.viewMode = i;
+	}
+	settings_view_size(SCREEN_W * 4, SCREEN_H * 4, &view_w, &view_h);
 	const char *romPath = romArg ? romArg : find_rom();
 	static char defaultSave[1024];
 	if (!savePath && settings.save[0]) savePath = settings.save;

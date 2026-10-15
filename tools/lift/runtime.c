@@ -297,6 +297,7 @@ static void bios_lz77(u32 src, u32 dst, int toVram) {
 
 void lift_swi(u32 n) {
 	u32 *r = cpu.r;
+	if (getenv("TRACESWI")) fprintf(stderr, "swi %02X r0 %08X r1 %08X r2 %08X lr %08X\n", n, r[0], r[1], r[2], r[14]);
 	biosBus = 0xE3A02004;  /* the opcode the BIOS prefetches when an SWI returns */
 	switch (n) {
 	case 0x08: r[0] = bios_sqrt(r[0]); break;

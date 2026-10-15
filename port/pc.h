@@ -18,6 +18,12 @@ void ppu_draw_line(int line);
 void ppu_vblank(void);
 void ppu_affine_written(u32 o);
 
+/* view.c: the zoomed-out view */
+extern int view_w, view_h, view_active;
+extern u32 *view_frame;
+void view_record_line(int line);
+int view_render(void);
+
 /* audio.c */
 void audio_fifo_write(int fifo, u32 word);
 void audio_timer_overflow(int timer);

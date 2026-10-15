@@ -253,6 +253,7 @@ static u32 to_rgb(u16 c) {
 
 void ppu_draw_line(int line) {
 	u32 *dst = ppu_frame + line * SCREEN_W;
+	view_record_line(line);
 	u16 dispcnt = IO16(0);
 	int mode = dispcnt & 7;
 	if (dispcnt & 0x80) {   /* forced blank */

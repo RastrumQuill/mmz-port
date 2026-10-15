@@ -175,6 +175,7 @@ static void next_line(void) {
 	if (line == 160) {
 		stat |= 1;
 		IO16(0x004) = stat;
+		view_render();   /* before the game's V-blank interrupt changes anything */
 		ppu_vblank();
 		frontend_frame();
 		dma_timed(1);
