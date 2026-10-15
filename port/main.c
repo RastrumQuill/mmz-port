@@ -238,6 +238,15 @@ static void write_ppm(const char *path) {
 		fputc(c >> 16, f); fputc(c >> 8, f); fputc(c, f);
 	}
 	fclose(f);
+	/* MMZ_SHOT_GBA: the GBA picture too, as NAME.gba.ppm (to compare) */
+	if (view_active && getenv("MMZ_SHOT_GBA") && dot) {
+		strcpy(dot, ".gba.ppm");
+		f = fopen(p, "wb");
+		if (!f) return;
+		fprintf(f, "P6\n%d %d\n255\n", SCREEN_W, SCREEN_H);
+		for (int i = 0; i < SCREEN_W * SCREEN_H; i++) { u32 c = ppu_frame[i]; fputc(c >> 16, f); fputc(c >> 8, f); fputc(c, f); }
+		fclose(f);
+	}
 }
 
 static void route_step(void) {
@@ -512,6 +521,7 @@ int main(int argc, char **argv) {
 	biosBus = 0xE129F000;
 	budget = INT64_MAX;
 	if (getenv("MMZ_CYCLE_SCALE")) hw_cycle_scale = atoi(getenv("MMZ_CYCLE_SCALE"));
+	if (getenv("MMZ_LAYERS")) debug.layerMask = strtol(getenv("MMZ_LAYERS"), NULL, 0);   /* bits: BG0-BG3, OBJ */
 	hw_reset();
 	tasks_reset();
 	if (setjmp(failJmp)) {

@@ -64,6 +64,7 @@ struct Layer {
 	const u16 *tiledata, *chunks;
 	const u8 *map;
 	int stride, null, w, h;
+	int backdrop;                 /* a background smaller than the stage (it scrolls slower): repeats */
 };
 static struct Layer layers[4];    /* by BG; .map NULL: not a live level layer */
 
@@ -258,7 +259,7 @@ static void content_bounds(s32 *l, s32 *t, s32 *r, s32 *b) {
 	int x0 = 1 << 30, y0 = 1 << 30, x1 = -(1 << 30), y1 = -(1 << 30);
 	for (int k = 1; k < 4; k++) {
 		const struct Layer *L = &layers[k];
-		if (!L->map) continue;
+		if (!L->map || L->backdrop) continue;
 		for (int cy = 0; cy < L->h; cy++)
 			for (int cx = 0; cx < L->w; cx++) {
 				if (L->map[4 + cy * L->stride + cx] == L->null) continue;
@@ -275,6 +276,21 @@ static void content_bounds(s32 *l, s32 *t, s32 *r, s32 *b) {
 
 /* the tilemap entry the level has at a world pixel (0: nothing there) */
 static int level_entry(const struct Layer *L, s32 wx, s32 wy, u16 *out) {
+	if (L->backdrop) {
+		/* repeats sideways; its top and bottom rows go on up and down (sky,
+		   ground) */
+		s32 W = L->w * 240, H = L->h * 160;
+		wx %= W;
+		if (wx < 0) wx += W;
+		if (wy < 0) wy = (wy & 7);
+		if (wy >= H) wy = H - 8 + (wy & 7);
+		int cid = L->map[4 + (wy / 160) * L->stride + wx / 240];
+		if (cid == L->null) return 0;
+		u16 mt = L->chunks[cid * 150 + ((wy % 160) >> 4) * 15 + ((wx % 240) >> 4)];
+		*out = L->tiledata[mt * 4 + ((wy >> 3) & 1) * 2 + ((wx >> 3) & 1)];
+		levelSrc = 0;
+		return 1;
+	}
 	if (wx < 0 || wy < 0) return 0;
 	int cx = wx / 240, cy = wy / 160;
 	if (cx >= L->w || cy >= L->h) return 0;
@@ -307,8 +323,11 @@ static s32 line_world_x(const struct Layer *L, int line) { return L->x + wrap_de
 static s32 line_world_y(const struct Layer *L, int line) { return L->y + wrap_delta(R16(line, 0x12 + L->bg * 4) & 0x1FF, L->y); }
 
 /* Finds the stage layers and keeps the ones video memory agrees with. */
+static int stageBg[4];   /* BGs a stage layer (moving with the camera) is on, matched or not */
+
 static void find_layers(void) {
 	memset(layers, 0, sizeof layers);
+	memset(stageBg, 0, sizeof stageBg);
 	if ((R16(0, 0) & 7) != 0) return;   /* stages use mode 0 */
 	for (int k = 0; k < 3; k++) {
 		const u8 *s = (const u8 *)(uintptr_t)(STAGE_LAYERS + k * 0x70);
@@ -317,6 +336,8 @@ static void find_layers(void) {
 		if (!rom_ptr(td) || !rom_ptr(ch) || !rom_ptr(mp) || bg < 1 || bg > 3) continue;
 		struct Layer L;
 		L.bg = bg;
+		/* scroll speed (256: with the camera); slower ones are backgrounds */
+		L.backdrop = *(u32 *)(s + 0x44) != 0x100 || *(u32 *)(s + 0x48) != 0x100;
 		L.x = *(s32 *)(s + 0x14);
 		L.y = *(s32 *)(s + 0x18);
 		L.tiledata = (const u16 *)(uintptr_t)td;
@@ -324,6 +345,7 @@ static void find_layers(void) {
 		L.map = (const u8 *)(uintptr_t)mp;
 		L.stride = L.map[0]; L.null = L.map[1]; L.w = L.map[2]; L.h = L.map[3];
 		if (!L.w || !L.h || L.w > L.stride) continue;
+		if (!L.backdrop) stageBg[bg] = 1;
 		if (!(R16(80, 0) & (0x100 << bg))) continue;
 		/* agrees with video memory? (samples over the GBA screen, mid-frame line) */
 		int match = 0, n = 0;
@@ -337,7 +359,9 @@ static void find_layers(void) {
 				n++;
 				if (have ? got == want : 1) match++;
 			}
-		if (match * 10 >= n * 8) layers[bg] = L;
+		/* (the game changes some tiles in video memory: doors, blocks, bosses;
+		   on the GBA screen the view draws from video memory) */
+		if (match * 2 >= n) layers[bg] = L;
 	}
 }
 
@@ -525,15 +549,35 @@ static void draw_level_row(const struct Layer *L, int line, int vy, int ox, int 
    rows outside the GBA screen use the nearest GBA line's scroll */
 static void draw_vram_row(int bg, int line, int vy, int oy, int ox, u16 *out, int w) {
 	int l = vy - oy;
+	/* a stage layer the level data could not draw this frame (it is being
+	   rebuilt): its tilemap holds only what is around the GBA screen */
+	int gbaOnly = stageBg[bg];
+	if (gbaOnly && (l < 0 || l >= SCREEN_H)) { for (int x = 0; x < w; x++) out[x] = TRANSPARENT; return; }
 	u16 cnt = R16(line, 0x08 + bg * 2);
 	if (cnt & 0x80) { for (int x = 0; x < w; x++) out[x] = TRANSPARENT; return; }   /* (256-colour layers: not in stages) */
 	u32 charBase = ((cnt >> 2) & 3) * 0x4000;
 	int hofs = R16(line, 0x10 + bg * 4) & 0x1FF, vofs = R16(line, 0x12 + bg * 4) & 0x1FF;
 	int py = l + vofs;
 	for (int vx = 0; vx < w; vx++) {
+		if (gbaOnly && (vx < ox || vx >= ox + SCREEN_W)) { out[vx] = TRANSPARENT; continue; }
 		int px = vx - ox + hofs;
 		u16 e = vram_entry(bg, line, px, py);
 		out[vx] = tile_pixel(e, charBase, px & 7, py & 7);
+	}
+}
+
+/* a BG's pixels on GBA line l, from video memory, into the view row at ox */
+static void gba_vram_span(int bg, int l, int ox, u16 *out, int w) {
+	u16 cnt = R16(l, 0x08 + bg * 2);
+	if (cnt & 0x80) return;
+	u32 charBase = ((cnt >> 2) & 3) * 0x4000;
+	int hofs = R16(l, 0x10 + bg * 4) & 0x1FF, vofs = R16(l, 0x12 + bg * 4) & 0x1FF;
+	int py = l + vofs;
+	for (int x = 0; x < SCREEN_W; x++) {
+		int vx = x + ox;
+		if (vx < 0 || vx >= w) continue;
+		int px = x + hofs;
+		out[vx] = tile_pixel(vram_entry(bg, l, px, py), charBase, px & 7, py & 7);
 	}
 }
 
@@ -691,7 +735,8 @@ int view_render(void) {
 	view_cells_left = view_cells_right = view_cells_up = view_cells_down = 0;
 	view_ext_left = view_ext_right = view_ext_up = view_ext_down = 0;
 	find_layers();
-	view_gameplay = !(EVENT_FLAGS & 1) && (GAME_MODE == 3 || GAME_MODE == 4) && (layers[1].map || layers[2].map || layers[3].map);
+	view_gameplay = !(EVENT_FLAGS & 1) && (GAME_MODE == 3 || GAME_MODE == 4) &&
+	                ((layers[1].map && !layers[1].backdrop) || (layers[2].map && !layers[2].backdrop) || (layers[3].map && !layers[3].backdrop));
 	if (view_w == SCREEN_W && view_h == SCREEN_H) { shownFrames = 0; return 0; }
 	/* cutscenes (an event script is running): the GBA picture, as it is */
 	if (EVENT_FLAGS & 1) { shownFrames = 0; return 0; }
@@ -713,7 +758,17 @@ int view_render(void) {
 
 	/* where the GBA screen sits in the view: centred, then kept inside the
 	   stage when the stage is big enough */
-	const struct Layer *T = layers[1].map ? &layers[1] : layers[2].map ? &layers[2] : &layers[3];
+	/* the stage layer (not a background) */
+	const struct Layer *T = NULL;
+	for (int k = 1; k < 4 && !T; k++)
+		if (layers[k].map && !layers[k].backdrop) T = &layers[k];
+	if (!T) {   /* no stage layer (only backgrounds): the GBA picture */
+		if (!shownFrames || ++badFrames >= SWITCH_FRAMES) { shownFrames = 0; return 0; }
+		for (size_t i = 0; i < (size_t)w * h; i++) view_frame[i] = 0;
+		paste_gba(w, h, lastOx, lastOy);
+		view_active = 1;
+		return 1;
+	}
 	s32 x0 = line_world_x(T, 0), y0 = line_world_y(T, 0);
 	/* the stage's origin in the world: the camera's top-left (global) minus
 	   the layer's (whole chunks apart) */
@@ -723,7 +778,13 @@ int view_render(void) {
 	stageY = (stageY + 80) / 160 * 160;
 	find_area();
 	memset(chunkOk, 0, sizeof chunkOk);
-	nCombos = 0;
+	/* the copies with other graphics sets are kept for a while (rebuilt when
+	   the loaded sets change, and every half second for animated tiles) */
+	{
+		static u32 lastKey; static int age;
+		u32 key = (u32)GFX_SET_A << 16 | GFX_SET_B;
+		if (key != lastKey || ++age >= 30) { nCombos = 0; age = 0; lastKey = key; }
+	}
 	gbaCx0 = (x0 + stageX) / 240; gbaCx1 = (x0 + stageX + SCREEN_W - 1) / 240;
 	gbaCy0 = (y0 + stageY) / 160; gbaCy1 = (y0 + stageY + SCREEN_H - 1) / 160;
 	static int dbg = -1;
@@ -747,7 +808,16 @@ int view_render(void) {
 	/* kept inside what the current area has (its chunks with something in
 	   them, stage coordinates); centred on it where it is smaller */
 	s32 cL, cT, cR, cB;
-	content_bounds(&cL, &cT, &cR, &cB);
+	{
+		/* (the same while the area and its sets are) */
+		static s32 bL, bT, bR, bB; static u32 bKey = ~0u; static s32 bStageX, bStageY;
+		u32 key = (u32)CUR_AREA << 24 ^ (u32)GFX_SET_A << 12 ^ GFX_SET_B;
+		if (key != bKey || stageX != bStageX || stageY != bStageY) {
+			content_bounds(&bL, &bT, &bR, &bB);
+			bKey = key; bStageX = stageX; bStageY = stageY;
+		}
+		cL = bL; cT = bT; cR = bR; cB = bB;
+	}
 	s32 left = x0 - ox, top = y0 - oy;
 	if (cR - cL >= w) { if (left < cL) left = cL; if (left > cR - w) left = cR - w; }
 	else left = cL + (cR - cL - w) / 2;
@@ -760,6 +830,8 @@ int view_render(void) {
 	if (top + h < y0 + SCREEN_H) top = y0 + SCREEN_H - h;
 	ox = x0 - left;
 	oy = y0 - top;
+	if (dbg) fprintf(stderr, "  content %d..%d x %d..%d, ox %d oy %d, layers %d%d%d backdrop %d%d%d gbaOver %d\n", cL, cR, cT, cB, ox, oy,
+	        layers[1].map != NULL, layers[2].map != NULL, layers[3].map != NULL, layers[1].backdrop, layers[2].backdrop, layers[3].backdrop, gbaOver);
 	/* sprites for the next frames: the cells the view covers, plus what can
 	   reach into it (sprite pieces are at most 64 pixels) */
 	view_cells_left = cells(ox + 64, 240);
@@ -782,7 +854,12 @@ int view_render(void) {
 		for (int bg = 0; bg < 4; bg++) {
 			bgOn[bg] = (dispcnt & (0x100 << bg)) && (debug.layerMask & (1 << bg));
 			if (!bgOn[bg]) continue;
-			if (layers[bg].map) draw_level_row(&layers[bg], line, vy, ox, oy, bgRow[bg], w);
+			if (layers[bg].map) {
+				draw_level_row(&layers[bg], line, vy, ox, oy, bgRow[bg], w);
+				/* on the GBA screen, what video memory has (the game's own
+				   changes to the tiles show) */
+				if (!layers[bg].backdrop && vy - oy >= 0 && vy - oy < SCREEN_H) gba_vram_span(bg, vy - oy, ox, bgRow[bg], w);
+			}
 			else if (bg == 0) memcpy(bgRow[0], hudBuf + (size_t)vy * w, w * 2);
 			else draw_vram_row(bg, line, vy, oy, ox, bgRow[bg], w);
 		}
