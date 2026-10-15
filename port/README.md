@@ -67,6 +67,9 @@ raw joystick inputs such as `b3`, `h0up`, `a1+`).
 * Viewers: memory (hex), palette, tiles (any VRAM block and palette),
   sprites (the OAM table), I/O registers.
 
+**Testing.** `mmz --skip-intro` fast-forwards through the title, menus and
+cutscenes (pressing Start / A) to the first moment of play.
+
 ## Building
 
 Linux (needs SDL2): `make port` from the repository root, then

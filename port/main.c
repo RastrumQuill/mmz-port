@@ -37,7 +37,7 @@ void lift_AgbMain(void);
 static int headless;
 static FILE *wavFile;     /* --wav: headless sound output */
 static u32 wavBytes, wavRate;
-static long frameCount;
+long frameCount;
 static u16 keys;   /* pressed buttons, GBA bit order */
 
 /* Errors: a message box when there is a window to go with it (on Windows
@@ -361,6 +361,24 @@ static SDL_Texture *frame_texture(void) {
 	return viewTexture;
 }
 
+/* --skip-intro: fast-forward with Start / A pressed now and then, through
+   the title, menus and cutscenes, until a second of play (a stage with no
+   cutscene running) */
+static int skipIntro;
+static void skip_intro_step(void) {
+	static int stable;
+	stable = view_gameplay ? stable + 1 : 0;
+	if (stable >= 60) {
+		fprintf(stderr, "skip-intro: playing from frame %ld\n", frameCount);
+		if (getenv("MMZ_SKIPSHOT")) write_ppm(getenv("MMZ_SKIPSHOT"));
+		skipIntro = 0; debug.fastForward = 0; keys = 0;
+		return;
+	}
+	debug.fastForward = 1;
+	int t = frameCount % 40;
+	keys = t < 4 ? (frameCount < 2400 && frameCount % 80 < 40 ? 1 << 3 : 1 << 0) : 0;   /* Start (title), else A */
+}
+
 static void sdl_frame(void) {
 	SDL_Texture *shown = frame_texture();
 	int ww, wh;
@@ -377,6 +395,7 @@ static void sdl_frame(void) {
 	}
 	if (debug.paused && debug.step) debug.step--;
 	keys = read_buttons();
+	if (skipIntro) skip_intro_step();
 	/* fast-forward: show every 4th frame, do not wait */
 	static int skip;
 	if (debug.fastForward && ++skip % 4) return;
@@ -437,6 +456,7 @@ int main(int argc, char **argv) {
 		else if (!strcmp(argv[i], "--config") && i + 1 < argc) configArg = argv[++i];
 		else if (!strcmp(argv[i], "--scale") && i + 1 < argc) scale = atoi(argv[++i]);
 		else if (!strcmp(argv[i], "--headless")) headless = 1;
+		else if (!strcmp(argv[i], "--skip-intro")) skipIntro = 1;
 		else if (!strcmp(argv[i], "--view") && i + 1 < argc) viewArg = argv[++i];
 		else if (!strcmp(argv[i], "--ui-test") && i + 1 < argc) ui_test(argv[++i]);
 		else if (!strcmp(argv[i], "--wav") && i + 1 < argc) {
@@ -449,7 +469,7 @@ int main(int argc, char **argv) {
 			if (!route) { fprintf(stderr, "cannot open route %s\n", argv[i]); return 1; }
 		}
 		else {
-			fprintf(stderr, "usage: mmz [--rom FILE] [--save FILE] [--config FILE] [--scale N]\n"
+			fprintf(stderr, "usage: mmz [--rom FILE] [--save FILE] [--config FILE] [--scale N] [--view MODE] [--skip-intro]\n"
 			                "       mmz --headless --route FILE [--wav FILE] [--rom FILE] [--save FILE]\n");
 			return 1;
 		}
