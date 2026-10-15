@@ -5,6 +5,9 @@
  *   scale = 3
  *   fullscreen = 0
  *   volume = 100
+ *   mute = 0
+ *   integer_scale = 1         only whole multiples of the GBA picture
+ *   smooth = 0                linear filtering
  *   key_a = X                 keyboard keys, by SDL name ("Left Shift", "Z")
  *   pad_a = b                 gamepad buttons, by SDL name (a, b, x, y,
  *                             leftshoulder, rightshoulder, start, back, dpup...)
@@ -25,15 +28,23 @@ static const char *const kDefaultPad[10] = { "b", "a", "back", "start", "dpright
 
 static char path[512];
 
-static void set_defaults(void) {
-	memset(&settings, 0, sizeof settings);
-	snprintf(settings.rom, sizeof settings.rom, "baserom.gba");
+void settings_defaults(void) {
 	settings.scale = 3;
+	settings.fullscreen = 0;
 	settings.volume = 100;
+	settings.mute = 0;
+	settings.integerScale = 1;
+	settings.smooth = 0;
 	for (int i = 0; i < 10; i++) {
 		settings.keys[i] = SDL_GetScancodeFromName(kDefaultKeys[i]);
 		settings.pad[i] = SDL_GameControllerGetButtonFromString(kDefaultPad[i]);
 	}
+}
+
+static void set_defaults(void) {
+	memset(&settings, 0, sizeof settings);
+	snprintf(settings.rom, sizeof settings.rom, "baserom.gba");
+	settings_defaults();
 }
 
 static char *trim(char *s) {
@@ -49,6 +60,9 @@ static void apply(const char *key, const char *value) {
 	else if (!strcmp(key, "scale")) settings.scale = atoi(value);
 	else if (!strcmp(key, "fullscreen")) settings.fullscreen = atoi(value);
 	else if (!strcmp(key, "volume")) settings.volume = atoi(value);
+	else if (!strcmp(key, "mute")) settings.mute = atoi(value);
+	else if (!strcmp(key, "integer_scale")) settings.integerScale = atoi(value);
+	else if (!strcmp(key, "smooth")) settings.smooth = atoi(value);
 	else if (!strncmp(key, "key_", 4) || !strncmp(key, "pad_", 4)) {
 		for (int i = 0; i < 10; i++) {
 			if (strcmp(key + 4, kButtonNames[i])) continue;
@@ -92,7 +106,8 @@ void settings_save(void) {
 	fprintf(f, "# Mega Man Zero PC settings\n");
 	fprintf(f, "rom = %s\n", settings.rom);
 	if (settings.save[0]) fprintf(f, "save = %s\n", settings.save);
-	fprintf(f, "scale = %d\nfullscreen = %d\nvolume = %d\n", settings.scale, settings.fullscreen, settings.volume);
+	fprintf(f, "scale = %d\nfullscreen = %d\nvolume = %d\nmute = %d\ninteger_scale = %d\nsmooth = %d\n",
+	        settings.scale, settings.fullscreen, settings.volume, settings.mute, settings.integerScale, settings.smooth);
 	fprintf(f, "\n# keyboard (SDL key names)\n");
 	for (int i = 0; i < 10; i++) fprintf(f, "key_%s = %s\n", kButtonNames[i], SDL_GetScancodeName(settings.keys[i]));
 	fprintf(f, "\n# gamepad (SDL button names)\n");

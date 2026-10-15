@@ -7,6 +7,7 @@
 #include <string.h>
 #include "lift.h"
 #include "pc.h"
+#include "ui.h"
 
 #define io ((u8 *)0x04000000)
 #define pal ((u8 *)0x05000000)
@@ -267,13 +268,13 @@ void ppu_draw_line(int line) {
 		default: bgOn[2] = 1; break;
 		}
 		for (int bg = 0; bg < 4; bg++) {
-			bgOn[bg] = bgOn[bg] && (dispcnt & (0x100 << bg));
+			bgOn[bg] = bgOn[bg] && (dispcnt & (0x100 << bg)) && (debug.layerMask & (1 << bg));
 			if (!bgOn[bg]) continue;
 			if (mode >= 3) draw_bitmap_bg(mode, line);
 			else if (bg >= 2 && mode >= 1 && !(mode == 1 && bg == 3)) draw_affine_bg(bg, line);
 			else draw_text_bg(bg, line);
 		}
-		int objOn = dispcnt & 0x1000;
+		int objOn = (dispcnt & 0x1000) && (debug.layerMask & 0x10);
 		if (objOn || (dispcnt & 0x8000)) draw_sprites(line);
 		int windows = dispcnt & 0xE000;
 		u16 winin = IO16(0x48), winout = IO16(0x4A);

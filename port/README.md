@@ -23,12 +23,32 @@ put it next to `mmz.exe` as `baserom.gba`). Saves go next to the ROM as
 | L / R | A / S | shoulder buttons |
 | Start / Select | Enter / Backspace | Start / Back |
 
-F11: full screen.
+| Key | |
+|---|---|
+| F1 | settings: video, sound, controls (the game waits while it is open) |
+| F2 | debug tools |
+| F11 | full screen |
+| P / N | pause / one frame while paused |
+| Tab (held) | fast-forward |
 
-Settings are in `mmz.ini` next to the executable, written with the defaults
-on the first start: `rom`, `save`, `scale`, `fullscreen`, `volume`, and
-`key_<button>` / `pad_<button>` for every button (SDL key and button names,
-e.g. `key_a = X`, `pad_r = rightshoulder`).
+**Settings (F1).** Window scale, full screen, whole-number scaling, smooth
+pixels, volume, mute. Controls: click a binding and press the new key or
+gamepad button (Esc cancels). Everything is kept in `mmz.ini` next to the
+executable (written with the defaults on the first start; it can also be
+edited by hand: `key_<button>` / `pad_<button>` take SDL key and button
+names).
+
+**Debug tools (F2).**
+* Status: frame, speed, scanline, game mode, mission, area, camera position.
+* Speed: pause, frame step, fast-forward, and the timing calibration.
+* Layers: show or hide each background and the sprites.
+* Mission warp: with Force on, any mission picked at the base loads the
+  chosen stage.
+* RAM freezes: addresses written every frame, like cheat codes.
+* RAM search: narrow down EWRAM/IWRAM bytes by how they change (to find
+  health, ammunition...), then freeze them.
+* Viewers: memory (hex), palette, tiles (any VRAM block and palette),
+  sprites (the OAM table), I/O registers.
 
 ## Building
 
@@ -48,6 +68,7 @@ makes `build_port_win/mmz-windows.zip`.
 | `ppu.c` | the picture: backgrounds, sprites, windows, effects |
 | `audio.c` | the Direct Sound FIFOs the game's mixer feeds |
 | `settings.c` | `mmz.ini` |
+| `ui.cpp` | the settings and debug menus ([Dear ImGui](https://github.com/ocornut/imgui), in `third_party/`) |
 | `main.c` | SDL2 window, input, sound, save file; headless test mode |
 
 There is no CPU emulation: the lifted code counts the cycles its
@@ -56,6 +77,9 @@ scanline every 1232 cycles, so the game's timing (waiting for V-blank,
 per-line effects, slowdown) follows the GBA's.
 
 ## Testing against mGBA
+
+`build_port/mmz --ui-test DIR` opens the menus at set frames and saves
+pictures of them (works with `SDL_VIDEODRIVER=offscreen`).
 
 `build_port/mmz --headless --route ROUTE [--wav FILE]` plays a `tools/emu`
 route without a window and writes its screenshots (and the sound);

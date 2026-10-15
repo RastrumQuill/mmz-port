@@ -1,0 +1,1 @@
+Dear ImGui v1.91.5 (https://github.com/ocornut/imgui), MIT licence: core and the SDL2 / SDL_Renderer backends, unchanged.

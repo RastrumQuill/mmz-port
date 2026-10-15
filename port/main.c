@@ -25,6 +25,7 @@
 #include "lift.h"
 #include "pc.h"
 #include "settings.h"
+#include "ui.h"
 
 extern u32 romSize, biosBus;
 extern jmp_buf failJmp;
@@ -220,7 +221,9 @@ static void sdl_init(int scale) {
 	window = SDL_CreateWindow("Mega Man Zero", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
 	                          SCREEN_W * scale, SCREEN_H * scale, SDL_WINDOW_RESIZABLE);
 	renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
-	SDL_RenderSetLogicalSize(renderer, SCREEN_W, SCREEN_H);
+	if (!renderer) renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_SOFTWARE);   /* no GPU driver */
+	if (!renderer) fatal("Cannot draw in the window: %s", SDL_GetError());
+	ui_init(window, renderer);
 	if (settings.fullscreen) SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN_DESKTOP);
 	texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGB888, SDL_TEXTUREACCESS_STREAMING, SCREEN_W, SCREEN_H);
 	SDL_AudioSpec want = { 0 }, have;
@@ -236,7 +239,7 @@ static void sdl_init(int scale) {
 static void sdl_audio(void) {
 	static s16 buf[8192 * 2];
 	int n = audio_take(buf, 8192);
-	if (!audioDev || n == 0) return;
+	if (!audioDev || n == 0 || settings.mute || debug.fastForward) return;
 	int rate = audio_rate();
 	if (rate <= 0) return;
 	if (!audioStream || rate != audioStreamRate) {
@@ -254,16 +257,21 @@ static void sdl_audio(void) {
 		SDL_QueueAudio(audioDev, outBuf, got);
 }
 
-static void sdl_frame(void) {
+static void sdl_events(void) {
 	SDL_Event e;
 	while (SDL_PollEvent(&e)) {
 		if (e.type == SDL_QUIT) { save_flush(); settings_save(); exit(0); }
 		if (e.type == SDL_CONTROLLERDEVICEADDED && !pad) pad = SDL_GameControllerOpen(e.cdevice.which);
+		if (ui_event(&e)) continue;
 		if (e.type == SDL_KEYDOWN && e.key.keysym.scancode == SDL_SCANCODE_F11) {
 			settings.fullscreen = !settings.fullscreen;
 			SDL_SetWindowFullscreen(window, settings.fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0);
 		}
 	}
+}
+
+static u16 read_buttons(void) {
+	if (ui_wants_input()) return 0;
 	const Uint8 *k = SDL_GetKeyboardState(NULL);
 	u16 m = 0;
 	for (int i = 0; i < 10; i++)
@@ -278,12 +286,27 @@ static void sdl_frame(void) {
 		if (ay < -16000) m |= 64;
 		if (ay > 16000) m |= 128;
 	}
-	keys = m;
+	return m;
+}
+
+static void sdl_frame(void) {
 	SDL_UpdateTexture(texture, NULL, ppu_frame, SCREEN_W * 4);
-	SDL_RenderClear(renderer);
-	SDL_RenderCopy(renderer, texture, NULL, NULL);
-	SDL_RenderPresent(renderer);
+	sdl_events();
+	/* paused (or in the settings): the game waits here, at the frame's end */
+	while ((debug.paused && !debug.step) || ui_pauses_game()) {
+		ui_present(texture);
+		SDL_Delay(16);
+		sdl_events();
+		nextFrameTime = SDL_GetPerformanceCounter();
+	}
+	if (debug.paused && debug.step) debug.step--;
+	keys = read_buttons();
+	/* fast-forward: show every 4th frame, do not wait */
+	static int skip;
+	if (debug.fastForward && ++skip % 4) return;
+	ui_present(texture);
 	sdl_audio();
+	if (debug.fastForward) { nextFrameTime = SDL_GetPerformanceCounter(); return; }
 	/* 59.73 frames a second, as on the GBA */
 	Uint64 freq = SDL_GetPerformanceFrequency();
 	nextFrameTime += freq * 280896 / 16777216;
@@ -313,6 +336,7 @@ static void wav_write(void) {
 
 void frontend_frame(void) {
 	frameCount++;
+	ui_game_frame(frameCount);
 	if (headless && wavFile) wav_write();
 	if (headless) route_step();
 	else sdl_frame();
@@ -337,6 +361,7 @@ int main(int argc, char **argv) {
 		else if (!strcmp(argv[i], "--config") && i + 1 < argc) configArg = argv[++i];
 		else if (!strcmp(argv[i], "--scale") && i + 1 < argc) scale = atoi(argv[++i]);
 		else if (!strcmp(argv[i], "--headless")) headless = 1;
+		else if (!strcmp(argv[i], "--ui-test") && i + 1 < argc) ui_test(argv[++i]);
 		else if (!strcmp(argv[i], "--wav") && i + 1 < argc) {
 			wavFile = fopen(argv[++i], "wb");
 			if (!wavFile) { fprintf(stderr, "cannot write %s\n", argv[i]); return 1; }
