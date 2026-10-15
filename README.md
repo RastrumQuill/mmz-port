@@ -1,3 +1,24 @@
+# Mega Man Zero PC port
+
+A native PC version of **Mega Man Zero** (Game Boy Advance), with no
+emulation: the game's code from the [decompilation](https://github.com/RastrumQuill/mmz),
+compiled for PC, with a platform layer in place of the GBA hardware, plus
+features of its own (a zoomed-out view, controller support, settings and
+debug menus).
+
+**Playing, building and how it works: [`port/README.md`](port/README.md).**
+
+This repository is a fork of the decompilation: everything outside `port/`
+is the decompilation, kept in step by merging it in
+(`git remote add decomp https://github.com/RastrumQuill/mmz` once, then
+`git pull decomp <branch>`). Work on the game's code itself (matching
+functions, names, documentation) belongs in the decompilation; platform code
+and PC features belong here.
+
+No game data is included. You need your own Mega Man Zero (USA) ROM.
+
+---
+
 # Mega Man Zero decompilation
 
 A work-in-progress decompilation of **Mega Man Zero** (Game Boy Advance) for

@@ -6,8 +6,9 @@ readable C in `src/`) with a platform layer in place of the GBA hardware.
 No emulation: the ROM is only read for the game's data (graphics, sound,
 stages). You need your own Mega Man Zero (USA) ROM.
 
-This folder will move to its own fork of the decompilation; the
-decompilation stays free of platform code.
+This is the port's fork of the decompilation
+([RastrumQuill/mmz](https://github.com/RastrumQuill/mmz)); the decompilation
+stays free of platform code.
 
 ## Playing
 

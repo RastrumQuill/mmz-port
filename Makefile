@@ -107,7 +107,7 @@ ghidra-ref:
 		-processor ARM:LE:32:v4t -loader BinaryLoader -loader-baseAddr 0x08000000 -noanalysis \
 		-scriptPath tools/ghidra -postScript Decompile.py build_lift/funcs.tsv ref/ghidra -deleteProject
 
-# The PC port (port/, build_port/mmz), which will move to its own fork.
+# The PC port (port/, build_port/mmz).
 port:
 	$(MAKE) -C port
 
