@@ -32,6 +32,7 @@
 #include "lift.h"
 #include "pc.h"
 #include "ui.h"
+#include <SDL.h>
 
 #define io ((u8 *)0x04000000)
 #define pal ((u8 *)0x05000000)
@@ -99,6 +100,7 @@ static int rom_ptr(u32 a) {
 static s32 stageX, stageY;      /* global pixel position of the stage layers' origin */
 static s32 areaLeft, areaTop, areaRight, areaBottom;   /* the current area, global pixels */
 static u8 chunkOk[128][128];    /* 0 unknown, else chunk_source() + 2 */
+static int drawing;             /* rows are being drawn by several threads: chunk_source() only reads */
 static int gbaCx0, gbaCx1, gbaCy0, gbaCy1 = -1;   /* chunks under the GBA screen */
 
 static const u8 *area_desc(int area) {
@@ -216,6 +218,7 @@ static int combo(int area, int hi, int lo) {
 static int chunk_source(int cx, int cy) {
 	if (cx < 0 || cy < 0 || cx >= 128 || cy >= 128) return -1;
 	if (chunkOk[cy][cx]) return chunkOk[cy][cx] - 2;
+	if (drawing) return -1;   /* (worked out before the threads start) */
 	int src = -1, area = CUR_AREA & 0x7F;
 	if ((CHUNK_AREA[cy * 128 + cx] & 15) == area) {
 		int b = chunk_sets(cx, cy, area);
@@ -251,7 +254,7 @@ static void find_area(void) {
 	areaBottom = areaTop + g[3] * 160;
 }
 
-static int levelSrc;   /* chunk_source() of the last level_entry() */
+static __thread int levelSrc;   /* chunk_source() of the last level_entry() */
 
 /* the stage-coordinate rectangle of the current area's chunks that have
    something in them (in any stage layer) */
@@ -486,10 +489,11 @@ static int hud_pixel(int x, int y) {
 
 /* ---------------------------------------------------------------- drawing */
 
-static u16 *bgRow[4];
-static u16 *objColor;
-static u8 *objPrio, *objSemi, *objWin;
-static int rowCap;
+/* row buffers: one set per drawing thread */
+static __thread u16 *bgRow[4];
+static __thread u16 *objColor;
+static __thread u8 *objPrio, *objSemi, *objWin;
+static __thread int rowCap;
 
 static void ensure_buffers(int w) {
 	if (w <= rowCap) return;
@@ -706,6 +710,123 @@ static void set_ranges(int w, int h) {
 }
 
 extern long frameCount;
+/* ------------------------------------------------------------ threads
+ *
+ * The view's rows are drawn by several threads (each row only reads the
+ * frame's state). */
+static int rw, rh, rox, roy;   /* the frame being drawn */
+
+static void render_row(int vy) {
+	int w = rw, h = rh, ox = rox, oy = roy;
+	(void)h;
+	ensure_buffers(w);
+	do {
+		int line = vy - oy;
+		if (line < 0) line = 0;
+		if (line >= SCREEN_H) line = SCREEN_H - 1;
+		u32 *dst = view_frame + (size_t)vy * w;
+		u16 dispcnt = R16(line, 0);
+		if (dispcnt & 0x80) { for (int x = 0; x < w; x++) dst[x] = 0xFFFFFF; break; }
+		int bgOn[4];
+		for (int bg = 0; bg < 4; bg++) {
+			bgOn[bg] = (dispcnt & (0x100 << bg)) && (debug.layerMask & (1 << bg));
+			if (!bgOn[bg]) break;
+			if (layers[bg].map) {
+				draw_level_row(&layers[bg], line, vy, ox, oy, bgRow[bg], w);
+				/* on the GBA screen, what video memory has (the game's own
+				   changes to the tiles show) */
+				if (!layers[bg].backdrop && vy - oy >= 0 && vy - oy < SCREEN_H) gba_vram_span(bg, vy - oy, ox, bgRow[bg], w);
+			}
+			else if (bg == 0) memcpy(bgRow[0], hudBuf + (size_t)vy * w, w * 2);
+			else draw_vram_row(bg, line, vy, oy, ox, bgRow[bg], w);
+		}
+		int objOn = (dispcnt & 0x1000) && (debug.layerMask & 0x10);
+		if (objOn || (dispcnt & 0x8000)) draw_sprite_row(line, vy, ox, oy, w);
+		int windows = dispcnt & 0xE000;
+		u16 winin = R16(line, 0x48), winout = R16(line, 0x4A);
+		u16 bldcnt = R16(line, 0x50), bldalpha = R16(line, 0x52);
+		int effect = (bldcnt >> 6) & 3;
+		int eva = bldalpha & 31, evb = (bldalpha >> 8) & 31, evy = R16(line, 0x54) & 31;
+		if (eva > 16) eva = 16;
+		if (evb > 16) evb = 16;
+		if (evy > 16) evy = 16;
+		int bgPrio[4];
+		for (int bg = 0; bg < 4; bg++) bgPrio[bg] = R16(line, 0x08 + bg * 2) & 3;
+		int l = vy - oy, inGbaRows = l >= 0 && l < SCREEN_H;
+		int w0y = inGbaRows && in_range(l, R16(line, 0x44) >> 8, R16(line, 0x44) & 0xFF, 160);
+		int w1y = inGbaRows && in_range(l, R16(line, 0x46) >> 8, R16(line, 0x46) & 0xFF, 160);
+		u16 backdrop = PAL16(0) & 0x7FFF;
+		for (int x = 0; x < w; x++) {
+			int ctl = 0x3F;
+			if (windows) {
+				int sx = x - ox, in = sx >= 0 && sx < SCREEN_W;
+				if ((dispcnt & 0x2000) && w0y && in && in_range(sx, R16(line, 0x40) >> 8, R16(line, 0x40) & 0xFF, 240)) ctl = winin & 0x3F;
+				else if ((dispcnt & 0x4000) && w1y && in && in_range(sx, R16(line, 0x42) >> 8, R16(line, 0x42) & 0xFF, 240)) ctl = (winin >> 8) & 0x3F;
+				else if ((dispcnt & 0x8000) && objWin[x]) ctl = (winout >> 8) & 0x3F;
+				else ctl = winout & 0x3F;
+			}
+			int layer[2] = { 5, 5 };
+			u16 color[2] = { backdrop, backdrop };
+			int n = 0;
+			for (int p = 0; p < 4 && n < 2; p++) {
+				if (objOn && (ctl & 0x10) && !(objColor[x] & TRANSPARENT) && objPrio[x] == p) { layer[n] = 4; color[n] = objColor[x]; n++; }
+				for (int bg = 0; bg < 4 && n < 2; bg++)
+					if (bgOn[bg] && bgPrio[bg] == p && (ctl & (1 << bg)) && !(bgRow[bg][x] & TRANSPARENT)) { layer[n] = bg; color[n] = bgRow[bg][x]; n++; }
+			}
+			u16 c = color[0];
+			if (ctl & 0x20) {
+				int secondTarget = bldcnt & (0x100 << layer[1]);
+				if (layer[0] == 4 && objSemi[x] && secondTarget) c = blend(color[0], color[1], eva, evb);
+				else if (bldcnt & (1 << layer[0])) {
+					if (effect == 1 && secondTarget) c = blend(color[0], color[1], eva, evb);
+					else if (effect == 2) c = brighten(color[0], evy);
+					else if (effect == 3) c = darken(color[0], evy);
+				}
+			}
+			dst[x] = to_rgb(c);
+		}
+		} while (0);
+}
+
+#define MAX_THREADS 8
+static int nThreads;               /* workers besides the game's thread */
+static SDL_sem *startSem, *doneSem;
+static SDL_atomic_t nextRow;
+
+static void render_some(void) {
+	for (int vy; (vy = SDL_AtomicAdd(&nextRow, 1)) < rh;) render_row(vy);
+}
+
+static int worker(void *arg) {
+	(void)arg;
+	for (;;) {
+		SDL_SemWait(startSem);
+		render_some();
+		SDL_SemPost(doneSem);
+	}
+	return 0;
+}
+
+static void render_rows(int w, int h, int ox, int oy) {
+	static int started;
+	if (!started) {
+		started = 1;
+		int cpus = SDL_GetCPUCount();
+		nThreads = cpus > 1 ? (cpus - 1 < MAX_THREADS ? cpus - 1 : MAX_THREADS) : 0;
+		if (getenv("MMZ_THREADS")) nThreads = atoi(getenv("MMZ_THREADS"));
+		startSem = SDL_CreateSemaphore(0);
+		doneSem = SDL_CreateSemaphore(0);
+		for (int i = 0; i < nThreads; i++) SDL_DetachThread(SDL_CreateThread(worker, "view", NULL));
+	}
+	rw = w; rh = h; rox = ox; roy = oy;
+	SDL_AtomicSet(&nextRow, 0);
+	drawing = 1;
+	for (int i = 0; i < nThreads; i++) SDL_SemPost(startSem);
+	render_some();
+	for (int i = 0; i < nThreads; i++) SDL_SemWait(doneSem);
+	drawing = 0;
+}
+
 #define EDGE 8              /* pixels of the GBA screen's edges that may be undrawable */
 #define SWITCH_FRAMES 8     /* frames in a row before the view changes */
 static int shownFrames, badFrames, lastOx, lastOy;
@@ -843,72 +964,16 @@ int view_render(void) {
 	lastOx = ox; lastOy = oy;
 
 	draw_hud(w, h, ox, oy);
-	for (int vy = 0; vy < h; vy++) {
-		int line = vy - oy;
-		if (line < 0) line = 0;
-		if (line >= SCREEN_H) line = SCREEN_H - 1;
-		u32 *dst = view_frame + (size_t)vy * w;
-		u16 dispcnt = R16(line, 0);
-		if (dispcnt & 0x80) { for (int x = 0; x < w; x++) dst[x] = 0xFFFFFF; continue; }
-		int bgOn[4];
-		for (int bg = 0; bg < 4; bg++) {
-			bgOn[bg] = (dispcnt & (0x100 << bg)) && (debug.layerMask & (1 << bg));
-			if (!bgOn[bg]) continue;
-			if (layers[bg].map) {
-				draw_level_row(&layers[bg], line, vy, ox, oy, bgRow[bg], w);
-				/* on the GBA screen, what video memory has (the game's own
-				   changes to the tiles show) */
-				if (!layers[bg].backdrop && vy - oy >= 0 && vy - oy < SCREEN_H) gba_vram_span(bg, vy - oy, ox, bgRow[bg], w);
-			}
-			else if (bg == 0) memcpy(bgRow[0], hudBuf + (size_t)vy * w, w * 2);
-			else draw_vram_row(bg, line, vy, oy, ox, bgRow[bg], w);
-		}
-		int objOn = (dispcnt & 0x1000) && (debug.layerMask & 0x10);
-		if (objOn || (dispcnt & 0x8000)) draw_sprite_row(line, vy, ox, oy, w);
-		int windows = dispcnt & 0xE000;
-		u16 winin = R16(line, 0x48), winout = R16(line, 0x4A);
-		u16 bldcnt = R16(line, 0x50), bldalpha = R16(line, 0x52);
-		int effect = (bldcnt >> 6) & 3;
-		int eva = bldalpha & 31, evb = (bldalpha >> 8) & 31, evy = R16(line, 0x54) & 31;
-		if (eva > 16) eva = 16;
-		if (evb > 16) evb = 16;
-		if (evy > 16) evy = 16;
-		int bgPrio[4];
-		for (int bg = 0; bg < 4; bg++) bgPrio[bg] = R16(line, 0x08 + bg * 2) & 3;
-		int l = vy - oy, inGbaRows = l >= 0 && l < SCREEN_H;
-		int w0y = inGbaRows && in_range(l, R16(line, 0x44) >> 8, R16(line, 0x44) & 0xFF, 160);
-		int w1y = inGbaRows && in_range(l, R16(line, 0x46) >> 8, R16(line, 0x46) & 0xFF, 160);
-		u16 backdrop = PAL16(0) & 0x7FFF;
-		for (int x = 0; x < w; x++) {
-			int ctl = 0x3F;
-			if (windows) {
-				int sx = x - ox, in = sx >= 0 && sx < SCREEN_W;
-				if ((dispcnt & 0x2000) && w0y && in && in_range(sx, R16(line, 0x40) >> 8, R16(line, 0x40) & 0xFF, 240)) ctl = winin & 0x3F;
-				else if ((dispcnt & 0x4000) && w1y && in && in_range(sx, R16(line, 0x42) >> 8, R16(line, 0x42) & 0xFF, 240)) ctl = (winin >> 8) & 0x3F;
-				else if ((dispcnt & 0x8000) && objWin[x]) ctl = (winout >> 8) & 0x3F;
-				else ctl = winout & 0x3F;
-			}
-			int layer[2] = { 5, 5 };
-			u16 color[2] = { backdrop, backdrop };
-			int n = 0;
-			for (int p = 0; p < 4 && n < 2; p++) {
-				if (objOn && (ctl & 0x10) && !(objColor[x] & TRANSPARENT) && objPrio[x] == p) { layer[n] = 4; color[n] = objColor[x]; n++; }
-				for (int bg = 0; bg < 4 && n < 2; bg++)
-					if (bgOn[bg] && bgPrio[bg] == p && (ctl & (1 << bg)) && !(bgRow[bg][x] & TRANSPARENT)) { layer[n] = bg; color[n] = bgRow[bg][x]; n++; }
-			}
-			u16 c = color[0];
-			if (ctl & 0x20) {
-				int secondTarget = bldcnt & (0x100 << layer[1]);
-				if (layer[0] == 4 && objSemi[x] && secondTarget) c = blend(color[0], color[1], eva, evb);
-				else if (bldcnt & (1 << layer[0])) {
-					if (effect == 1 && secondTarget) c = blend(color[0], color[1], eva, evb);
-					else if (effect == 2) c = brighten(color[0], evy);
-					else if (effect == 3) c = darken(color[0], evy);
-				}
-			}
-			dst[x] = to_rgb(c);
-		}
+	/* where each chunk the view can show is drawn from (before the threads) */
+	for (int k = 1; k < 4; k++) {
+		const struct Layer *L = &layers[k];
+		if (!L->map || L->backdrop) continue;
+		s32 lx = line_world_x(L, 0) - ox, ty = line_world_y(L, 0) - oy;
+		for (s32 cy = (ty - 320) / 160 - 1; cy <= (ty + h + 320) / 160 + 1; cy++)
+			for (s32 cx = (lx - 512) / 240 - 1; cx <= (lx + w + 512) / 240 + 1; cx++)
+				if (cx >= 0 && cy >= 0) chunk_source(cx + stageX / 240, cy + stageY / 160);
 	}
+	render_rows(w, h, ox, oy);
 	if (gbaOver) paste_gba(w, h, ox, oy);
 	view_active = 1;
 	return 1;
