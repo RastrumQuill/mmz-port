@@ -56,11 +56,35 @@ static void fatal(const char *fmt, ...) {
 /* ------------------------------------------------------------- memory */
 
 /* The GBA memory at its own addresses, so game pointers work as they are. */
+#ifdef _WIN32
+/* The GBA's address ranges, reserved before anything else runs: Windows
+   hands out low addresses to whatever asks first (the file dialog's shell
+   extensions, graphics drivers, overlays), and the game's memory has to be
+   at these exact addresses. */
+static const struct { u32 addr, size; } kGbaRanges[] = {
+	{ 0x02000000, 0x40000 }, { 0x03000000, 0x8000 }, { 0x04000000, 0x1000 }, { 0x05000000, 0x1000 },
+	{ 0x06000000, 0x18000 }, { 0x07000000, 0x1000 }, { 0x08000000, 0x2000000 }, { 0x0E000000, 0x8000 },
+};
+__attribute__((constructor(101))) static void reserve_gba_ranges(void) {
+	for (unsigned i = 0; i < sizeof kGbaRanges / sizeof *kGbaRanges; i++)
+		VirtualAlloc((void *)(uintptr_t)kGbaRanges[i].addr, kGbaRanges[i].size, MEM_RESERVE, PAGE_NOACCESS);
+}
+#endif
+
 static void *map_at(u32 addr, u32 size) {
 #ifdef _WIN32
-	void *p = VirtualAlloc((void *)(uintptr_t)addr, size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+	void *p = VirtualAlloc((void *)(uintptr_t)addr, size, MEM_COMMIT, PAGE_READWRITE);   /* reserved at start */
+	if (p != (void *)(uintptr_t)addr)
+		p = VirtualAlloc((void *)(uintptr_t)addr, size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
 	if (p != (void *)(uintptr_t)addr) {
-		fatal("Cannot reserve the GBA memory at %08X (error %lu).", addr, GetLastError());
+		DWORD err = GetLastError();
+		/* what is there, to report */
+		MEMORY_BASIC_INFORMATION mi;
+		char owner[MAX_PATH] = "";
+		if (VirtualQuery((void *)(uintptr_t)addr, &mi, sizeof mi) && mi.State != MEM_FREE)
+			GetModuleFileNameA((HMODULE)mi.AllocationBase, owner, sizeof owner);
+		fatal("Cannot reserve the GBA memory at %08X (error %lu)%s%s.", addr, err,
+		      owner[0] ? ": it is used by " : "", owner);
 	}
 #else
 	void *p = mmap((void *)(uintptr_t)addr, size, PROT_READ | PROT_WRITE,
