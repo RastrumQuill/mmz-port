@@ -92,11 +92,11 @@ lift:
 	cp tools/lift/lift.h lifted/
 
 harness:
-	$(MAKE) -C tools/lift LIFTED=$(CURDIR)/lifted OUT=$(CURDIR)/build_lift
+	$(MAKE) -C tools/lift LIFTED=$(CURDIR)/lifted SRC=$(CURDIR)/src OUT=$(CURDIR)/build_lift
 
 check-lifted: harness
 	grep -v ' shot ' $(ROUTE) > build_lift/route.txt
-	build_lift/harness baserom.gba build_lift/route.txt build_lift/results.tsv 2
+	build_lift/harness build_lift/exec32 baserom.gba build_lift/route.txt build_lift/results.tsv 2
 
 # Ghidra's decompilation of every function, for reference (ref/ghidra).
 GHIDRA ?= tools/ghidra/ghidra_11.0_PUBLIC

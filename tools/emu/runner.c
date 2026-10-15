@@ -21,10 +21,11 @@ static struct mLogger logger = { .log = nolog };
 
 /* Read tracing: TRACE=LO-HI logs every data read in [LO, HI) with the PC. */
 static uint32_t traceLo, traceHi;
+static int traceOn = 1;  /* TRACEFROM=frame: log only from that frame on */
 static int traceCount;
 static struct ARMMemory origMem;
 static void traceHit(struct ARMCore *cpu, uint32_t addr, int size) {
-	if (addr >= traceLo && addr < traceHi && traceCount < 2000) {
+	if (traceOn && addr >= traceLo && addr < traceHi && traceCount < 2000) {
 		traceCount++;
 		fprintf(stderr, "read%d %08X pc %08X lr %08X\n", size, addr, cpu->gprs[ARM_PC], cpu->gprs[ARM_LR]);
 	}
@@ -34,7 +35,7 @@ static uint32_t tLoad16(struct ARMCore *c, uint32_t a, int *cy) { traceHit(c, a,
 static uint32_t tLoad8(struct ARMCore *c, uint32_t a, int *cy) { traceHit(c, a, 8); return origMem.load8(c, a, cy); }
 static uint32_t wLo, wHi;
 static void wHit(struct ARMCore *cpu, uint32_t addr, int size, uint32_t v) {
-	if (addr >= wLo && addr < wHi && traceCount < 20000) {
+	if (traceOn && addr >= wLo && addr < wHi && traceCount < 5000000) {
 		traceCount++;
 		fprintf(stderr, "write%d %08X = %08X pc %08X lr %08X\n", size, addr, v, cpu->gprs[ARM_PC], cpu->gprs[ARM_LR]);
 	}
@@ -120,7 +121,10 @@ int main(int argc, char **argv) {
 	while (fgets(line, sizeof line, sc)) {
 		int f; char cmd[64] = "", a1[256] = "", a2[64] = "", a3[256] = "";
 		if (line[0] == '#' || sscanf(line, "%d %63s %255s %63s %255s", &f, cmd, a1, a2, a3) < 2) continue;
-		while (frame < f) { core->setKeys(core, keys); core->runFrame(core); frame++; }
+		while (frame < f) {
+			if (getenv("TRACEFROM")) traceOn = frame >= atoi(getenv("TRACEFROM"));
+			core->setKeys(core, keys); core->runFrame(core); frame++;
+		}
 		if (!strcmp(cmd, "shot")) {
 			struct VFile *vf = VFileOpen(a1, O_CREAT | O_TRUNC | O_WRONLY);
 			png_structp png = PNGWriteOpen(vf);
@@ -133,6 +137,9 @@ int main(int argc, char **argv) {
 			FILE *o = fopen(a3, "wb");
 			for (unsigned i = 0; i < len; i++) fputc(core->busRead8(core, addr + i), o);
 			fclose(o);
+		} else if (!strcmp(cmd, "poke")) {
+			/* a one-byte RAM write, like a cheat code */
+			core->rawWrite8(core, strtoul(a1, 0, 0), -1, strtoul(a2, 0, 0));
 		} else if (!strcmp(cmd, "end")) {
 			break;
 		} else {

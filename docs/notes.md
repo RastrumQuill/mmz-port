@@ -4,7 +4,8 @@ Findings that the readable decompilation and the PC port build on.
 
 ## Camera
 
-The stage camera lives at `0x02022C3C`. Its layout is the same as the
+The stage camera lives at `0x02022C44` (target at `0x02022C74`, viewport at
+`0x02022C7C`). Its layout is the same as the
 `Camera` struct in the Mega Man Zero 3 decompilation (rmz3):
 
 | Offset | Field |
@@ -28,6 +29,21 @@ The stage camera lives at `0x02022C3C`. Its layout is the same as the
 * The screen's left edge is the viewport x minus 120 pixels (half of 240),
   which is where the larger PC view has to change things.
 
+The current area is the byte at `0x0200520C` (low 7 bits; the base is 9). It
+is looked up from the viewport position every frame (`sub_080061F8`, called
+from the per-frame stage update `sub_0800FB38`).
+
+## Missions
+
+The mission number is the byte at `0x0202A574` (game state block at
+`0x020236E0` + 0x6E94): 1 is the opening mission, 0x10 Neo Arcadia Core.
+The base menu writes it (`0x080C1130`) when a mission is picked, and stage
+setup (`sub_080BF2C8`) reads it. Overwriting it every frame between picking
+a mission and the stage starting loads any mission, like a cheat code;
+`tools/emu/fuzz_route.py FRAMES SEED SLOT MISSION` does that. The top-level
+game mode is `0x020236E0` (sub-mode `0x020236E1`), dispatched through the
+table at `0x082CBE24`.
+
 ## Tasks
 
 The game runs up to three cooperative tasks (slots of 24 bytes at
@@ -49,5 +65,6 @@ stack (for example ucontext), because a task yields from inside nested calls.
 ## Save file
 
 SRAM, 32 KB. A save with three finished files (rank S, Ultimate mode) starts
-at the last mission, Neo Arcadia Core. `tools/emu/fuzz_route.py FRAMES SEED
+at the last mission, Neo Arcadia Core; with the mission override above it
+reaches every mission. `tools/emu/fuzz_route.py FRAMES SEED
 SLOT` continues from a file of the save (run with `SAVE=file.sav`).

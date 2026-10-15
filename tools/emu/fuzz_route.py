@@ -1,9 +1,11 @@
 """Write a long route of semi-random play for coverage runs.
 
-usage: fuzz_route.py FRAMES SEED [SLOT] > route.txt
+usage: fuzz_route.py FRAMES SEED [SLOT [MISSION]] > route.txt
 Starts a new game like routes/intro.txt, or with SLOT (1-3) continues from
 that file of the save (run with SAVE=file.sav) and starts the mission the
-base offers. Then plays: mostly moving and jumping and attacking in bursts,
+base offers; with MISSION, that mission instead (the mission number at
+0x0202A574 is overwritten until the stage starts, like a cheat code). Then
+plays: mostly moving and jumping and attacking in bursts,
 with menu buttons now and then.
 """
 import random, sys
@@ -20,7 +22,9 @@ if slot:
     lines += ['1100 A', '1106 -', '1600 A', '1606 -', '2150 A', '2156 -', '2700 A', '2706 -']
     for f in range(2800, 5000, 20):
         lines += ['%d A' % f, '%d -' % (f + 4)]
-    f = 5000
+    if len(sys.argv) > 4:
+        lines += ['%d poke 0x0202A574 %s' % (f, sys.argv[4]) for f in range(2710, 5200)]
+    f = 5200
 else:
     lines = ['0 -', '700 START', '706 -', '860 A', '866 -']
     for f in range(900, 7000, 20):
@@ -34,5 +38,6 @@ while f < frames:
     length = rnd.randint(2, 40)
     lines.append('%d %s' % (f, ','.join(keys) if keys else '-'))
     f += length
+lines.sort(key=lambda l: int(l.split()[0]))
 lines.append('%d end' % frames)
 print('\n'.join(lines))

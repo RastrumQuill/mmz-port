@@ -79,3 +79,10 @@ static void ResetKeyState(struct KeyState *k) {
     *(u32 *)&k->repeatTimer[0] = *(u32 *)&k->repeatTimer[4] = 0;
     *(u16 *)&k->repeatTimer[8] = 0;
 }
+
+// On the PC these replace the lifted versions (see global.h).
+LIFT_EXPORT_VOID(InitInput)
+LIFT_EXPORT_VOID(ResetKeyStates)
+LIFT_EXPORT_VOID(PollKeyInput)
+LIFT_EXPORT_VOID(ReadKeyInput)
+LIFT_EXPORT_VOID(ResetKeyState)
