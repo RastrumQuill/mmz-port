@@ -213,6 +213,114 @@ static void find_layers(void) {
 	}
 }
 
+/* -------------------------------------------------------------------- HUD
+ *
+ * The HUD layer (BG0) is split into its separate elements (tiles that touch
+ * each other), and each is moved towards the view's edges by where it is on
+ * the GBA screen: in the left (right) half to the left (right) edge, in the
+ * top (bottom) half to the top (bottom) edge. Elements across the middle,
+ * such as text boxes (which go with portrait sprites), stay where they are.
+ */
+int view_hud_edges = 1;
+static u16 *hudBuf;
+static inline u16 tile_pixel(u16 e, u32 charBase, int fx, int fy);              /* BG0 in view coordinates, view_w x view_h */
+
+static int tile_empty(u16 e, u32 charBase) {
+	u32 a = charBase + (e & 0x3FF) * 32;
+	if (a + 32 > 0x10000) return 1;
+	for (int i = 0; i < 32; i++)
+		if (vram[a + i]) return 0;
+	return 1;
+}
+
+static void draw_hud(int w, int h, int ox, int oy) {
+	hudBuf = realloc(hudBuf, (size_t)w * h * 2);
+	for (size_t i = 0; i < (size_t)w * h; i++) hudBuf[i] = TRANSPARENT;
+	u16 cnt = R16(0, 0x08);
+	u32 charBase = ((cnt >> 2) & 3) * 0x4000;
+	int hofs = R16(0, 0x10) & 0x1FF, vofs = R16(0, 0x12) & 0x1FF;
+	/* the visible tiles (31x21 with the scroll's fraction) */
+	enum { TW = 31, TH = 21 };
+	u16 ent[TH][TW];
+	signed char comp[TH][TW];
+	int fx = hofs & 7, fy = vofs & 7;
+	for (int ty = 0; ty < TH; ty++)
+		for (int tx = 0; tx < TW; tx++) {
+			ent[ty][tx] = vram_entry(0, 0, (hofs & ~7) + tx * 8, (vofs & ~7) + ty * 8);
+			comp[ty][tx] = tile_empty(ent[ty][tx], charBase) ? -1 : 0;
+		}
+	/* elements: 4-connected groups of tiles, with their bounds */
+	int bl[64], br[64], bt[64], bb[64], n = 0;
+	static int stackX[TW * TH], stackY[TW * TH];
+	for (int ty = 0; ty < TH; ty++)
+		for (int tx = 0; tx < TW; tx++) {
+			if (comp[ty][tx] != 0 || n == 63) continue;
+			int id = ++n, sp = 0, x0 = tx, x1 = tx, y0 = ty, y1 = ty;
+			comp[ty][tx] = id;
+			stackX[sp] = tx; stackY[sp++] = ty;
+			while (sp) {
+				int x = stackX[--sp], y = stackY[sp];
+				if (x < x0) x0 = x;
+				if (x > x1) x1 = x;
+				if (y < y0) y0 = y;
+				if (y > y1) y1 = y;
+				static const int nx[4] = { 1, -1, 0, 0 }, ny[4] = { 0, 0, 1, -1 };
+				for (int k = 0; k < 4; k++) {
+					int ax = x + nx[k], ay = y + ny[k];
+					if (ax < 0 || ay < 0 || ax >= TW || ay >= TH || comp[ay][ax] != 0) continue;
+					comp[ay][ax] = id;
+					stackX[sp] = ax; stackY[sp++] = ay;
+				}
+			}
+			bl[id] = x0 * 8 - fx; br[id] = (x1 + 1) * 8 - fx; bt[id] = y0 * 8 - fy; bb[id] = (y1 + 1) * 8 - fy;
+		}
+	/* boxes that keep what is in them in place: wide elements (text boxes)
+	   and the windows (dialogs) */
+	int boxL[66], boxR[66], boxT[66], boxB[66], nb = 0;
+	for (int id = 1; id <= n; id++)
+		if (br[id] - bl[id] >= SCREEN_W / 2) { boxL[nb] = bl[id]; boxR[nb] = br[id]; boxT[nb] = bt[id]; boxB[nb++] = bb[id]; }
+	u16 dispcnt = R16(80, 0);
+	for (int k = 0; k < 2; k++)
+		if (dispcnt & (0x2000 << k)) {
+			u16 wh = R16(80, 0x40 + k * 2), wv = R16(80, 0x44 + k * 2);
+			boxL[nb] = wh >> 8; boxR[nb] = wh & 0xFF; boxT[nb] = wv >> 8; boxB[nb] = wv & 0xFF;
+			if (boxR[nb] > boxL[nb] && boxB[nb] > boxT[nb]) nb++;
+		}
+	int dx[64], dy[64];
+	for (int id = 1; id <= n; id++) {
+		int sx = 0, sy = 0, held = 0;
+		for (int k = 0; k < nb; k++)
+			if (bl[id] < boxR[k] && br[id] > boxL[k] && bt[id] < boxB[k] && bb[id] > boxT[k]) held = 1;
+		if (view_hud_edges && !held) {
+			if (br[id] <= SCREEN_W / 2) sx = -ox;
+			else if (bl[id] >= SCREEN_W / 2) sx = w - SCREEN_W - ox;
+			if (bb[id] <= SCREEN_H / 2) sy = -oy;
+			else if (bt[id] >= SCREEN_H / 2) sy = h - SCREEN_H - oy;
+		}
+		dx[id] = sx;
+		dy[id] = sy;
+	}
+	/* draw the tiles, inside the GBA screen's area, moved */
+	for (int ty = 0; ty < TH; ty++)
+		for (int tx = 0; tx < TW; tx++) {
+			int id = comp[ty][tx];
+			if (id <= 0) continue;
+			for (int y = 0; y < 8; y++) {
+				int gy = ty * 8 - fy + y;
+				if (gy < 0 || gy >= SCREEN_H) continue;
+				int vy = gy + oy + dy[id];
+				if (vy < 0 || vy >= h) continue;
+				for (int x = 0; x < 8; x++) {
+					int gx = tx * 8 - fx + x;
+					if (gx < 0 || gx >= SCREEN_W) continue;
+					int vx = gx + ox + dx[id];
+					if (vx < 0 || vx >= w) continue;
+					hudBuf[(size_t)vy * w + vx] = tile_pixel(ent[ty][tx], charBase, x, y);
+				}
+			}
+		}
+}
+
 /* ---------------------------------------------------------------- drawing */
 
 static u16 *bgRow[4];
@@ -441,6 +549,7 @@ int view_render(void) {
 	view_cells_up = cells(oy + 64, 160);
 	view_cells_down = cells(h - oy - SCREEN_H, 160);
 
+	draw_hud(w, h, ox, oy);
 	for (int vy = 0; vy < h; vy++) {
 		int line = vy - oy;
 		if (line < 0) line = 0;
@@ -453,6 +562,7 @@ int view_render(void) {
 			bgOn[bg] = (dispcnt & (0x100 << bg)) && (debug.layerMask & (1 << bg));
 			if (!bgOn[bg]) continue;
 			if (layers[bg].map) draw_level_row(&layers[bg], line, vy, ox, oy, bgRow[bg], w);
+			else if (bg == 0) memcpy(bgRow[0], hudBuf + (size_t)vy * w, w * 2);
 			else draw_vram_row(bg, line, vy, oy, ox, bgRow[bg], w);
 		}
 		int objOn = (dispcnt & 0x1000) && (debug.layerMask & 0x10);

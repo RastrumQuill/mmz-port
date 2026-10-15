@@ -26,7 +26,7 @@ void sprites_commit(void);
 
 /* view.c: the zoomed-out view */
 extern int view_cells_left, view_cells_right, view_cells_up, view_cells_down;
-extern int view_w, view_h, view_active;
+extern int view_w, view_h, view_active, view_hud_edges;
 extern u32 *view_frame;
 void view_record_line(int line);
 int view_render(void);

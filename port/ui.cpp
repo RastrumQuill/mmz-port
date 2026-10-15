@@ -230,6 +230,8 @@ static void settings_window() {
 		SDL_GetRendererOutputSize(sRenderer, &ww, &wh);
 		settings_view_size(ww, wh, &vw, &vh);
 		ImGui::TextDisabled("Showing %dx%d of the world in stages (%.2fx the GBA's area).", vw, vh, vw * vh / (240.0 * 160));
+		bool he = settings.hudEdges;
+		if (ImGui::Checkbox("HUD at the screen's edges", &he)) settings.hudEdges = he;
 		bool is = settings.integerScale, sm = settings.smooth;
 		if (ImGui::Checkbox("Whole-number scaling only", &is)) settings.integerScale = is;
 		if (ImGui::Checkbox("Smooth (filtered) pixels", &sm)) settings.smooth = sm;

@@ -14,6 +14,7 @@ struct Settings {
 	int viewMode;            /* VIEW_* */
 	int viewW, viewH;        /* VIEW_CUSTOM */
 	int viewHeight;          /* VIEW_WINDOW: world pixels from top to bottom */
+	int hudEdges;            /* the HUD at the view's edges (else over the GBA area) */
 	SDL_Scancode keys[10];   /* per GBA button, KEYINPUT order */
 	SDL_GameControllerButton pad[10];
 };

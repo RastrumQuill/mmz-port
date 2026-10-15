@@ -315,6 +315,7 @@ static void sdl_frame(void) {
 	int ww, wh;
 	SDL_GetRendererOutputSize(renderer, &ww, &wh);
 	settings_view_size(ww, wh, &view_w, &view_h);   /* (used from the next frame) */
+	view_hud_edges = settings.hudEdges;
 	sdl_events();
 	/* paused (or in the settings): the game waits here, at the frame's end */
 	while ((debug.paused && !debug.step) || ui_pauses_game()) {

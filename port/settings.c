@@ -68,6 +68,7 @@ void settings_defaults(void) {
 	settings.viewW = 400;
 	settings.viewH = 240;
 	settings.viewHeight = 240;
+	settings.hudEdges = 1;
 	for (int i = 0; i < 10; i++) {
 		settings.keys[i] = SDL_GetScancodeFromName(kDefaultKeys[i]);
 		settings.pad[i] = SDL_GameControllerGetButtonFromString(kDefaultPad[i]);
@@ -103,6 +104,7 @@ static void apply(const char *key, const char *value) {
 	else if (!strcmp(key, "view_width")) settings.viewW = atoi(value);
 	else if (!strcmp(key, "view_height")) settings.viewH = atoi(value);
 	else if (!strcmp(key, "view_window_height")) settings.viewHeight = atoi(value);
+	else if (!strcmp(key, "hud_edges")) settings.hudEdges = atoi(value);
 	else if (!strncmp(key, "key_", 4) || !strncmp(key, "pad_", 4)) {
 		for (int i = 0; i < 10; i++) {
 			if (strcmp(key + 4, kButtonNames[i])) continue;
@@ -150,8 +152,8 @@ void settings_save(void) {
 	        settings.scale, settings.fullscreen, settings.volume, settings.mute, settings.integerScale, settings.smooth);
 	fprintf(f, "\n# view: gba, x2, x3, x4, mmx, custom (view_width x view_height), window\n"
 	           "# (the window's shape, view_window_height world pixels high)\n");
-	fprintf(f, "view = %s\nview_width = %d\nview_height = %d\nview_window_height = %d\n", kViewNames[settings.viewMode],
-	        settings.viewW, settings.viewH, settings.viewHeight);
+	fprintf(f, "view = %s\nview_width = %d\nview_height = %d\nview_window_height = %d\nhud_edges = %d\n",
+	        kViewNames[settings.viewMode], settings.viewW, settings.viewH, settings.viewHeight, settings.hudEdges);
 	fprintf(f, "\n# keyboard (SDL key names)\n");
 	for (int i = 0; i < 10; i++) fprintf(f, "key_%s = %s\n", kButtonNames[i], SDL_GetScancodeName(settings.keys[i]));
 	fprintf(f, "\n# gamepad (SDL button names)\n");
