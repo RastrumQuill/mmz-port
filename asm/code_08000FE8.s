@@ -36684,10 +36684,10 @@ sub_08013B88: @ 0x08013B88
 	strh r5, [r4, #0x22]
 	adds r0, r4, #0
 	adds r1, r6, #0
-	bl sub_08013C28
+	bl Camera_Init
 	adds r0, r4, #0
 	movs r1, #8
-	bl sub_08013C94
+	bl Camera_MoveToTarget
 	pop {r4, r5, r6}
 	pop {r0}
 	bx r0
@@ -36733,8 +36733,8 @@ _08013C06:
 	pop {r0}
 	bx r0
 
-	thumb_func_start sub_08013C0C
-sub_08013C0C: @ 0x08013C0C
+	thumb_func_start Camera_SetMode
+Camera_SetMode: @ 0x08013C0C
 	movs r2, #0
 	strb r1, [r0, #0x18]
 	str r2, [r0, #0x1c]
@@ -36749,15 +36749,15 @@ sub_08013C0C: @ 0x08013C0C
 	.align 2, 0
 _08013C24: .4byte gUnk_0829FF8C
 
-	thumb_func_start sub_08013C28
-sub_08013C28: @ 0x08013C28
+	thumb_func_start Camera_Init
+Camera_Init: @ 0x08013C28
 	push {r4, r5, lr}
 	adds r4, r0, #0
 	adds r5, r1, #0
 	cmp r5, #0
 	bne _08013C40
 	movs r1, #0
-	bl sub_08013C0C
+	bl Camera_SetMode
 	str r5, [r4, #0x48]
 	strb r5, [r4, #0x19]
 	strh r5, [r4, #0x22]
@@ -36765,7 +36765,7 @@ sub_08013C28: @ 0x08013C28
 _08013C40:
 	ldrb r1, [r5]
 	adds r0, r4, #0
-	bl sub_08013C0C
+	bl Camera_SetMode
 	movs r0, #8
 	movs r1, #0
 	ldrb r2, [r5, #1]
@@ -36806,8 +36806,8 @@ _08013C8E:
 	pop {r0}
 	bx r0
 
-	thumb_func_start sub_08013C94
-sub_08013C94: @ 0x08013C94
+	thumb_func_start Camera_MoveToTarget
+Camera_MoveToTarget: @ 0x08013C94
 	push {r4, lr}
 	adds r2, r0, #0
 	lsls r1, r1, #0x18
@@ -37016,8 +37016,8 @@ sub_08013DFC: @ 0x08013DFC
 	bx lr
 	.align 2, 0
 
-	thumb_func_start sub_08013E00
-sub_08013E00: @ 0x08013E00
+	thumb_func_start Camera_ForcedScroll
+Camera_ForcedScroll: @ 0x08013E00
 	push {lr}
 	adds r2, r0, #0
 	ldrb r0, [r2, #0x1c]
@@ -37038,7 +37038,7 @@ _08013E12:
 	str r0, [r2, #0x34]
 	ldrb r1, [r2, #0x19]
 	adds r0, r2, #0
-	bl sub_08013C94
+	bl Camera_MoveToTarget
 	pop {r0}
 	bx r0
 	.align 2, 0
@@ -37083,7 +37083,7 @@ _08013E42:
 _08013E74:
 	ldrb r1, [r2, #0x19]
 	adds r0, r2, #0
-	bl sub_08013C94
+	bl Camera_MoveToTarget
 	pop {r4}
 	pop {r0}
 	bx r0
@@ -37121,7 +37121,7 @@ _08013E98:
 	beq _08013EC6
 	ldrb r1, [r7, #0x19]
 	adds r0, r7, #0
-	bl sub_08013C94
+	bl Camera_MoveToTarget
 	b _08013F86
 _08013EC6:
 	ldr r0, [r7, #0x30]
@@ -37227,7 +37227,7 @@ _08013F7A:
 _08013F7E:
 	ldrb r1, [r7, #0x19]
 	adds r0, r7, #0
-	bl sub_08013C94
+	bl Camera_MoveToTarget
 _08013F86:
 	add sp, #0x10
 	pop {r4, r5, r6, r7}
@@ -37267,7 +37267,7 @@ _08013FA4:
 	beq _08013FD2
 	ldrb r1, [r7, #0x19]
 	adds r0, r7, #0
-	bl sub_08013C94
+	bl Camera_MoveToTarget
 	b _080140D6
 _08013FD2:
 	ldr r0, [r7, #0x30]
@@ -37411,7 +37411,7 @@ _080140CA:
 _080140CE:
 	ldrb r1, [r7, #0x19]
 	adds r0, r7, #0
-	bl sub_08013C94
+	bl Camera_MoveToTarget
 _080140D6:
 	add sp, #0x10
 	pop {r4, r5, r6, r7}
@@ -38529,7 +38529,7 @@ sub_08014910: @ 0x08014910
 _08014926:
 	adds r0, r5, #0
 	adds r1, r4, #0
-	bl sub_08013C28
+	bl Camera_Init
 	ldrb r0, [r4]
 	cmp r0, #1
 	beq _08014950
@@ -38597,7 +38597,7 @@ _080149C8:
 	ldr r0, [r2, #0xc]
 	ldr r1, [r0, #4]
 	adds r0, r3, #0
-	bl sub_08013C0C
+	bl Camera_SetMode
 	b _08014A94
 _080149D4:
 	ldr r0, [r2, #0xc]
@@ -38691,7 +38691,7 @@ _08014A60:
 _08014A66:
 	adds r0, r3, #0
 	movs r1, #0
-	bl sub_08013C0C
+	bl Camera_SetMode
 	bl sub_080062E4
 	ldr r1, _08014A80 @ =0x02004F30
 	ldr r0, _08014A84 @ =0x0000C1FF
@@ -38705,7 +38705,7 @@ _08014A84: .4byte 0x0000C1FF
 _08014A88:
 	adds r0, r3, #0
 	movs r1, #3
-	bl sub_08013C0C
+	bl Camera_SetMode
 	bl sub_08006328
 _08014A94:
 	movs r0, #0
@@ -38925,7 +38925,7 @@ sub_08014C30: @ 0x08014C30
 	bl sub_08006328
 	adds r0, r4, #0
 	movs r1, #3
-	bl sub_08013C0C
+	bl Camera_SetMode
 	movs r0, #8
 	strb r0, [r4, #0x19]
 	strh r6, [r4, #0x22]

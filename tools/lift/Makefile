@@ -24,7 +24,7 @@ $(OUT)/obj32/%.o: $(LIFTED)/%.c lift.h | $(OUT)/obj32
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 $(OUT)/obj32/hand_%.o: $(SRC)/%.c lift.h | $(OUT)/obj32
-	$(CC) $(CFLAGS) -DPLATFORM_PC -I ../../include -c -o $@ $<
+	$(CC) $(CFLAGS) -fwrapv -DPLATFORM_PC -I ../../include -c -o $@ $<
 
 $(OUT)/obj32:
 	mkdir -p $@

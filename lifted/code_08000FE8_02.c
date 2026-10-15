@@ -9063,10 +9063,10 @@ L_08013B88:;
     W16(cpu.r[4] + 0x22, cpu.r[5]);
     cpu.r[0] = ADDS(cpu.r[4], 0x0);
     cpu.r[1] = ADDS(cpu.r[6], 0x0);
-    cpu.r[14] = 0x08013BB7; lift_sub_08013C28();
+    cpu.r[14] = 0x08013BB7; lift_Camera_Init();
     cpu.r[0] = ADDS(cpu.r[4], 0x0);
     cpu.r[1] = 0x8; N = 0; Z = 0;
-    cpu.r[14] = 0x08013BBF; lift_sub_08013C94();
+    cpu.r[14] = 0x08013BBF; lift_Camera_MoveToTarget();
     lift_pc = 0x08013BBF;
     cpu.r[4] = R32(cpu.r[13] + 0);
     cpu.r[5] = R32(cpu.r[13] + 4);
@@ -9186,7 +9186,7 @@ do_jump:
     return;
 }
 
-__attribute__((weak)) void lift_sub_08013C0C(void) {
+__attribute__((weak)) void lift_Camera_SetMode(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
     const u32 entry_lr = LIFT_ENTRY_LR();
     (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
@@ -9216,7 +9216,7 @@ do_jump:
     return;
 }
 
-__attribute__((weak)) void lift_sub_08013C28(void) {
+__attribute__((weak)) void lift_Camera_Init(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
     const u32 entry_lr = LIFT_ENTRY_LR();
     (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
@@ -9230,7 +9230,7 @@ L_08013C28:;
     SUBS(cpu.r[5], 0x0);
     if (!Z) goto L_08013C40;
     cpu.r[1] = 0x0; N = 0; Z = 1;
-    cpu.r[14] = 0x08013C39; lift_sub_08013C0C();
+    cpu.r[14] = 0x08013C39; lift_Camera_SetMode();
     W32(cpu.r[4] + 0x48, cpu.r[5]);
     W8(cpu.r[4] + 0x19, cpu.r[5]);
     W16(cpu.r[4] + 0x22, cpu.r[5]);
@@ -9239,7 +9239,7 @@ L_08013C40:;
     lift_pc = 0x08013C41;
     cpu.r[1] = R8(cpu.r[5]);
     cpu.r[0] = ADDS(cpu.r[4], 0x0);
-    cpu.r[14] = 0x08013C49; lift_sub_08013C0C();
+    cpu.r[14] = 0x08013C49; lift_Camera_SetMode();
     cpu.r[0] = 0x8; N = 0; Z = 0;
     cpu.r[1] = 0x0; N = 0; Z = 1;
     lift_pc = 0x08013C4D;
@@ -9310,7 +9310,7 @@ do_jump:
     return;
 }
 
-__attribute__((weak)) void lift_sub_08013C94(void) {
+__attribute__((weak)) void lift_Camera_MoveToTarget(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
     const u32 entry_lr = LIFT_ENTRY_LR();
     (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
@@ -9622,7 +9622,7 @@ do_jump:
     return;
 }
 
-__attribute__((weak)) void lift_sub_08013E00(void) {
+__attribute__((weak)) void lift_Camera_ForcedScroll(void) {
     u32 N = 0, Z = 0, C = 0, V = 0, jt;
     const u32 entry_lr = LIFT_ENTRY_LR();
     (void)N; (void)Z; (void)C; (void)V; (void)jt; (void)entry_lr;
@@ -9654,7 +9654,7 @@ L_08013E12:;
     lift_pc = 0x08013E23;
     cpu.r[1] = R8(cpu.r[2] + 0x19);
     cpu.r[0] = ADDS(cpu.r[2], 0x0);
-    cpu.r[14] = 0x08013E2B; lift_sub_08013C94();
+    cpu.r[14] = 0x08013E2B; lift_Camera_MoveToTarget();
     lift_pc = 0x08013E2B;
     cpu.r[0] = R32(cpu.r[13] + 0);
     cpu.r[13] += 4;
@@ -9729,7 +9729,7 @@ L_08013E74:;
     lift_pc = 0x08013E75;
     cpu.r[1] = R8(cpu.r[2] + 0x19);
     cpu.r[0] = ADDS(cpu.r[2], 0x0);
-    cpu.r[14] = 0x08013E7D; lift_sub_08013C94();
+    cpu.r[14] = 0x08013E7D; lift_Camera_MoveToTarget();
     lift_pc = 0x08013E7D;
     cpu.r[4] = R32(cpu.r[13] + 0);
     cpu.r[13] += 4;
@@ -9799,7 +9799,7 @@ L_08013E98:;
     lift_pc = 0x08013EBD;
     cpu.r[1] = R8(cpu.r[7] + 0x19);
     cpu.r[0] = ADDS(cpu.r[7], 0x0);
-    cpu.r[14] = 0x08013EC5; lift_sub_08013C94();
+    cpu.r[14] = 0x08013EC5; lift_Camera_MoveToTarget();
     goto L_08013F86;
 L_08013EC6:;
     lift_pc = 0x08013EC7;
@@ -9919,7 +9919,7 @@ L_08013F7E:;
     lift_pc = 0x08013F7F;
     cpu.r[1] = R8(cpu.r[7] + 0x19);
     cpu.r[0] = ADDS(cpu.r[7], 0x0);
-    cpu.r[14] = 0x08013F87; lift_sub_08013C94();
+    cpu.r[14] = 0x08013F87; lift_Camera_MoveToTarget();
 L_08013F86:;
     cpu.r[13] += 0x10;
     lift_pc = 0x08013F89;
@@ -10011,7 +10011,7 @@ L_08013FA4:;
     lift_pc = 0x08013FC9;
     cpu.r[1] = R8(cpu.r[7] + 0x19);
     cpu.r[0] = ADDS(cpu.r[7], 0x0);
-    cpu.r[14] = 0x08013FD1; lift_sub_08013C94();
+    cpu.r[14] = 0x08013FD1; lift_Camera_MoveToTarget();
     goto L_080140D6;
 L_08013FD2:;
     lift_pc = 0x08013FD3;
@@ -10172,7 +10172,7 @@ L_080140CE:;
     lift_pc = 0x080140CF;
     cpu.r[1] = R8(cpu.r[7] + 0x19);
     cpu.r[0] = ADDS(cpu.r[7], 0x0);
-    cpu.r[14] = 0x080140D7; lift_sub_08013C94();
+    cpu.r[14] = 0x080140D7; lift_Camera_MoveToTarget();
 L_080140D6:;
     cpu.r[13] += 0x10;
     lift_pc = 0x080140D9;
@@ -11928,7 +11928,7 @@ L_08014910:;
 L_08014926:;
     cpu.r[0] = ADDS(cpu.r[5], 0x0);
     cpu.r[1] = ADDS(cpu.r[4], 0x0);
-    cpu.r[14] = 0x0801492F; lift_sub_08013C28();
+    cpu.r[14] = 0x0801492F; lift_Camera_Init();
     lift_pc = 0x0801492F;
     cpu.r[0] = R8(cpu.r[4]);
     SUBS(cpu.r[0], 0x1);
@@ -12009,7 +12009,7 @@ L_080149C8:;
     lift_pc = 0x080149CB;
     cpu.r[1] = R32(cpu.r[0] + 0x4);
     cpu.r[0] = ADDS(cpu.r[3], 0x0);
-    cpu.r[14] = 0x080149D3; lift_sub_08013C0C();
+    cpu.r[14] = 0x080149D3; lift_Camera_SetMode();
     goto L_08014A94;
 L_080149D4:;
     lift_pc = 0x080149D5;
@@ -12134,7 +12134,7 @@ L_08014A60:;
 L_08014A66:;
     cpu.r[0] = ADDS(cpu.r[3], 0x0);
     cpu.r[1] = 0x0; N = 0; Z = 1;
-    cpu.r[14] = 0x08014A6F; lift_sub_08013C0C();
+    cpu.r[14] = 0x08014A6F; lift_Camera_SetMode();
     cpu.r[14] = 0x08014A73; lift_sub_080062E4();
     cpu.r[1] = 0x02004F30;
     cpu.r[0] = 0x0000C1FF;
@@ -12148,7 +12148,7 @@ L_08014A84:;
 L_08014A88:;
     cpu.r[0] = ADDS(cpu.r[3], 0x0);
     cpu.r[1] = 0x3; N = 0; Z = 0;
-    cpu.r[14] = 0x08014A91; lift_sub_08013C0C();
+    cpu.r[14] = 0x08014A91; lift_Camera_SetMode();
     cpu.r[14] = 0x08014A95; lift_sub_08006328();
 L_08014A94:;
     cpu.r[0] = 0x0; N = 0; Z = 1;
@@ -12482,7 +12482,7 @@ L_08014C30:;
     cpu.r[14] = 0x08014C4D; lift_sub_08006328();
     cpu.r[0] = ADDS(cpu.r[4], 0x0);
     cpu.r[1] = 0x3; N = 0; Z = 0;
-    cpu.r[14] = 0x08014C55; lift_sub_08013C0C();
+    cpu.r[14] = 0x08014C55; lift_Camera_SetMode();
     cpu.r[0] = 0x8; N = 0; Z = 0;
     W8(cpu.r[4] + 0x19, cpu.r[0]);
     W16(cpu.r[4] + 0x22, cpu.r[6]);

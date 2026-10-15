@@ -9837,7 +9837,7 @@ gUnk_0829FF7C:
 	.global gUnk_0829FF8C
 gUnk_0829FF8C:
 	.4byte sub_08013DFC
-	.4byte sub_08013E00
+	.4byte Camera_ForcedScroll
 	.4byte sub_08013E30
 	.4byte sub_08013E84
 	.4byte sub_08013F90
