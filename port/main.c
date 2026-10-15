@@ -3,8 +3,9 @@
  *
  *   mmz [--rom FILE] [--save FILE] [--scale N]
  *   mmz --headless --route FILE      play a tools/emu route without a
- *                                    window, writing its screenshots (as
- *                                    .ppm) for comparison with mGBA
+ *       [--wav FILE]                 window, writing its screenshots (as
+ *                                    .ppm) for comparison with mGBA, and
+ *                                    the sound
  *
  * The ROM is read for the data the code uses (graphics, sound, levels);
  * none of its code is run.
@@ -26,6 +27,8 @@ extern long budget;
 void lift_AgbMain(void);
 
 static int headless;
+static FILE *wavFile;     /* --wav: headless sound output */
+static u32 wavBytes, wavRate;
 static long frameCount;
 static u16 keys;   /* pressed buttons, GBA bit order */
 
@@ -228,8 +231,26 @@ static void sdl_frame(void) {
 
 /* ------------------------------------------------------- hw.c callbacks */
 
+static void wav_header(void) {
+	u32 rate = wavRate ? wavRate : 13379;
+	u32 h[11] = { 0x46464952, 36 + wavBytes, 0x45564157, 0x20746D66, 16, 0x00020001, rate, rate * 4, 0x00100004,
+	              0x61746164, wavBytes };
+	fseek(wavFile, 0, SEEK_SET);
+	fwrite(h, 4, 11, wavFile);
+	fseek(wavFile, 0, SEEK_END);
+}
+static void wav_write(void) {
+	static s16 buf[8192 * 2];
+	int n = audio_take(buf, 8192);
+	if (audio_rate() > 0) wavRate = audio_rate();   /* the game sets its rate after start-up */
+	fwrite(buf, 4, n, wavFile);
+	wavBytes += n * 4;
+	wav_header();
+}
+
 void frontend_frame(void) {
 	frameCount++;
+	if (headless && wavFile) wav_write();
 	if (headless) route_step();
 	else sdl_frame();
 	/* hand-written C reads the register directly */
@@ -252,6 +273,11 @@ int main(int argc, char **argv) {
 		else if (!strcmp(argv[i], "--save") && i + 1 < argc) savePath = argv[++i];
 		else if (!strcmp(argv[i], "--scale") && i + 1 < argc) scale = atoi(argv[++i]);
 		else if (!strcmp(argv[i], "--headless")) headless = 1;
+		else if (!strcmp(argv[i], "--wav") && i + 1 < argc) {
+			wavFile = fopen(argv[++i], "wb");
+			if (!wavFile) { fprintf(stderr, "cannot write %s\n", argv[i]); return 1; }
+			wav_header();
+		}
 		else if (!strcmp(argv[i], "--route") && i + 1 < argc) {
 			route = fopen(argv[++i], "r");
 			if (!route) { fprintf(stderr, "cannot open route %s\n", argv[i]); return 1; }
