@@ -28,11 +28,6 @@
 static struct ExtSprite lists[2][MAX_EXT];
 static int counts[2];
 static int building;           /* index of the list being made */
-/* OAM buffer entries the flush's GBA pass wrote this frame (collected
-   already); anything else in the buffer was written by other code */
-#define MAX_RANGES 16
-static u32 rangeFrom[MAX_RANGES], rangeTo[MAX_RANGES];
-static int ranges;
 
 const struct ExtSprite *view_sprites;
 int view_sprite_count = -1;    /* -1: none (use OAM) */
@@ -128,9 +123,7 @@ void lift_sub_0800338C(void) {
 		extern void lift_sub_08001F54(void);
 		lift_sub_08001F54();
 		int wide = view_cells_left || view_cells_right || view_cells_up || view_cells_down;
-		u32 gbaFrom = peek32(OAM_PTR);
 		run_gba_pass(r, pivot);
-		if (ranges < MAX_RANGES) { rangeFrom[ranges] = gbaFrom; rangeTo[ranges++] = peek32(OAM_PTR); }
 		if (wide) {
 			s32 left = lift_read32(pivot + 8), top = lift_read32(pivot + 12);
 			for (int cy = -view_cells_up; cy <= view_cells_down; cy++)
@@ -151,23 +144,6 @@ void lift_sub_0800338C(void) {
 
 /* the game copied its OAM buffer to OAM: what was collected is on screen now */
 void sprites_commit(void) {
-	/* sprites the game put in its buffer without the renderer (some bosses
-	   and effects): as they are, relative to the GBA screen */
-	u32 end = peek32(OAM_PTR);
-	if (end < OAM_BUF || end > OAM_BUF + 128 * 8) end = OAM_BUF + 128 * 8;
-	for (u32 e = OAM_BUF; e < end; e += 8) {
-		int mine = 0;
-		for (int k = 0; k < ranges; k++)
-			if (e >= rangeFrom[k] && e < rangeTo[k]) mine = 1;
-		if (mine) continue;
-		u16 a0 = peek16(e), a1 = peek16(e + 2);
-		if (!(a0 & 0x100) && (a0 & 0x200)) continue;   /* hidden */
-		int y = a0 & 0xFF, x = a1 & 0x1FF;
-		if (y >= 160 + 32) y -= 256;
-		if (x >= 240 + 64) x -= 512;
-		add(x, y, e);
-	}
-	ranges = 0;
 	view_sprites = lists[building];
 	view_sprite_count = counts[building];
 	building ^= 1;

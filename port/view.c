@@ -92,6 +92,7 @@ static int rom_ptr(u32 a) {
 #define GFX_SET_B (*(u16 *)0x02005432)
 #define CAMERA_X (*(s32 *)0x02005200)          /* global, 24.8, the screen's centre */
 #define CAMERA_Y (*(s32 *)0x02005204)
+#define GAME_MODE (*(u8 *)0x020236E1)            /* 3: playing a stage, 4: Zero defeated; 1 pause, 6 continue */
 #define EVENT_FLAGS (*(u16 *)0x02022B6E)        /* bit 0: an event script (cutscene) runs (sub_08014444 / sub_080144C4) */
 
 static s32 stageX, stageY;      /* global pixel position of the stage layers' origin */
@@ -519,24 +520,21 @@ static void draw_level_row(const struct Layer *L, int line, int vy, int ox, int 
 	}
 }
 
-/* a text BG's row from video memory, only inside the GBA screen */
+/* a text BG's row from video memory (backgrounds behind the stage): its
+   tilemap repeats, as the GBA's does when it scrolls, so it covers the view;
+   rows outside the GBA screen use the nearest GBA line's scroll */
 static void draw_vram_row(int bg, int line, int vy, int oy, int ox, u16 *out, int w) {
-	for (int x = 0; x < w; x++) out[x] = TRANSPARENT;
 	int l = vy - oy;
-	if (l < 0 || l >= SCREEN_H) return;
-	u16 cnt = R16(l, 0x08 + bg * 2);
-	if (cnt & 0x80) return;   /* (256-colour layers: not in stages) */
+	u16 cnt = R16(line, 0x08 + bg * 2);
+	if (cnt & 0x80) { for (int x = 0; x < w; x++) out[x] = TRANSPARENT; return; }   /* (256-colour layers: not in stages) */
 	u32 charBase = ((cnt >> 2) & 3) * 0x4000;
-	int hofs = R16(l, 0x10 + bg * 4) & 0x1FF, vofs = R16(l, 0x12 + bg * 4) & 0x1FF;
+	int hofs = R16(line, 0x10 + bg * 4) & 0x1FF, vofs = R16(line, 0x12 + bg * 4) & 0x1FF;
 	int py = l + vofs;
-	for (int sx = 0; sx < SCREEN_W; sx++) {
-		int vx = sx + ox;
-		if (vx < 0 || vx >= w) continue;
-		int px = sx + hofs;
-		u16 e = vram_entry(bg, l, px, py);
+	for (int vx = 0; vx < w; vx++) {
+		int px = vx - ox + hofs;
+		u16 e = vram_entry(bg, line, px, py);
 		out[vx] = tile_pixel(e, charBase, px & 7, py & 7);
 	}
-	(void)line;
 }
 
 static const u8 sObjSize[3][4][2] = {
@@ -693,10 +691,12 @@ int view_render(void) {
 	view_cells_left = view_cells_right = view_cells_up = view_cells_down = 0;
 	view_ext_left = view_ext_right = view_ext_up = view_ext_down = 0;
 	find_layers();
-	view_gameplay = !(EVENT_FLAGS & 1) && (layers[1].map || layers[2].map || layers[3].map);
+	view_gameplay = !(EVENT_FLAGS & 1) && (GAME_MODE == 3 || GAME_MODE == 4) && (layers[1].map || layers[2].map || layers[3].map);
 	if (view_w == SCREEN_W && view_h == SCREEN_H) { shownFrames = 0; return 0; }
 	/* cutscenes (an event script is running): the GBA picture, as it is */
 	if (EVENT_FLAGS & 1) { shownFrames = 0; return 0; }
+	/* menus over the stage (pause, continue): the GBA picture */
+	if (GAME_MODE != 3 && GAME_MODE != 4) { shownFrames = 0; return 0; }
 	int w = view_w, h = view_h;
 	view_frame = realloc(view_frame, (size_t)w * h * 4);
 	ensure_buffers(w);
