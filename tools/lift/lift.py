@@ -117,6 +117,32 @@ for unit in units:
         else:
             addr += 4
 
+# constants a build can change: address -> name (tools/lift/patches.txt)
+PATCHES = {}
+_pf = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'patches.txt')
+if os.path.exists(_pf) and os.path.abspath(os.getcwd()) == os.path.abspath(os.path.join(os.path.dirname(_pf), '../..')):
+    for _l in open(_pf):
+        _t = _l.split('#')[0].split()
+        if len(_t) == 2:
+            PATCHES[int(_t[0], 16)] = _t[1]
+
+def patch_lines(lines, text, name):
+    """Wraps the instruction's constant in LIFT_IMM(name, value)."""
+    m = re.search(r'#(0x[0-9a-fA-F]+|\d+)', text)
+    if m:
+        value = int(m.group(1), 0)
+    else:
+        lab = text.split()[-1]
+        value = rom32(label_addr[lab]) if lab in label_addr else None
+    if value is None:
+        raise ValueError('patch: no constant in %r' % text)
+    pat = re.compile(r'0x0*%X\b' % value)
+    for i, l in enumerate(lines):
+        if pat.search(l):
+            lines[i] = pat.sub('LIFT_IMM(%s, 0x%X)' % (name, value), l, count=1)
+            return
+    raise ValueError('patch: 0x%X not found for %r' % (value, text))
+
 def insn_cycles(t):
     """Cycles an instruction takes besides its memory accesses (which the
     runtime counts): 1 to execute (the cartridge prefetch keeps code fetches
@@ -635,6 +661,10 @@ class Gen:
                     before = len(self.lines)
                     self.emit('LIFT_CYC(%d);' % insn_cycles(t))
                     self.insn(a, t)
+                    if a in PATCHES:
+                        body = self.lines[before:]
+                        patch_lines(body, t, PATCHES[a])
+                        self.lines[before:] = body
                     # reads of unmapped memory return the prefetched opcode,
                     # which depends on where the code is
                     if any(re.search(r'\bR(S?8|S?16|32)\(', l) for l in self.lines[before:]):

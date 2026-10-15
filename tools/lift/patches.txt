@@ -1,0 +1,22 @@
+# Constants in lifted code that a build can change (LIFT_IMM in lift.h).
+# Each line: instruction address, name. The decompilation and the
+# equivalence check keep the original values; the PC port sets them from its
+# view size (port/view.c).
+#
+# Enemy spawning and culling around the camera (sub_0800E02C, the spawn
+# manager): spawn points within 12 metatiles left/right and 10 up/down of
+# the camera's centre are spawned; enemies further than 208 / 192 pixels
+# (and whose spawn point is out of the window) are removed.
+0x0800E2D2 SPAWN_RANGE_X
+0x0800E2FE SPAWN_RANGE_X
+0x0800E31C SPAWN_RANGE_X
+0x0800E330 SPAWN_RANGE_Y
+0x0800E332 SPAWN_WINDOW_Y
+0x0800E48E SPAWN_RANGE_Y
+0x0800E490 SPAWN_WINDOW_Y
+0x0800E51E SPAWN_RANGE_Y
+0x0800E520 SPAWN_WINDOW_Y
+0x0800E4E2 CULL_RANGE_X
+0x0800E4E8 CULL_WINDOW_X
+0x0800E4F4 CULL_RANGE_Y
+0x0800E4FA CULL_WINDOW_Y

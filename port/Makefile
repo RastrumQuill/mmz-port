@@ -42,8 +42,8 @@ ifeq ($(WINDOWS),1)
 	cp $(SDL2_DIR)/bin/SDL2.dll $(OUT)/
 endif
 
-$(OUT)/lifted/%.o: $(ROOT)/lifted/%.c $(ROOT)/tools/lift/lift.h | $(OUT)/lifted
-	$(CC) $(CFLAGS) -c -o $@ $<
+$(OUT)/lifted/%.o: $(ROOT)/lifted/%.c $(ROOT)/tools/lift/lift.h imm.h | $(OUT)/lifted
+	$(CC) $(CFLAGS) -include imm.h -c -o $@ $<
 $(OUT)/src/%.o: $(ROOT)/src/%.c | $(OUT)/src
 	$(CC) $(CFLAGS) -DPLATFORM_PC -c -o $@ $<
 $(OUT)/pc/%.o: %.c pc.h | $(OUT)/pc

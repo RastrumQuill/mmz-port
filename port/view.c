@@ -496,7 +496,24 @@ static int in_range(int v, int a, int b, int max) {
 /* Draws the view; 0 if this frame is not a stage (the GBA picture is shown). */
 static int cells(int pixels, int cell) { return pixels > 0 ? (pixels + cell - 1) / cell : 0; }
 
+/* Enemy spawning and culling (the spawn manager, sub_0800E02C) reach as far
+   beyond the view as they reach beyond the GBA screen in the original. */
+int port_imm_SPAWN_RANGE_X = 12, port_imm_SPAWN_RANGE_Y = 10, port_imm_SPAWN_WINDOW_Y = 19;
+int port_imm_CULL_RANGE_X = 0xD0, port_imm_CULL_WINDOW_X = 0x19FFF, port_imm_CULL_RANGE_Y = 0xC0, port_imm_CULL_WINDOW_Y = 0x17FFF;
+
+static void set_ranges(int w, int h) {
+	int ex = w > SCREEN_W ? (w - SCREEN_W) / 2 : 0, ey = h > SCREEN_H ? (h - SCREEN_H) / 2 : 0;
+	port_imm_SPAWN_RANGE_X = 12 + (ex + 15) / 16;
+	port_imm_SPAWN_RANGE_Y = 10 + (ey + 15) / 16;
+	port_imm_SPAWN_WINDOW_Y = 2 * port_imm_SPAWN_RANGE_Y - 1;
+	port_imm_CULL_RANGE_X = 0xD0 + ex;
+	port_imm_CULL_WINDOW_X = (0xD0 + ex) * 256 * 2 - 1;
+	port_imm_CULL_RANGE_Y = 0xC0 + ey;
+	port_imm_CULL_WINDOW_Y = (0xC0 + ey) * 256 * 2 - 1;
+}
+
 int view_render(void) {
+	set_ranges(view_w, view_h);
 	view_active = 0;
 	view_cells_left = view_cells_right = view_cells_up = view_cells_down = 0;
 	if (view_w == SCREEN_W && view_h == SCREEN_H) return 0;
