@@ -378,6 +378,8 @@ static int skipIntro;
 static void skip_intro_step(void) {
 	static int stable;
 	stable = view_gameplay ? stable + 1 : 0;
+	if (getenv("SKIPDEBUG") && frameCount % 300 == 0)
+		fprintf(stderr, "skip: frame %ld mode %02X event %04X gameplay %d\n", frameCount, *(u8 *)0x020236E1, *(u16 *)0x02022B6E, view_gameplay);
 	if (stable >= 60) {
 		fprintf(stderr, "skip-intro: playing from frame %ld\n", frameCount);
 		if (getenv("MMZ_SKIPSHOT")) write_ppm(getenv("MMZ_SKIPSHOT"));
