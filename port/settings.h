@@ -25,6 +25,8 @@ struct Settings {
 	int viewW, viewH;        /* VIEW_CUSTOM */
 	int viewHeight;          /* VIEW_WINDOW: world pixels from top to bottom */
 	int hudEdges;
+	int fitRooms;            /* small rectangular rooms: the view fits them (zooms in) */
+	int fillGaps;            /* empty parts of non-rectangular areas: filled from the area's own tiles */
 	int cpuSpeed;
 	int log;                 /* write mmz.log (stalls, the game's progress) */            /* percent of the GBA's CPU per frame (100: its slowdown as it was) */            /* the HUD at the view's edges (else over the GBA area) */
 	SDL_Scancode keys[10];   /* per GBA button, KEYINPUT order */

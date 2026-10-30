@@ -399,6 +399,7 @@ static void sdl_frame(void) {
 	int ww, wh;
 	SDL_GetRendererOutputSize(renderer, &ww, &wh);
 	settings_view_size(ww, wh, &view_w, &view_h);   /* (used from the next frame) */
+	view_fit_apply(&view_w, &view_h);                /* small rooms: the view fits them */
 	view_hud_edges = settings.hudEdges;
 	hw_cpu_speed = settings.cpuSpeed < 100 ? 100 : settings.cpuSpeed > 1600 ? 1600 : settings.cpuSpeed;
 	sdl_events();

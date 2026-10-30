@@ -32,6 +32,7 @@
 #include "lift.h"
 #include "pc.h"
 #include "ui.h"
+#include "settings.h"
 #include <SDL.h>
 
 #define io ((u8 *)0x04000000)
@@ -278,6 +279,275 @@ static void content_bounds(s32 *l, s32 *t, s32 *r, s32 *b) {
 	*l = x0 * 240; *r = (x1 + 1) * 240; *t = y0 * 160; *b = (y1 + 1) * 160;
 }
 
+/* ------------------------------------------------------------ gap fill
+ *
+ * Areas that are not rectangles have empty chunks inside their bounding box:
+ * the GBA camera never showed them, so the level data has nothing there, and
+ * a wide view would show black. Each empty chunk of a stage layer is filled
+ * once, when the area (or its graphics) changes, by a wave function collapse
+ * over metatiles (16x16):
+ * - which metatile may sit right of / below which is learned from the layer's
+ *   real chunks in this area (with how often each metatile is used);
+ * - the cells of the empty chunks start with every metatile of the graphics
+ *   group of their nearest real chunk (so only tiles that are loaded), the
+ *   real cells around them constrain them, and the least uncertain cell is
+ *   collapsed first (weighted by use, seeded by the area: the same every time);
+ * - a cell left with nothing possible takes the group's metatile that agrees
+ *   with most of its decided neighbours (no backtracking).
+ * Filled cells are drawn with the graphics source of their nearest real chunk.
+ * Only what can show is filled: the bounding box of the area's chunks (the
+ * view keeps inside it).
+ */
+#define FILL_NONE 0xFFFF
+struct Fill {
+	int on;
+	int cx0, cy0, cw, ch;    /* chunks, layer coordinates */
+	u16 *mt;                 /* [cell row][cell col], cw*15 x ch*10; FILL_NONE: not filled */
+	s16 *donor;              /* per chunk: global chunk of its nearest real chunk (gx | gy << 8), -1 none */
+};
+static struct Fill fills[4];
+static int fillsBuilt;
+
+typedef unsigned long long Bits;
+static int popcount_bits(const Bits *b, int W) { int n = 0; for (int i = 0; i < W; i++) n += __builtin_popcountll(b[i]); return n; }
+
+static u32 fill_rng(u32 *s) { *s ^= *s << 13; *s ^= *s >> 17; *s ^= *s << 5; return *s; }
+
+static int in_area(int gx, int gy) {
+	return gx >= 0 && gy >= 0 && gx < 128 && gy < 128 && (CHUNK_AREA[gy * 128 + gx] & 15) == (CUR_AREA & 0x7F);
+}
+
+static void fill_build(int k, u32 seed) {
+	struct Fill *F = &fills[k];
+	const struct Layer *L = &layers[k];
+	free(F->mt); free(F->donor);
+	memset(F, 0, sizeof *F);
+	if (!L->map || L->backdrop) return;
+	int sx = stageX / 240, sy = stageY / 160;
+	#define REAL(cx, cy) ((cx) >= 0 && (cy) >= 0 && (cx) < L->w && (cy) < L->h && \
+	                      L->map[4 + (cy) * L->stride + (cx)] != L->null && in_area((cx) + sx, (cy) + sy))
+	int x0 = 1 << 30, y0 = 1 << 30, x1 = -1, y1 = -1, gaps = 0;
+	for (int cy = 0; cy < L->h; cy++)
+		for (int cx = 0; cx < L->w; cx++)
+			if (REAL(cx, cy)) { if (cx < x0) x0 = cx; if (cx > x1) x1 = cx; if (cy < y0) y0 = cy; if (cy > y1) y1 = cy; }
+	if (x1 < 0) return;
+	for (int cy = y0; cy <= y1; cy++)
+		for (int cx = x0; cx <= x1; cx++)
+			if (!REAL(cx, cy) && L->map[4 + cy * L->stride + cx] == L->null) gaps++;
+	if (!gaps) return;
+	int cw = x1 - x0 + 1, ch = y1 - y0 + 1, W = cw * 15, H = ch * 10;
+	/* the metatiles of the area (dense indices) and their graphics groups */
+	static s16 dense[65536];
+	static u16 ids[4096];
+	int N = 0;
+	memset(dense, -1, sizeof dense);
+	u16 *grid = malloc((size_t)W * H * 2);         /* metatile per cell, FILL_NONE = unknown */
+	F->donor = malloc((size_t)cw * ch * 2);
+	if (!grid || !F->donor) { free(grid); free(F->donor); F->donor = NULL; return; }
+	for (int cy = 0; cy < ch; cy++)
+		for (int cx = 0; cx < cw; cx++) {
+			int lx = cx + x0, ly = cy + y0, real = REAL(lx, ly);
+			int cid = L->map[4 + ly * L->stride + lx];
+			for (int r = 0; r < 10; r++)
+				for (int c = 0; c < 15; c++) {
+					u16 m = FILL_NONE;
+					if (real) {
+						m = L->chunks[cid * 150 + r * 15 + c];
+						if (dense[m] < 0 && N < 4096) { dense[m] = N; ids[N++] = m; }
+					}
+					grid[(cy * 10 + r) * W + cx * 15 + c] = m;
+				}
+			/* nearest real chunk (by chunk distance) */
+			int best = -1, bd = 1 << 30;
+			if (!real)
+				for (int y = 0; y < ch; y++)
+					for (int x = 0; x < cw; x++)
+						if (REAL(x + x0, y + y0)) {
+							int d = abs(x - cx) * 3 + abs(y - cy) * 2;   /* (sideways first: walls continue up and down) */
+							if (d < bd) { bd = d; best = (x + x0 + sx) | (y + y0 + sy) << 8; }
+						}
+			F->donor[cy * cw + cx] = real ? -1 : best;
+		}
+	int Wd = (N + 63) / 64;
+	Bits *right = calloc((size_t)N * Wd, 8), *down = calloc((size_t)N * Wd, 8);
+	Bits *left = calloc((size_t)N * Wd, 8), *up = calloc((size_t)N * Wd, 8);
+	int *freq = calloc(N, sizeof(int));
+	int ngroups = 0, groupKey[64];
+	Bits *group = calloc((size_t)64 * Wd, 8);
+	Bits *dom = calloc((size_t)W * H * Wd, 8);
+	u8 *cellGroup = calloc((size_t)W * H, 1);
+	if (!right || !down || !left || !up || !freq || !group || !dom || !cellGroup) goto out;
+	#define SET(b, i) ((b)[(i) >> 6] |= 1ull << ((i) & 63))
+	#define HAS(b, i) (((b)[(i) >> 6] >> ((i) & 63)) & 1)
+	/* adjacency and frequency from the real cells; groups by graphics-set byte */
+	for (int y = 0; y < H; y++)
+		for (int x = 0; x < W; x++) {
+			u16 m = grid[y * W + x];
+			if (m == FILL_NONE) continue;
+			int a = dense[m];
+			freq[a]++;
+			if (x + 1 < W && grid[y * W + x + 1] != FILL_NONE) { int b = dense[grid[y * W + x + 1]]; SET(right + a * Wd, b); SET(left + b * Wd, a); }
+			if (y + 1 < H && grid[(y + 1) * W + x] != FILL_NONE) { int b = dense[grid[(y + 1) * W + x]]; SET(down + a * Wd, b); SET(up + b * Wd, a); }
+		}
+	for (int cy = 0; cy < ch; cy++)
+		for (int cx = 0; cx < cw; cx++) {
+			if (!REAL(cx + x0, cy + y0)) continue;
+			int key = chunk_sets(cx + x0 + sx, cy + y0 + sy, CUR_AREA & 0x7F), g;
+			for (g = 0; g < ngroups && groupKey[g] != key; g++) ;
+			if (g == ngroups) { if (ngroups == 64) continue; groupKey[ngroups++] = key; }
+			int lx = cx + x0, ly = cy + y0, cid = L->map[4 + ly * L->stride + lx];
+			for (int i = 0; i < 150; i++) SET(group + g * Wd, dense[L->chunks[cid * 150 + i]]);
+		}
+	/* unknown cells: the domain of their donor's group */
+	int unknown = 0;
+	for (int y = 0; y < H; y++)
+		for (int x = 0; x < W; x++) {
+			if (grid[y * W + x] != FILL_NONE) continue;
+			int d = F->donor[(y / 10) * cw + x / 15], g = 0;
+			if (d >= 0) {
+				int key = chunk_sets(d & 0xFF, d >> 8, CUR_AREA & 0x7F);
+				for (g = 0; g < ngroups && groupKey[g] != key; g++) ;
+				if (g == ngroups) g = 0;
+			}
+			cellGroup[y * W + x] = g;
+			memcpy(dom + ((size_t)y * W + x) * Wd, group + g * Wd, Wd * 8);
+			unknown++;
+		}
+	/* propagation: a cell's possible metatiles limit its neighbours' */
+	int *queue = malloc((size_t)W * H * 4 * sizeof(int)), qh = 0, qt = 0;
+	Bits *allow = malloc(Wd * 8);
+	if (!queue || !allow) { free(queue); free(allow); goto out; }
+	#define PUSH(i) do { if (qt < W * H * 4) queue[qt++] = (i); } while (0)
+	for (int i = 0; i < W * H; i++) if (grid[i] != FILL_NONE) PUSH(i);
+	for (;;) {
+		while (qh < qt) {
+			int i = queue[qh++], x = i % W, y = i / W;
+			static const int ddx[4] = { 1, -1, 0, 0 }, ddy[4] = { 0, 0, 1, -1 };
+			for (int dir = 0; dir < 4; dir++) {
+				int nx = x + ddx[dir], ny = y + ddy[dir];
+				if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+				int j = ny * W + nx;
+				if (grid[j] != FILL_NONE) continue;
+				Bits *rel = dir == 0 ? right : dir == 1 ? left : dir == 2 ? down : up;
+				memset(allow, 0, Wd * 8);
+				if (grid[i] != FILL_NONE) memcpy(allow, rel + dense[grid[i]] * Wd, Wd * 8);
+				else {
+					const Bits *di = dom + (size_t)i * Wd;
+					for (int a = 0; a < N; a++)
+						if (HAS(di, a)) for (int w2 = 0; w2 < Wd; w2++) allow[w2] |= rel[a * Wd + w2];
+				}
+				Bits *dj = dom + (size_t)j * Wd;
+				int changed = 0;
+				for (int w2 = 0; w2 < Wd; w2++) { Bits nv = dj[w2] & allow[w2]; if (nv != dj[w2]) { dj[w2] = nv; changed = 1; } }
+				if (changed) PUSH(j);
+				if (qt >= W * H * 4) { qh = 0; qt = 0; }   /* (queue full: restart it; propagation goes on from the next collapse) */
+			}
+		}
+		/* collapse the cell with the fewest possibilities (> 0) */
+		int bi = -1, bn = 1 << 30;
+		for (int i = 0; i < W * H; i++) {
+			if (grid[i] != FILL_NONE) continue;
+			int n = popcount_bits(dom + (size_t)i * Wd, Wd);
+			if (n == 0) n = 1 << 29;   /* contradictions after the ones that can still choose */
+			n = n * 16 + (int)((i * 2654435761u + seed) >> 28);
+			if (n < bn) { bn = n; bi = i; }
+		}
+		if (bi < 0) break;
+		Bits *d = dom + (size_t)bi * Wd;
+		int pick = -1;
+		if (popcount_bits(d, Wd)) {
+			u32 total = 0, r;
+			for (int a = 0; a < N; a++) if (HAS(d, a)) total += freq[a] + 1;
+			u32 s2 = seed ^ (u32)bi * 0x9E3779B9u;
+			r = fill_rng(&s2) % total;
+			for (int a = 0; a < N; a++) if (HAS(d, a)) { u32 f = freq[a] + 1; if (r < f) { pick = a; break; } r -= f; }
+		} else {
+			/* nothing fits: the group's metatile agreeing with most decided neighbours */
+			int x = bi % W, y = bi / W, bs = -1;
+			const Bits *g = group + cellGroup[bi] * Wd;
+			for (int a = 0; a < N; a++) {
+				if (!HAS(g, a)) continue;
+				int sc = 0;
+				if (x > 0 && grid[bi - 1] != FILL_NONE) sc += HAS(right + dense[grid[bi - 1]] * Wd, a);
+				if (x + 1 < W && grid[bi + 1] != FILL_NONE) sc += HAS(left + dense[grid[bi + 1]] * Wd, a);
+				if (y > 0 && grid[bi - W] != FILL_NONE) sc += HAS(down + dense[grid[bi - W]] * Wd, a);
+				if (y + 1 < H && grid[bi + W] != FILL_NONE) sc += HAS(up + dense[grid[bi + W]] * Wd, a);
+				sc = sc * 1000000 + freq[a];
+				if (sc > bs) { bs = sc; pick = a; }
+			}
+			if (pick < 0) pick = 0;
+		}
+		grid[bi] = ids[pick];
+		PUSH(bi);
+	}
+	free(queue); free(allow);
+	/* keep only the filled cells */
+	F->mt = malloc((size_t)W * H * 2);
+	if (F->mt) {
+		for (int y = 0; y < H; y++)
+			for (int x = 0; x < W; x++)
+				F->mt[y * W + x] = REAL(x / 15 + x0, y / 10 + y0) ? FILL_NONE : grid[y * W + x];
+		F->cx0 = x0; F->cy0 = y0; F->cw = cw; F->ch = ch; F->on = 1;
+	}
+out:
+	free(grid); free(right); free(down); free(left); free(up); free(freq); free(group); free(dom); free(cellGroup);
+	if (!F->on) { free(F->donor); F->donor = NULL; }
+	#undef REAL
+	#undef SET
+	#undef HAS
+	#undef PUSH
+}
+
+/* a filled cell's tilemap entry at a layer pixel (0: not filled) */
+static int fill_entry(const struct Layer *L, s32 wx, s32 wy, u16 *out) {
+	const struct Fill *F = &fills[L - layers];
+	if (!F->on || wx < 0 || wy < 0) return 0;
+	int cx = wx / 240 - F->cx0, cy = wy / 160 - F->cy0;
+	if (cx < 0 || cy < 0 || cx >= F->cw || cy >= F->ch) return 0;
+	u16 m = F->mt[((cy * 10) + (wy % 160) / 16) * F->cw * 15 + cx * 15 + (wx % 240) / 16];
+	int d = F->donor[cy * F->cw + cx];
+	if (m == FILL_NONE || d < 0) return 0;
+	levelSrc = chunk_source(d & 0xFF, d >> 8);
+	if (levelSrc < 0) return 0;
+	levelFy = wy & 7;
+	*out = L->tiledata[m * 4 + ((wy >> 3) & 1) * 2 + ((wx >> 3) & 1)];
+	return 1;
+}
+
+/* rooms smaller than the view (settings.fitRooms): the view size that fits
+   the area's bounding box, same shape as asked for, at least the GBA's */
+int view_fit_w, view_fit_h;   /* 0: no fit */
+static void fit_target(s32 cL, s32 cT, s32 cR, s32 cB) {
+	view_fit_w = view_fit_h = 0;
+	int bw = cR - cL, bh = cB - cT;
+	if (!settings.fitRooms || bw <= 0 || bh <= 0) return;
+	view_fit_w = bw;
+	view_fit_h = bh;
+}
+
+/* main.c, after the view size for the window is known: shrink it to fit a
+   small room, eased over a few frames when the room changes */
+void view_fit_apply(int *w, int *h) {
+	static float cw, ch;
+	int tw = *w, th = *h;
+	if (view_fit_w > 0 && (view_fit_w < tw || view_fit_h < th) && tw > SCREEN_W && th > SCREEN_H) {
+		float ew = tw;
+		if (ew > view_fit_w) ew = view_fit_w;
+		if (ew > view_fit_h * (float)tw / th) ew = view_fit_h * (float)tw / th;
+		float minw = SCREEN_W > SCREEN_H * (float)tw / th ? SCREEN_W : SCREEN_H * (float)tw / th;
+		if (ew < minw) ew = minw;
+		tw = (int)ew;
+		th = (int)(ew * *h / *w);
+	}
+	if (cw <= 0) { cw = tw; ch = th; }
+	cw += (tw - cw) * 0.15f;
+	ch += (th - ch) * 0.15f;
+	if (cw - tw < 1 && tw - cw < 1) cw = tw;
+	if (ch - th < 1 && th - ch < 1) ch = th;
+	*w = ((int)cw + 1) & ~1;
+	*h = ((int)ch + 1) & ~1;
+}
+
 /* the tilemap entry the level has at a world pixel (0: nothing there) */
 static int level_entry(const struct Layer *L, s32 wx, s32 wy, u16 *out) {
 	if (L->backdrop) {
@@ -300,10 +570,10 @@ static int level_entry(const struct Layer *L, s32 wx, s32 wy, u16 *out) {
 	levelFy = wy & 7;
 	int cx = wx / 240, cy = wy / 160;
 	if (cx >= L->w || cy >= L->h) return 0;
+	int cid = L->map[4 + cy * L->stride + cx];
+	if (cid == L->null) return fill_entry(L, wx, wy, out);
 	levelSrc = chunk_source((wx + stageX) / 240, (wy + stageY) / 160);
 	if (levelSrc < 0) return 0;
-	int cid = L->map[4 + cy * L->stride + cx];
-	if (cid == L->null) return 0;
 	u16 mt = L->chunks[cid * 150 + ((wy % 160) >> 4) * 15 + ((wx % 240) >> 4)];
 	*out = L->tiledata[mt * 4 + ((wy >> 3) & 1) * 2 + ((wx >> 3) & 1)];
 	return 1;
@@ -706,6 +976,21 @@ static int in_range(int v, int a, int b, int max) {
 	return v >= a && v < b;
 }
 
+/* Is view pixel (x, vy) inside window k (0/1) as the game set it on GBA line
+   `line`? A window over the GBA screen's whole width (or height) covers the
+   whole view that way: stages open one over the full screen for effects (rain,
+   fog, light) and would otherwise show them in a 240x160 box. Smaller windows
+   (dialogs, the HP bar) stay where the game put them. */
+static int win_hit(int k, int line, int x, int vy, int ox, int oy) {
+	u16 wh = R16(line, 0x40 + k * 2), wv = R16(line, 0x44 + k * 2);
+	int l = wh >> 8, r = wh & 0xFF, t = wv >> 8, b = wv & 0xFF;
+	int fullX = l == 0 && r >= SCREEN_W, fullY = t == 0 && b >= SCREEN_H;
+	int sx = x - ox, ly = vy - oy;
+	int inX = fullX || (sx >= 0 && sx < SCREEN_W && in_range(sx, l, r, SCREEN_W));
+	int inY = fullY || (ly >= 0 && ly < SCREEN_H && in_range(ly, t, b, SCREEN_H));
+	return inX && inY;
+}
+
 /* Draws the view; 0 if this frame is not a stage (the GBA picture is shown). */
 static int cells(int pixels, int cell) { return pixels > 0 ? (pixels + cell - 1) / cell : 0; }
 
@@ -768,16 +1053,12 @@ static void render_row(int vy) {
 		if (evy > 16) evy = 16;
 		int bgPrio[4];
 		for (int bg = 0; bg < 4; bg++) bgPrio[bg] = R16(line, 0x08 + bg * 2) & 3;
-		int l = vy - oy, inGbaRows = l >= 0 && l < SCREEN_H;
-		int w0y = inGbaRows && in_range(l, R16(line, 0x44) >> 8, R16(line, 0x44) & 0xFF, 160);
-		int w1y = inGbaRows && in_range(l, R16(line, 0x46) >> 8, R16(line, 0x46) & 0xFF, 160);
 		u16 backdrop = PAL16(0) & 0x7FFF;
 		for (int x = 0; x < w; x++) {
 			int ctl = 0x3F;
 			if (windows) {
-				int sx = x - ox, in = sx >= 0 && sx < SCREEN_W;
-				if ((dispcnt & 0x2000) && w0y && in && in_range(sx, R16(line, 0x40) >> 8, R16(line, 0x40) & 0xFF, 240)) ctl = winin & 0x3F;
-				else if ((dispcnt & 0x4000) && w1y && in && in_range(sx, R16(line, 0x42) >> 8, R16(line, 0x42) & 0xFF, 240)) ctl = (winin >> 8) & 0x3F;
+				if ((dispcnt & 0x2000) && win_hit(0, line, x, vy, ox, oy)) ctl = winin & 0x3F;
+				else if ((dispcnt & 0x4000) && win_hit(1, line, x, vy, ox, oy)) ctl = (winin >> 8) & 0x3F;
 				else if ((dispcnt & 0x8000) && objWin[x]) ctl = (winout >> 8) & 0x3F;
 				else ctl = winout & 0x3F;
 			}
@@ -949,10 +1230,16 @@ int view_render(void) {
 		/* (the same while the area and its sets are) */
 		static s32 bL, bT, bR, bB; static u32 bKey = ~0u; static s32 bStageX, bStageY;
 		u32 key = (u32)CUR_AREA << 24 ^ (u32)GFX_SET_A << 12 ^ GFX_SET_B;
-		if (key != bKey || stageX != bStageX || stageY != bStageY) {
+		static int bFill = -1;
+		if (key != bKey || stageX != bStageX || stageY != bStageY || bFill != settings.fillGaps) {
 			content_bounds(&bL, &bT, &bR, &bB);
-			bKey = key; bStageX = stageX; bStageY = stageY;
+			for (int k = 1; k < 4; k++) {
+				if (settings.fillGaps) fill_build(k, key * 2654435761u + 1);
+				else { free(fills[k].mt); free(fills[k].donor); memset(&fills[k], 0, sizeof fills[k]); }
+			}
+			bKey = key; bStageX = stageX; bStageY = stageY; bFill = settings.fillGaps;
 		}
+		fit_target(bL, bT, bR, bB);
 		cL = bL; cT = bT; cR = bR; cB = bB;
 	}
 	s32 left = x0 - ox, top = y0 - oy;

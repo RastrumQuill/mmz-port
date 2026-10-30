@@ -31,6 +31,7 @@ extern int hw_cpu_speed;
 extern int view_ext_left, view_ext_right, view_ext_up, view_ext_down;
 extern int view_w, view_h, view_active, view_hud_edges;
 extern u32 *view_frame;
+void view_fit_apply(int *w, int *h);
 void view_record_line(int line);
 int view_render(void);
 

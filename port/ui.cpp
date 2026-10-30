@@ -323,6 +323,11 @@ static void settings_window() {
 			if (ImGui::IsItemHovered()) ImGui::SetTooltip("CPU time the game gets each frame. More removes the slowdown\n(lots of enemies, the wide view) without speeding the game up.");
 		}
 		if (ImGui::Checkbox("HUD at the screen's edges", &he)) settings.hudEdges = he;
+		bool fr = settings.fitRooms, fg = settings.fillGaps;
+		if (ImGui::Checkbox("Fit small rooms to the screen", &fr)) settings.fitRooms = fr;
+		if (ImGui::IsItemHovered()) ImGui::SetTooltip("A rectangular room smaller than the view: the view zooms in to fill the screen with it\n(smoothly, when you enter it) instead of showing black around it.");
+		if (ImGui::Checkbox("Fill empty parts of areas", &fg)) settings.fillGaps = fg;
+		if (ImGui::IsItemHovered()) ImGui::SetTooltip("Parts of an area the GBA camera never showed (empty in the level data) are filled\nwith the area's own tiles, arranged to match what is around them.");
 		bool is = settings.integerScale, sm = settings.smooth;
 		if (ImGui::Checkbox("Whole-number scaling only", &is)) settings.integerScale = is;
 		if (ImGui::Checkbox("Smooth (filtered) pixels", &sm)) settings.smooth = sm;
