@@ -28,7 +28,26 @@ area by a wave function collapse over 16x16 metatiles, per stage layer:
 
 Filled cells are only pictures: collision, enemies and the game itself do not see them.
 
-## 3. Still open
+## 3. Per-line scroll effects: worked out per layer (built, `MMZ_LINE_FX=0` turns it off)
+
+Five stage layer draw handlers scroll a BG line by line with a 160-line H-blank DMA table (the decomp's
+`src/stage_layer_fx.c` and `src/stage_area_code.c`): a slant (one pixel every 4 lines) with a shimmer band
+below it, shimmer bands at the bottom of the screen, a shimmer on every line, and area 4's water (lines from
+the surface up sway sideways, more the farther from the surface, up to 8 px). Replaying the table covers
+only the GBA rows. Instead, the port recognises the handler (the layer's draw address), finds the table's
+phase (and whether it starts a line late) from the lines the game wrote, and works the offset out for every
+row of the view from the same formula: the slant continues above the GBA screen, the bands below it, and
+the water's surface stays at its place in the world (layer row 400). Only the waved BG moves; sprites and
+the other layers are untouched. If the lines do not match the formula (the game is not running the table
+that frame, or it changed), the lines are used as they are.
+
+The water's original alternates neighbouring lines by an eighth of a period (an interlace that only reads
+right at the GBA's size); the view uses the middle of the two.
+
+Still to do: drawing at the display's resolution (sub-pixel offsets), so the 1-pixel shimmer and the sway
+are smooth when scaled up.
+
+## 4. Still open
 
 - **Outside the bounding box** of an area that is bigger than the view (the view keeps inside the box, so this
   shows only at its edges when the box is narrower than the view in one direction and fit is off).
@@ -41,6 +60,5 @@ Filled cells are only pictures: collision, enemies and the game itself do not se
   3. extending the room's background layer by mirroring/tiling its edge columns (cheap; works for skies and
      plain walls, poor for detailed ones).
 - **Effects sized for the GBA screen**: windows that span the whole GBA screen now span the view (the rain
-  that showed as a small box); per-scanline effects (water, waves: 160-line buffers) still only cover the GBA
-  rows (the decomp names them, `src/stage_layer_fx.c` / `src/stage_area_code.c`, so they can be extended).
+  that showed as a small box). Per-line scroll effects: see 3.
 - **Area 2's train** wraps its far layer every 240 px (one chunk); a wider view may show the wrap.

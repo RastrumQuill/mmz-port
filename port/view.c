@@ -624,6 +624,126 @@ static s32 wrap_delta(int reg, s32 pos) {
 static s32 line_world_x(const struct Layer *L, int line) { return L->x + wrap_delta(R16(line, 0x10 + L->bg * 4) & 0x1FF, L->x); }
 static s32 line_world_y(const struct Layer *L, int line) { return L->y + wrap_delta(R16(line, 0x12 + L->bg * 4) & 0x1FF, L->y); }
 
+/* ------------------------------------------------------- line effects
+ *
+ * Some stage layers scroll a BG per GBA line (H-blank DMA, a 160-line table):
+ * a slant, a 1-pixel shimmer band, the area 4 water. Replayed line by line
+ * they cover only the GBA rows and step at the GBA's lines when scaled up.
+ * Instead the effect is recognised by the layer's draw handler and worked out
+ * for every row of the view from the same formulas (src/stage_layer_fx.c,
+ * src/stage_area_code.c in the decomp): it continues above and below the GBA
+ * screen and the water's surface stays where it is in the world. It is used
+ * only when the GBA lines show the table the formula predicts (the phase is
+ * found from them), so a changed effect falls back to the lines.
+ */
+#define SINE ((const s16 *)0x080C8E24u)
+enum { FX_NONE, FX_SLANT, FX_BAND, FX_WAVE, FX_WATER };
+struct Fx {
+	int kind;
+	int x, y;          /* the BG's offsets without the effect */
+	int start;         /* FX_SLANT / FX_BAND: the first line of the band */
+	u16 phase;         /* the wave phase the table was made with */
+	int surface;       /* FX_WATER: the screen row of the surface */
+	int below;         /* FX_WATER: rows the camera is below 0x190 - 160 */
+	int delay;         /* line i shows the table's entry i - delay (0 or 1) */
+};
+static struct Fx fx[4];
+int view_line_fx = 1;   /* 0: replay the GBA lines (debug: MMZ_LINE_FX=0) */
+
+static int floor4(int i) { return i >= 0 ? i >> 2 : -((-i + 3) >> 2); }
+static int fx_wave(u16 phase, int i) { return SINE[(phase - i * 16) & 0xFF] >> 8; }
+
+/* the BG's offsets for screen row i (0 = the GBA screen's top; any row) */
+static void fx_regs(const struct Fx *f, int i, int *h, int *v) {
+	/* (some frames show the table a line late: H-blank DMA started a line after the table's first entry) */
+	i -= f->delay;
+	*h = f->x; *v = f->y;
+	switch (f->kind) {
+	case FX_SLANT: if (i < f->start) *h = f->x - floor4(i); else *v = f->y + fx_wave(f->phase, i); break;
+	case FX_BAND:  if (i >= f->start) *v = f->y + fx_wave(f->phase, i); break;
+	case FX_WAVE:  *v = f->y + fx_wave(f->phase, i); break;
+	case FX_WATER:
+		if (i <= f->surface) {
+			int j = f->surface - i, amp = j >> 3;
+			if (amp > 8) amp = 8;
+			/* (the GBA alternates lines by an eighth of a period, a two-line
+			   interlace; the view uses their middle) */
+			*h = f->x + ((SINE[(f->phase + i + 0x100 + f->below + 16) & 0xFF] * amp) >> 8);
+		}
+		break;
+	}
+}
+
+/* the GBA lines agree with the effect at this phase? (the water: the lines
+   it does not move, and the ones at the surface) */
+static int fx_matches(const struct Fx *f, int bg) {
+	for (int i = 1; i < SCREEN_H; i++) {   /* (line 0: the registers as set in V-blank) */
+		int h, v;
+		int e = i - f->delay;
+		if (f->kind == FX_WATER && e <= f->surface && f->surface - e >= 8) continue;
+		fx_regs(f, i, &h, &v);
+		if (((R16(i, 0x10 + bg * 4) ^ h) & 0x1FF) || ((R16(i, 0x12 + bg * 4) ^ v) & 0x1FF)) return 0;
+	}
+	return 1;
+}
+
+static int fx_find_phase(struct Fx *f, int bg, u16 p) {
+	static const int lag[] = { 0, -3, 3, -6, 6 };
+	for (int d = 0; d < 2; d++)
+		for (int k = 0; k < 5; k++) {
+			f->delay = d;
+			f->phase = p + lag[k];
+			f->x = R16(1, 0x10 + bg * 4) & 0x1FF;
+			if (f->kind == FX_SLANT) f->x += floor4(1 - d);
+			if (f->kind == FX_WAVE) f->y = R16(1, 0x12 + bg * 4) - fx_wave(f->phase, 1 - d);
+			if (fx_matches(f, bg)) return lag[k];
+		}
+	return 99;
+}
+
+static void find_fx(void) {
+	static int envChecked, frame;
+	frame++;
+	if (!envChecked) { envChecked = 1; if (getenv("MMZ_LINE_FX")) view_line_fx = atoi(getenv("MMZ_LINE_FX")); }
+	memset(fx, 0, sizeof fx);
+	if (!view_line_fx || (R16(0, 0) & 7) != 0) return;
+	for (int k = 0; k < 3; k++) {
+		const u8 *s = (const u8 *)(uintptr_t)(STAGE_LAYERS + k * 0x70);
+		u32 draw = *(u32 *)(s + 0x04) & ~1u;
+		u16 p60 = *(u16 *)(s + 0x60), p62 = *(u16 *)(s + 0x62);
+		struct Fx f = { 0 };
+		int bg = 3;
+		if (draw == 0x0800A1D0u) { f.kind = FX_SLANT; f.start = 0x8F; }
+		else if (draw == 0x0800A3D8u) { f.kind = FX_BAND; f.start = 0x8E; bg = 2; }
+		else if (draw == 0x0800A620u) { f.kind = FX_BAND; f.start = 0x8F; }
+		else if (draw == 0x0800C0B4u || draw == 0x0800C134u) f.kind = FX_WAVE;
+		else continue;
+		f.y = R16(1, 0x12 + bg * 4) & 0x1FF;
+		int lag = fx_find_phase(&f, bg, p60);
+		if (lag == 99) continue;
+		fx[bg] = f;
+		if (draw == 0x0800C134u) {
+			/* BG2: the water (unk_62 is its phase, made in the same frame as unk_60) */
+			struct Fx w = { FX_WATER };
+			w.below = *(s32 *)(s + 0x38) - (0x190 - SCREEN_H);
+			w.surface = SCREEN_H - w.below;
+			w.x = R16(SCREEN_H - 1, 0x10) & 0x1FF;
+			w.y = R16(0, 0x12) & 0x1FF;
+			w.phase = p62 + lag;
+			w.delay = f.delay;
+			if (fx_matches(&w, 2)) fx[2] = w;
+		}
+	}
+	if (getenv("FXDEBUG")) {
+		static int last[4] = { -1, -1, -1, -1 };
+		for (int bg = 1; bg < 4; bg++)
+			if (fx[bg].kind != last[bg]) {
+				last[bg] = fx[bg].kind;
+				fprintf(stderr, "fx: frame %d bg%d kind %d x %d y %d phase %d surface %d\n", frame, bg, fx[bg].kind, fx[bg].x, fx[bg].y, fx[bg].phase, fx[bg].surface);
+			}
+	}
+}
+
 /* Finds the stage layers and keeps the ones video memory agrees with. */
 static int tile_empty(u16 e, u32 charBase);
 static int stageBg[4];   /* BGs a stage layer (moving with the camera) is on, matched or not */
@@ -843,6 +963,12 @@ static void draw_level_row(const struct Layer *L, int line, int vy, int ox, int 
 	   outside the GBA screen) place screen row 0; this row is vy - oy below */
 	s32 wy = line_world_y(L, line) + (vy - oy);
 	s32 wx0 = line_world_x(L, line) - ox;
+	if (fx[L->bg].kind) {
+		int h, v;
+		fx_regs(&fx[L->bg], vy - oy, &h, &v);
+		wy = L->y + wrap_delta(v & 0x1FF, L->y) + (vy - oy);
+		wx0 = L->x + wrap_delta(h & 0x1FF, L->x) - ox;
+	}
 	int fy = wy & 7;
 	for (int vx = 0; vx < w;) {
 		s32 wx = wx0 + vx;
@@ -874,6 +1000,7 @@ static void draw_vram_row(int bg, int line, int vy, int oy, int ox, u16 *out, in
 	/* rows beyond the GBA screen repeat its first or last line (games scroll
 	   such layers line by line for gradients) */
 	int py = (l < 0 ? 0 : l >= SCREEN_H ? SCREEN_H - 1 : l) + vofs;
+	if (fx[bg].kind) { fx_regs(&fx[bg], l, &hofs, &vofs); py = l + vofs; }
 	for (int vx = 0; vx < w; vx++) {
 		if (gbaOnly && (vx < ox || vx >= ox + SCREEN_W)) { out[vx] = TRANSPARENT; continue; }
 		int px = vx - ox + hofs;
@@ -1062,7 +1189,7 @@ static void render_row(int vy) {
 				draw_level_row(&layers[bg], line, vy, ox, oy, bgRow[bg], w);
 				/* on the GBA screen, what video memory has (the game's own
 				   changes to the tiles show) */
-				if (!layers[bg].backdrop && vy - oy >= 0 && vy - oy < SCREEN_H) gba_vram_span(bg, vy - oy, ox, bgRow[bg], w);
+				if (!layers[bg].backdrop && !fx[bg].kind && vy - oy >= 0 && vy - oy < SCREEN_H) gba_vram_span(bg, vy - oy, ox, bgRow[bg], w);
 			}
 			else if (bg == 0) memcpy(bgRow[0], hudBuf + (size_t)vy * w, w * 2);
 			else draw_vram_row(bg, line, vy, oy, ox, bgRow[bg], w);
@@ -1179,6 +1306,7 @@ int view_render(void) {
 	view_cells_left = view_cells_right = view_cells_up = view_cells_down = 0;
 	view_ext_left = view_ext_right = view_ext_up = view_ext_down = 0;
 	find_layers();
+	find_fx();
 	view_gameplay = !(EVENT_FLAGS & 1) && (GAME_MODE == 3 || GAME_MODE == 4) &&
 	                ((layers[1].map && !layers[1].backdrop) || (layers[2].map && !layers[2].backdrop) || (layers[3].map && !layers[3].backdrop));
 	if (view_w == SCREEN_W && view_h == SCREEN_H) { shownFrames = 0; return 0; }
