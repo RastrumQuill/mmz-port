@@ -20,6 +20,10 @@
 #include <windows.h>
 #else
 #include <sys/mman.h>
+#include <unistd.h>
+#endif
+#ifdef __linux__
+#include <sys/personality.h>
 #endif
 #include <SDL.h>
 #include "lift.h"
@@ -103,6 +107,7 @@ __attribute__((constructor(101))) static void reserve_gba_ranges(void) {
 }
 #endif
 
+static char **mainArgv;
 static void *map_at(u32 addr, u32 size) {
 #ifdef _WIN32
 	void *p = VirtualAlloc((void *)(uintptr_t)addr, size, MEM_COMMIT, PAGE_READWRITE);   /* reserved at start */
@@ -127,6 +132,16 @@ static void *map_at(u32 addr, u32 size) {
 	void *p = mmap((void *)(uintptr_t)addr, size, PROT_READ | PROT_WRITE,
 	               MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED_NOREPLACE, -1, 0);
 	if (p == MAP_FAILED || p != (void *)(uintptr_t)addr) {
+#ifdef __linux__
+		/* the kernel puts the heap anywhere in the first 1 GB, sometimes on
+		   the GBA's addresses: start again once without randomisation (the
+		   heap then begins right after the program, below them) */
+		if (errno == EEXIST && !getenv("MMZ_RELAUNCHED") && personality(0xFFFFFFFF) != -1) {
+			setenv("MMZ_RELAUNCHED", "1", 1);
+			personality(personality(0xFFFFFFFF) | ADDR_NO_RANDOMIZE);
+			execv("/proc/self/exe", mainArgv);
+		}
+#endif
 		fatal("Cannot map the GBA memory at %08X: %s", addr, strerror(errno));
 	}
 #endif
@@ -507,6 +522,7 @@ u16 frontend_keys(void) {
 /* --------------------------------------------------------------- start */
 
 int main(int argc, char **argv) {
+	mainArgv = argv;
 	report_install_crash_handler();
 	const char *romArg = NULL, *configArg = NULL, *viewArg = NULL;
 	int scale = 0, cpuArg = 0;
