@@ -325,7 +325,8 @@ static void fill_build(int k, u32 seed) {
 	if (!L->map || L->backdrop) return;
 	int sx = stageX / 240, sy = stageY / 160;
 	#define REAL(cx, cy) ((cx) >= 0 && (cy) >= 0 && (cx) < L->w && (cy) < L->h && \
-	                      L->map[4 + (cy) * L->stride + (cx)] != L->null && in_area((cx) + sx, (cy) + sy))
+	                      L->map[4 + (cy) * L->stride + (cx)] != L->null && \
+	                      in_area(((cx) * 240 + stageX) / 240, ((cy) * 160 + stageY) / 160))
 	int x0 = 1 << 30, y0 = 1 << 30, x1 = -1, y1 = -1, gaps = 0;
 	for (int cy = 0; cy < L->h; cy++)
 		for (int cx = 0; cx < L->w; cx++)
@@ -364,7 +365,7 @@ static void fill_build(int k, u32 seed) {
 					for (int x = 0; x < cw; x++)
 						if (REAL(x + x0, y + y0)) {
 							int d = abs(x - cx) * 3 + abs(y - cy) * 2;   /* (sideways first: walls continue up and down) */
-							if (d < bd) { bd = d; best = (x + x0 + sx) | (y + y0 + sy) << 8; }
+							if (d < bd) { bd = d; best = (((x + x0) * 240 + stageX) / 240) | (((y + y0) * 160 + stageY) / 160) << 8; }
 						}
 			F->donor[cy * cw + cx] = real ? -1 : best;
 		}
@@ -392,7 +393,7 @@ static void fill_build(int k, u32 seed) {
 	for (int cy = 0; cy < ch; cy++)
 		for (int cx = 0; cx < cw; cx++) {
 			if (!REAL(cx + x0, cy + y0)) continue;
-			int key = chunk_sets(cx + x0 + sx, cy + y0 + sy, CUR_AREA & 0x7F), g;
+			int key = chunk_sets(((cx + x0) * 240 + stageX) / 240, ((cy + y0) * 160 + stageY) / 160, CUR_AREA & 0x7F), g;
 			for (g = 0; g < ngroups && groupKey[g] != key; g++) ;
 			if (g == ngroups) { if (ngroups == 64) continue; groupKey[ngroups++] = key; }
 			int lx = cx + x0, ly = cy + y0, cid = L->map[4 + ly * L->stride + lx];
@@ -500,7 +501,8 @@ out:
 
 /* a filled cell's tilemap entry at a layer pixel (0: not filled) */
 static int fill_entry(const struct Layer *L, s32 wx, s32 wy, u16 *out) {
-	const struct Fill *F = &fills[L - layers];
+	if (L->bg < 0 || L->bg > 3) return 0;
+	const struct Fill *F = &fills[L->bg];   /* (layers[] is by BG; L may be a copy) */
 	if (!F->on || wx < 0 || wy < 0) return 0;
 	int cx = wx / 240 - F->cx0, cy = wy / 160 - F->cy0;
 	if (cx < 0 || cy < 0 || cx >= F->cw || cy >= F->ch) return 0;
@@ -514,12 +516,31 @@ static int fill_entry(const struct Layer *L, s32 wx, s32 wy, u16 *out) {
 	return 1;
 }
 
+extern long frameCount;
 /* rooms smaller than the view (settings.fitRooms): the view size that fits
    the area's bounding box, same shape as asked for, at least the GBA's */
 int view_fit_w, view_fit_h;   /* 0: no fit */
-static void fit_target(s32 cL, s32 cT, s32 cR, s32 cB) {
+static void fit_target(void) {
 	view_fit_w = view_fit_h = 0;
-	int bw = cR - cL, bh = cB - cT;
+	/* the area's shape: its non-empty chunks in the stage layers, whatever
+	   graphics are loaded (content_bounds() only counts drawable chunks, which
+	   can be one chunk right after entering an area) */
+	int x0 = 1 << 30, y0 = 1 << 30, x1 = -1, y1 = -1, backdrop = 0;
+	for (int k = 1; k < 4; k++) {
+		const struct Layer *L = &layers[k];
+		if (L->map && L->backdrop) backdrop = 1;
+		if (!L->map || L->backdrop) continue;
+		for (int cy = 0; cy < L->h; cy++)
+			for (int cx = 0; cx < L->w; cx++)
+				if (L->map[4 + cy * L->stride + cx] != L->null && in_area((cx * 240 + stageX) / 240, (cy * 160 + stageY) / 160)) {
+					if (cx < x0) x0 = cx; if (cx > x1) x1 = cx; if (cy < y0) y0 = cy; if (cy > y1) y1 = cy;
+				}
+	}
+	if (x1 < 0) return;
+	int bw = (x1 - x0 + 1) * 240, bh = (y1 - y0 + 1) * 160;
+	/* a background layer (it repeats sideways and carries its top and bottom
+	   bands on) covers the view around a small stage: nothing to fit */
+	if (backdrop) return;
 	if (!settings.fitRooms || bw <= 0 || bh <= 0) return;
 	view_fit_w = bw;
 	view_fit_h = bh;
@@ -535,10 +556,15 @@ void view_fit_apply(int *w, int *h) {
 		if (ew > view_fit_w) ew = view_fit_w;
 		if (ew > view_fit_h * (float)tw / th) ew = view_fit_h * (float)tw / th;
 		float minw = SCREEN_W > SCREEN_H * (float)tw / th ? SCREEN_W : SCREEN_H * (float)tw / th;
-		if (ew < minw) ew = minw;
-		tw = (int)ew;
-		th = (int)(ew * *h / *w);
+		/* not down to the GBA's size: then the wide view stops (and with it
+		   the fit's own updates), and a corridor would lose the wide view */
+		if (ew >= minw * 1.15f) {
+			tw = (int)ew;
+			th = (int)(ew * *h / *w);
+		}
 	}
+	if (getenv("FITDEBUG") && frameCount % 300 == 0)
+		fprintf(stderr, "fit: frame %ld asked %dx%d target %dx%d -> %dx%d\n", frameCount, *w, *h, view_fit_w, view_fit_h, tw, th);
 	if (cw <= 0) { cw = tw; ch = th; }
 	cw += (tw - cw) * 0.15f;
 	ch += (th - ch) * 0.15f;
@@ -1239,7 +1265,7 @@ int view_render(void) {
 			}
 			bKey = key; bStageX = stageX; bStageY = stageY; bFill = settings.fillGaps;
 		}
-		fit_target(bL, bT, bR, bB);
+		fit_target();
 		cL = bL; cT = bT; cR = bR; cB = bB;
 	}
 	s32 left = x0 - ox, top = y0 - oy;

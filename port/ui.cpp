@@ -36,6 +36,7 @@ static bool sTabHeld;
 static const char *sTestDir;   // --ui-test
 // the report window (F12, or after a crash on the last run)
 static bool sShowReport, sReportFocus;
+extern "C" int ui_no_startup_dialogs;   // main.c: scripted runs (--route) do not stop for the crash dialog
 static int sReportKind;
 static char sReportMsg[2000], sReportZip[700], sReportStatus[800];
 
@@ -126,7 +127,7 @@ extern "C" void ui_init(SDL_Window *window, SDL_Renderer *renderer) {
 	ImGui_ImplSDLRenderer2_Init(renderer);
 	// a crash on the last run that was not reported yet
 	char msg[256];
-	const char *zip = report_pending_crash(msg, sizeof msg);
+	const char *zip = ui_no_startup_dialogs ? NULL : report_pending_crash(msg, sizeof msg);
 	if (zip) {
 		sReportKind = REPORT_CRASH;
 		snprintf(sReportZip, sizeof sReportZip, "%s", zip);

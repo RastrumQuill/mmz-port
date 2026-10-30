@@ -36,6 +36,7 @@ extern int64_t budget;
 void lift_AgbMain(void);
 
 static int headless;
+int ui_no_startup_dialogs;   /* --route: no dialog that waits for the player at start (ui.cpp) */
 static FILE *wavFile;     /* --wav: headless sound output */
 static u32 wavBytes, wavRate;
 long frameCount;
@@ -528,6 +529,7 @@ int main(int argc, char **argv) {
 		else if (!strcmp(argv[i], "--route") && i + 1 < argc) {
 			route = fopen(argv[++i], "r");
 			if (!route) { fprintf(stderr, "cannot open route %s\n", argv[i]); return 1; }
+			ui_no_startup_dialogs = 1;
 		}
 		else {
 			fprintf(stderr, "usage: mmz [--rom FILE] [--save FILE] [--config FILE] [--scale N] [--view MODE] [--cpu-speed PERCENT] [--skip-intro]\n"
