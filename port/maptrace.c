@@ -119,7 +119,11 @@ void NOI __cyg_profile_func_exit(void *fn, void *site) { (void)fn; (void)site; }
 
 void NOI map_icall(void *ret, void (*fn)(void)) { add((uintptr_t)ret, (uintptr_t)fn | K_ICALL, lastSite); }
 
+/* MMZ_MAP_CALLS_ONLY=1: calls only (memory touches are most of the cost) */
+static int touchOff = -1;
 void NOI map_touch(void *site, uint32_t addr, int write) {
+	if (touchOff < 0) touchOff = getenv("MMZ_MAP_CALLS_ONLY") != NULL;
+	if (touchOff) return;
 	uint32_t region = addr >> 24;
 	if (region != 2 && region != 3 && region != 4) return;
 	add((uintptr_t)site, (uintptr_t)(addr & ~3u) | (write ? K_WRITE : K_READ), 0);
