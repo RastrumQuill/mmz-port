@@ -2,6 +2,7 @@
 """Turn map_raw.tsv files (build_map/mmz, port/maptrace.c) into DTK's dynamic map file.
 
 usage: tools/map_edges.py EXE OUT RAW...
+       tools/map_edges.py --veneers   (for MMZ_MAP_VENEERS when recording)
 
 EXE is the instrumented executable (its symbol table maps host code addresses to
 functions); RAW are the files the runs wrote. OUT gets, for `dtk map.build --dynamic`:
@@ -42,6 +43,24 @@ def exports():
     return out
 
 
+def veneers():
+    """GBA addresses of call veneers (functions that only `bx rN`): an indirect call
+    made from one belongs to the veneer's caller."""
+    out, cur, first = set(), None, True
+    for f in glob.glob(os.path.join(ROOT, "asm", "*.s")):
+        for line in open(f, errors="replace"):
+            m = re.match(r"(\w+): @ 0x([0-9A-Fa-f]{8})", line)
+            if m:
+                cur, first = int(m.group(2), 16), True
+                continue
+            t = line.strip()
+            if cur is not None and first and t and not t.startswith(("@", ".")):
+                if re.fullmatch(r"bx r\d+", t):
+                    out.add(cur)
+                first = False
+    return out
+
+
 def symbols(exe, names, exp):
     """sorted (start, end, gba addr) of the game's functions in the executable."""
     rows = []
@@ -64,10 +83,14 @@ def symbols(exe, names, exp):
 
 
 def main():
+    if sys.argv[1:] == ["--veneers"]:
+        print(",".join("%08X" % v for v in sorted(veneers())))
+        return
     if len(sys.argv) < 4:
         sys.exit(__doc__)
     exe, out = sys.argv[1], sys.argv[2]
     rows = symbols(exe, gba_names(), exports())
+    vens = veneers()
     starts = [r[0] for r in rows]
     by_start = {r[0]: r[2] for r in rows}
 
@@ -81,6 +104,8 @@ def main():
             f = line.rstrip("\n").split("\t")
             if f[0] in ("call", "icall"):
                 a, b = fn_at(int(f[1], 16)), by_start.get(int(f[2], 16)) or fn_at(int(f[2], 16))
+                if f[0] == "icall" and a in vens and len(f) > 3:
+                    a = fn_at(int(f[3], 16))
                 if a is None or b is None:
                     unknown += 1
                     continue
@@ -108,7 +133,7 @@ def main():
                 nt += 1
                 if w is not None:
                     lo = prev = w
-    print("edges %d, touch ranges %d, unresolved %d" % (len(edges), nt, unknown))
+    print("edges %d, touch ranges %d, unresolved %d, veneers %d" % (len(edges), nt, unknown, len(vens)))
 
 
 if __name__ == "__main__":

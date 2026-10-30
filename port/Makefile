@@ -25,7 +25,7 @@ endif
 # MAPTRACE=1: record calls and memory use for the program map (port/maptrace.c, build_map/)
 ifeq ($(MAPTRACE),1)
 OUT := $(ROOT)/build_map
-TRACE := -finstrument-functions -finstrument-functions-exclude-file-list=lift.h,imm.h
+TRACE := -fno-inline-small-functions -fno-inline-functions -fno-inline-functions-called-once -finstrument-functions -finstrument-functions-exclude-file-list=lift.h,imm.h
 DEFS_TRACE := -DMAPTRACE
 endif
 CFLAGS := $(DEFS_TRACE) -std=gnu11 $(OPT) -g -fwrapv -w -fno-pie -I $(ROOT)/tools/lift -I $(ROOT)/lifted -I $(ROOT)/include $(SDL_CFLAGS)
