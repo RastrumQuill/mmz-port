@@ -26,6 +26,7 @@
 #include "pc.h"
 #include "settings.h"
 #include "ui.h"
+#include "report.h"
 #include "input.h"
 
 extern u32 romSize, biosBus;
@@ -266,6 +267,7 @@ static void route_step(void) {
 		else if (!strcmp(routeCmd, "end")) { save_flush(); exit(0); }
 		else if (!strcmp(routeCmd, "poke")) *(u8 *)(uintptr_t)strtoul(routeArg1, 0, 0) = strtoul(routeArg2, 0, 0);
 		else if (!strcmp(routeCmd, "ff")) debug.fastForward = atoi(routeArg1);   /* ff 1 / ff 0: Tab held or not */
+		else if (!strcmp(routeCmd, "report")) { report_snapshot(); const char *z = report_write(REPORT_PROBLEM, routeArg1); fprintf(stderr, "report: %s\n", z ? z : "(failed)"); }   /* testing: as if F12 */
 		else if (!strcmp(routeCmd, "dump")) {   /* dump ADDR LEN FILE */
 			u32 a = strtoul(routeArg1, 0, 0), len = strtoul(routeArg2, 0, 0);
 			FILE *o = fopen(routeArg3, "wb");
@@ -408,7 +410,7 @@ static void sdl_frame(void) {
 		nextFrameTime = SDL_GetPerformanceCounter();
 	}
 	if (debug.paused && debug.step) debug.step--;
-	keys = read_buttons();
+	if (!route) keys = read_buttons();   /* a route (--route) drives the buttons: held until its next line */
 	if (skipIntro) skip_intro_step();
 	/* fast-forward: show every 4th frame, do not wait */
 	static int skip;
@@ -463,19 +465,21 @@ static void frame_log(void) {
 		if (on) fprintf(logFile, "mmz log: view %s %dx%d, cpu %d%%, scale %d, fullscreen %d, threads %d\n",
 		                kViewNames[settings.viewMode], view_w, view_h, settings.cpuSpeed, settings.scale, settings.fullscreen, SDL_GetCPUCount());
 	}
-	if (!on) return;
 	Uint64 now = SDL_GetPerformanceCounter();
 	double ms = last ? (now - last) * 1000.0 / SDL_GetPerformanceFrequency() : 0;
 	last = now;
 	u8 mode = *(u8 *)0x020236E1;
 	u16 event = *(u16 *)0x02022B6E;
-	if (ms > 100) fprintf(logFile, "stall: frame %ld took %.0f ms (mode %02X event %04X ff %d cpu %d%%)\n", frameCount, ms, mode, event, debug.fastForward, hw_cpu_speed);
+	if (ms > 100) report_note("stall: frame %ld took %.0f ms (cpu %d%%, ff %d)", frameCount, ms, hw_cpu_speed, debug.fastForward);
+	if (on && ms > 100) fprintf(logFile, "stall: frame %ld took %.0f ms (mode %02X event %04X ff %d cpu %d%%)\n", frameCount, ms, mode, event, debug.fastForward, hw_cpu_speed);
 	/* the game finishing no frames for 2 seconds while the window runs */
 	quiet = sprite_commits == lastCommits ? quiet + 1 : 0;
 	lastCommits = sprite_commits;
-	if (quiet == 120) fprintf(logFile, "game stuck: no frames finished since frame %ld (mode %02X event %04X cpu %d%%)\n", frameCount - 120, mode, event, hw_cpu_speed);
-	if (frameCount % 600 == 0) fprintf(logFile, "frame %ld mode %02X event %04X view %dx%d cpu %d%% ff %d\n", frameCount, mode, event, view_w, view_h, hw_cpu_speed, debug.fastForward);
-	fflush(logFile);
+	if (quiet == 120) report_note("game stuck: no frames finished since frame %ld (mode %02X event %04X)", frameCount - 120, mode, event);
+	if (on && quiet == 120) fprintf(logFile, "game stuck: no frames finished since frame %ld (mode %02X event %04X cpu %d%%)\n", frameCount - 120, mode, event, hw_cpu_speed);
+	if (frameCount % 600 == 0) report_note("frame %ld mode %02X event %04X view %dx%d cpu %d%%", frameCount, mode, event, view_w, view_h, hw_cpu_speed);
+	if (on && frameCount % 600 == 0) fprintf(logFile, "frame %ld mode %02X event %04X view %dx%d cpu %d%% ff %d\n", frameCount, mode, event, view_w, view_h, hw_cpu_speed, debug.fastForward);
+	if (on) fflush(logFile);
 }
 
 void frontend_frame(void) {
@@ -488,6 +492,7 @@ void frontend_frame(void) {
 		if (route) route_step();   /* testing: scripted input in the window too */
 		frame_log();
 	}
+	report_input(frameCount, keys);   /* for problem reports: the buttons of every frame */
 	/* hand-written C reads the register directly */
 	*(u16 *)0x04000130 = frontend_keys();
 	if (frameCount % 60 == 0) save_flush();
@@ -500,6 +505,7 @@ u16 frontend_keys(void) {
 /* --------------------------------------------------------------- start */
 
 int main(int argc, char **argv) {
+	report_install_crash_handler();
 	const char *romArg = NULL, *configArg = NULL, *viewArg = NULL;
 	int scale = 0, cpuArg = 0;
 	savePath = NULL;
@@ -559,6 +565,7 @@ int main(int argc, char **argv) {
 	map_at(0x0E000000, 0x8000);    /* cartridge SRAM */
 	load_rom(romPath);
 	save_load();
+	report_boot_save(SRAM);
 	if (!headless) sdl_init(settings.scale > 0 ? settings.scale : 3);
 
 	/* the state the BIOS leaves, and the start-up code (crt0) */

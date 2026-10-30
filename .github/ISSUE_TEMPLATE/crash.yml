@@ -1,0 +1,26 @@
+name: Crash
+description: The game closed by itself (it offers to report it the next time it starts)
+labels: [crash]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        After a crash, the game saves a report zip in its `reports` folder and offers to open this page when it next starts.
+  - type: textarea
+    id: what
+    attributes:
+      label: What were you doing?
+    validations:
+      required: true
+  - type: textarea
+    id: report
+    attributes:
+      label: Report zip
+      description: Drag the crash zip from the game's `reports` folder here.
+    validations:
+      required: true
+  - type: input
+    id: details
+    attributes:
+      label: Version and settings
+      description: Filled in by the game.

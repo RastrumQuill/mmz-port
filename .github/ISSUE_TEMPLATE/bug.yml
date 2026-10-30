@@ -1,0 +1,26 @@
+name: Problem
+description: Something looks or plays wrong (press F12 in the game to make a report)
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Pressing **F12** in the game (or *Report a problem* in the F1 settings) pauses it, asks what went wrong,
+        saves a report zip in the game's `reports` folder and opens this page with the details filled in.
+  - type: textarea
+    id: what
+    attributes:
+      label: What went wrong?
+      description: What you saw, and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: report
+    attributes:
+      label: Report zip
+      description: Drag the zip from the game's `reports` folder here. It lets us replay your session exactly.
+  - type: input
+    id: details
+    attributes:
+      label: Version and settings
+      description: Filled in by the game.

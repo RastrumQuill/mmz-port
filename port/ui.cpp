@@ -2,6 +2,8 @@
 //   F1   settings: video, sound, controls (click a binding, press the new key)
 //   F2   debug tools: status, speed, layers, mission warp, RAM freezes and
 //        search, memory, palette, tiles, sprites, I/O registers
+//   F12  report a problem: freezes the game, asks what went wrong, saves a
+//        zip with what is needed to see it again, opens the GitHub issue page
 //   P    pause, N one frame while paused, Tab (held) fast-forward
 // Controllers: Guide or Back+Start opens the settings, the D-pad / stick and
 // A move around them, B closes them.
@@ -18,6 +20,7 @@ extern "C" {
 #include "settings.h"
 #include "ui.h"
 #include "input.h"
+#include "report.h"
 }
 
 struct DebugState debug = { 0, 0, 0, 0x1F };
@@ -31,6 +34,10 @@ static Uint32 sRebindTime;                      // when the controller binding s
 static bool sFocusSettings;
 static bool sTabHeld;
 static const char *sTestDir;   // --ui-test
+// the report window (F12, or after a crash on the last run)
+static bool sShowReport, sReportFocus;
+static int sReportKind;
+static char sReportMsg[2000], sReportZip[700], sReportStatus[800];
 
 // ---------------------------------------------------------------- the game
 
@@ -117,11 +124,29 @@ extern "C" void ui_init(SDL_Window *window, SDL_Renderer *renderer) {
 	ImGui_ImplSDL2_InitForSDLRenderer(window, renderer);
 	ImGui_ImplSDL2_SetGamepadMode(ImGui_ImplSDL2_GamepadMode_AutoAll);
 	ImGui_ImplSDLRenderer2_Init(renderer);
+	// a crash on the last run that was not reported yet
+	char msg[256];
+	const char *zip = report_pending_crash(msg, sizeof msg);
+	if (zip) {
+		sReportKind = REPORT_CRASH;
+		snprintf(sReportZip, sizeof sReportZip, "%s", zip);
+		snprintf(sReportMsg, sizeof sReportMsg, "%s\n", msg);
+		sShowReport = sReportFocus = true;
+	}
 }
 
-static bool menus_open() { return sShowSettings || sShowDebug; }
+static bool menus_open() { return sShowSettings || sShowDebug || sShowReport; }
 
-extern "C" int ui_pauses_game(void) { return sShowSettings && !sTestDir; }
+extern "C" int ui_pauses_game(void) { return (sShowSettings || sShowReport) && !sTestDir; }
+
+// open the report window; the picture and memory are taken now, before it is drawn
+static void open_report(int kind) {
+	if (sShowReport) return;
+	report_snapshot();
+	sReportKind = kind;
+	sReportMsg[0] = sReportZip[0] = sReportStatus[0] = 0;
+	sShowReport = sReportFocus = true;
+}
 
 extern "C" int ui_rebinding(void) { return sRebindKey >= 0 || sRebindPad >= 0; }
 
@@ -140,7 +165,7 @@ static void rebind_pad(int i) {
 
 extern "C" int ui_wants_input(void) {
 	if (sRebindKey >= 0 || sRebindPad >= 0) return 1;
-	return sShowSettings || (menus_open() && ImGui::GetIO().WantCaptureKeyboard);
+	return sShowSettings || sShowReport || (menus_open() && ImGui::GetIO().WantCaptureKeyboard);
 }
 
 extern "C" int ui_event(const SDL_Event *e) {
@@ -176,6 +201,7 @@ extern "C" int ui_event(const SDL_Event *e) {
 		switch (e->key.keysym.scancode) {
 		case SDL_SCANCODE_F1: ui_toggle_settings(); return 1;
 		case SDL_SCANCODE_F2: sShowDebug = !sShowDebug; return 1;
+		case SDL_SCANCODE_F12: open_report(REPORT_PROBLEM); return 1;
 		case SDL_SCANCODE_ESCAPE:
 			if (sShowSettings) { sShowSettings = false; settings_save(); return 1; }
 			break;
@@ -257,6 +283,7 @@ static void settings_window() {
 		ImGui::End();
 		return;
 	}
+	if (ImGui::Button("Report a problem (F12)")) { sShowSettings = false; settings_save(); open_report(REPORT_PROBLEM); }
 	if (ImGui::CollapsingHeader("Video", ImGuiTreeNodeFlags_DefaultOpen)) {
 		if (ImGui::SliderInt("Window scale", &settings.scale, 1, 8))
 			SDL_SetWindowSize(sWindow, SCREEN_W * settings.scale, SCREEN_H * settings.scale);
@@ -699,6 +726,48 @@ static void test_step() {
 	SDL_FreeSurface(surf);
 }
 
+static void report_window() {
+	ImVec2 vp = ImGui::GetMainViewport()->Size;
+	if (sReportFocus) { ImGui::SetNextWindowFocus(); sReportFocus = false; }
+	ImGui::SetNextWindowPos(ImVec2(vp.x / 2, vp.y / 2), ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+	bool open = true;
+	const char *title = sReportKind == REPORT_CRASH ? "The game crashed last time###report" : "Report a problem###report";
+	if (!ImGui::Begin(title, &open, ImGuiWindowFlags_AlwaysAutoResize)) { ImGui::End(); return; }
+	if (sReportKind == REPORT_CRASH)
+		ImGui::TextWrapped("A crash report was saved. Sending it helps fix the crash. What were you doing?");
+	else
+		ImGui::TextWrapped("The game is paused. What went wrong? What did you expect?");
+	ImGui::InputTextMultiline("##msg", sReportMsg, sizeof sReportMsg, ImVec2(ImGui::GetFontSize() * 30, ImGui::GetFontSize() * 8));
+	ImGui::TextDisabled("Saved with it: your inputs since the game started, the save as it was then,");
+	ImGui::TextDisabled("a screenshot, the game's memory and your settings. Nothing is sent by itself.");
+	if (ImGui::Button("Save and open GitHub")) {
+		const char *z = sReportKind == REPORT_CRASH && sReportZip[0] ? sReportZip : report_write(sReportKind, sReportMsg);
+		if (z) {
+			snprintf(sReportZip, sizeof sReportZip, "%s", z);
+			report_open_issue(sReportKind, sReportMsg, z);
+			snprintf(sReportStatus, sizeof sReportStatus, "Saved %s. Drag it into the GitHub page to attach it.", z);
+			if (sReportKind == REPORT_CRASH) report_clear_pending_crash();
+		} else snprintf(sReportStatus, sizeof sReportStatus, "Could not write to %s.", report_folder());
+	}
+	ImGui::SameLine();
+	if (ImGui::Button("Save only")) {
+		const char *z = sReportKind == REPORT_CRASH && sReportZip[0] ? sReportZip : report_write(sReportKind, sReportMsg);
+		if (z) {
+			snprintf(sReportZip, sizeof sReportZip, "%s", z);
+			snprintf(sReportStatus, sizeof sReportStatus, "Saved %s.", z);
+			if (sReportKind == REPORT_CRASH) report_clear_pending_crash();
+		}
+	}
+	ImGui::SameLine();
+	if (ImGui::Button(sReportStatus[0] ? "Close" : "Cancel")) open = false;
+	if (sReportStatus[0]) ImGui::TextWrapped("%s", sReportStatus);
+	ImGui::End();
+	if (!open) {
+		if (sReportKind == REPORT_CRASH && !sReportStatus[0]) report_clear_pending_crash();   // declined
+		sShowReport = false;
+	}
+}
+
 extern "C" void ui_present(SDL_Texture *game) {
 	int ww, wh;
 	SDL_GetRendererOutputSize(sRenderer, &ww, &wh);
@@ -726,6 +795,7 @@ extern "C" void ui_present(SDL_Texture *game) {
 		ImGui::GetIO().FontGlobalScale = wh >= 1400 ? 2.0f : wh >= 1000 ? 1.5f : 1.0f;
 		ImGui::NewFrame();
 		if (sShowSettings) settings_window();
+		if (sShowReport) report_window();
 		if (sShowDebug) {
 			debug_window();
 			if (sShowFreezes) freezes_window();
@@ -739,7 +809,7 @@ extern "C" void ui_present(SDL_Texture *game) {
 		ImGui::Render();
 		ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData(), sRenderer);
 		test_step();
-		if (!sShowSettings && !sShowDebug) settings_save();
+		if (!sShowSettings && !sShowDebug && !sShowReport) settings_save();
 	}
 	SDL_RenderPresent(sRenderer);
 }

@@ -23,6 +23,9 @@ SDL_LIBS := $(shell sdl2-config --libs)
 LDFLAGS := -no-pie
 endif
 CFLAGS := -std=gnu11 $(OPT) -g -fwrapv -w -fno-pie -I $(ROOT)/tools/lift -I $(ROOT)/lifted -I $(ROOT)/include $(SDL_CFLAGS)
+# the version reports carry (report.c): the release tag, or the commit
+VERSION ?= $(shell git -C $(ROOT) describe --tags --always --dirty 2>/dev/null || echo dev)
+CFLAGS += -DMMZ_VERSION='"$(VERSION)"'
 CXXFLAGS := $(OPT) -g -w -fno-pie -I $(ROOT)/tools/lift -I third_party/imgui $(SDL_CFLAGS)
 LIBS := $(SDL_LIBS)
 
