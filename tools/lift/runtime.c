@@ -121,11 +121,26 @@ static u32 bios_read(u32 a, int size) {
 	u32 v = ror32(biosBus, (a & 3) * 8);
 	return size == 1 ? v & 0xFF : size == 2 ? v & 0xFFFF : v;
 }
-u32 lift_read8(u32 a) { const int size_ = 1; if ((a >> 24) == 4) rt_io_read(a & 0x3FE); u8 *p = ptr(a, 0); tick(); if (!p) { if (a < 0x4000) return bios_read(a, 1); if (rom_oob(a)) return rom_oob_read(a, 1); unmapped(a); return open_bus(a) & 0xFF; } return *p; }
-u32 lift_read16(u32 a) { const int size_ = 2; if ((a >> 25) == 7) return lift_read8(a) * 0x101; if ((a >> 24) == 4) rt_io_read(a & 0x3FE); u8 *p = ptr(a, 0); tick(); if (!p) { if (a < 0x4000) return bios_read(a, 2); if (rom_oob(a)) return rom_oob_read(a, 2); unmapped(a); return open_bus(a) & 0xFFFF; } return p ? p[0] | p[1] << 8 : 0; }
-u32 lift_read32(u32 a) { const int size_ = 4; if ((a >> 25) == 7) return lift_read8(a) * 0x01010101; if ((a >> 24) == 4) { rt_io_read(a & 0x3FC); rt_io_read((a & 0x3FC) + 2); } u8 *p = ptr(a, 0); tick(); if (!p) { if (a < 0x4000) return bios_read(a, 4); if (rom_oob(a)) return rom_oob_read(a, 4); unmapped(a); return open_bus(a); } return p ? p[0] | p[1] << 8 | p[2] << 16 | (u32)p[3] << 24 : 0; }
+#ifdef MAPTRACE
+void map_touch(void *site, u32 addr, int write);
+void map_icall(void *ret, void (*fn)(void));
+/* copies the runtime makes for the game (immediate DMA, BIOS calls) count for
+   the game code that asked for them */
+static void *mapSite;
+#define MAP_TOUCH(a, w) map_touch(mapSite ? mapSite : __builtin_return_address(0), (a), (w))
+#define MAP_SITE_BEGIN void *mapSaved_ = mapSite; if (!mapSite) mapSite = __builtin_return_address(0);
+#define MAP_SITE_END mapSite = mapSaved_;
+#else
+#define MAP_TOUCH(a, w) ((void)0)
+#define MAP_SITE_BEGIN
+#define MAP_SITE_END
+#endif
+u32 lift_read8(u32 a) { const int size_ = 1; MAP_TOUCH(a, 0); if ((a >> 24) == 4) rt_io_read(a & 0x3FE); u8 *p = ptr(a, 0); tick(); if (!p) { if (a < 0x4000) return bios_read(a, 1); if (rom_oob(a)) return rom_oob_read(a, 1); unmapped(a); return open_bus(a) & 0xFF; } return *p; }
+u32 lift_read16(u32 a) { const int size_ = 2; MAP_TOUCH(a, 0); if ((a >> 25) == 7) return lift_read8(a) * 0x101; if ((a >> 24) == 4) rt_io_read(a & 0x3FE); u8 *p = ptr(a, 0); tick(); if (!p) { if (a < 0x4000) return bios_read(a, 2); if (rom_oob(a)) return rom_oob_read(a, 2); unmapped(a); return open_bus(a) & 0xFFFF; } return p ? p[0] | p[1] << 8 : 0; }
+u32 lift_read32(u32 a) { const int size_ = 4; MAP_TOUCH(a, 0); if ((a >> 25) == 7) return lift_read8(a) * 0x01010101; if ((a >> 24) == 4) { rt_io_read(a & 0x3FC); rt_io_read((a & 0x3FC) + 2); } u8 *p = ptr(a, 0); tick(); if (!p) { if (a < 0x4000) return bios_read(a, 4); if (rom_oob(a)) return rom_oob_read(a, 4); unmapped(a); return open_bus(a); } return p ? p[0] | p[1] << 8 | p[2] << 16 | (u32)p[3] << 24 : 0; }
 
 static void dma_check(u32 reg);
+#define DMA_CHECK(r) do { MAP_SITE_BEGIN dma_check(r); MAP_SITE_END } while (0)
 
 /* Bits of each I/O halfword that can be written (0: not plain storage). */
 static u16 io_mask(u32 o) {
@@ -156,6 +171,7 @@ static void io_store16(u32 o, u32 v) {
 }
 
 void lift_write8(u32 a, u32 v) {
+	MAP_TOUCH(a, 1);
 	lift_cycles += access_cycles(a, 1);
 	rt_tick();
 	u32 r = a >> 24;
@@ -170,7 +186,7 @@ void lift_write8(u32 a, u32 v) {
 		if ((a & 0xFFFFFF) < 0x400) {
 			u16 old = io[o] | io[o + 1] << 8;
 			io_store16(o, (a & 1) ? (old & 0xFF) | (v & 0xFF) << 8 : (old & 0xFF00) | (v & 0xFF));
-			dma_check(o + 0x04000000);
+			DMA_CHECK(o + 0x04000000);
 		}
 		return;
 	}
@@ -178,28 +194,30 @@ void lift_write8(u32 a, u32 v) {
 	if (p) *p = v;
 }
 void lift_write16(u32 a, u32 v) {
+	MAP_TOUCH(a, 1);
 	lift_cycles += access_cycles(a, 2);
 	rt_tick();
 	if ((a >> 25) == 7) { sram[a & 0x7FFF] = ror32(v, (a & 1) * 8); return; }
 	if ((a >> 24) == 4) {
-		if ((a & 0xFFFFFF) < 0x400) { io_store16(a & 0x3FE, v); dma_check(a); }
+		if ((a & 0xFFFFFF) < 0x400) { io_store16(a & 0x3FE, v); DMA_CHECK(a); }
 		return;
 	}
 	u8 *p = ptr(a, 1);
 	if (p) { p[0] = v; p[1] = v >> 8; }
-	if ((a >> 24) == 4) dma_check(a);
+	if ((a >> 24) == 4) DMA_CHECK(a);
 }
 void lift_write32(u32 a, u32 v) {
+	MAP_TOUCH(a, 1);
 	lift_cycles += access_cycles(a, 4);
 	rt_tick();
 	if ((a >> 25) == 7) { sram[a & 0x7FFF] = ror32(v, (a & 3) * 8); return; }
 	if ((a >> 24) == 4) {
-		if ((a & 0xFFFFFF) < 0x400) { io_store16(a & 0x3FE, v); io_store16((a & 0x3FE) + 2, v >> 16); dma_check(a); dma_check(a + 2); }
+		if ((a & 0xFFFFFF) < 0x400) { io_store16(a & 0x3FE, v); io_store16((a & 0x3FE) + 2, v >> 16); DMA_CHECK(a); DMA_CHECK(a + 2); }
 		return;
 	}
 	u8 *p = ptr(a, 1);
 	if (p) { p[0] = v; p[1] = v >> 8; p[2] = v >> 16; p[3] = v >> 24; }
-	if ((a >> 24) == 4) { dma_check(a); dma_check(a + 2); }
+	if ((a >> 24) == 4) { DMA_CHECK(a); DMA_CHECK(a + 2); }
 }
 
 /* Immediate DMA transfers happen when the control register is written. */
@@ -296,6 +314,7 @@ static void bios_lz77(u32 src, u32 dst, int toVram) {
 }
 
 void lift_swi(u32 n) {
+	MAP_SITE_BEGIN
 	u32 *r = cpu.r;
 	if (getenv("TRACESWI")) fprintf(stderr, "swi %02X r0 %08X r1 %08X r2 %08X lr %08X\n", n, r[0], r[1], r[2], r[14]);
 	biosBus = 0xE3A02004;  /* the opcode the BIOS prefetches when an SWI returns */
@@ -325,6 +344,7 @@ void lift_swi(u32 n) {
 	case 0x12: bios_lz77(r[0], r[1], 1); break;
 	default: fail("swi", n);
 	}
+	MAP_SITE_END
 }
 
 static int find(u32 a) {
@@ -363,6 +383,9 @@ void lift_call(u32 a) {
 	int i = find(a);
 	if (i < 0 && (a >> 24) >= 2 && (a >> 24) <= 3) i = find_copied(a);
 	if (i < 0) fail("call to", a);
+#ifdef MAPTRACE
+	map_icall(__builtin_return_address(0), gLiftTable[i].fn);
+#endif
 	gLiftTable[i].fn();
 }
 

@@ -22,7 +22,13 @@ SDL_CFLAGS := $(shell sdl2-config --cflags)
 SDL_LIBS := $(shell sdl2-config --libs)
 LDFLAGS := -no-pie
 endif
-CFLAGS := -std=gnu11 $(OPT) -g -fwrapv -w -fno-pie -I $(ROOT)/tools/lift -I $(ROOT)/lifted -I $(ROOT)/include $(SDL_CFLAGS)
+# MAPTRACE=1: record calls and memory use for the program map (port/maptrace.c, build_map/)
+ifeq ($(MAPTRACE),1)
+OUT := $(ROOT)/build_map
+TRACE := -finstrument-functions -finstrument-functions-exclude-file-list=lift.h,imm.h
+DEFS_TRACE := -DMAPTRACE
+endif
+CFLAGS := $(DEFS_TRACE) -std=gnu11 $(OPT) -g -fwrapv -w -fno-pie -I $(ROOT)/tools/lift -I $(ROOT)/lifted -I $(ROOT)/include $(SDL_CFLAGS)
 # the version reports carry (report.c): the release tag, or the commit
 VERSION ?= $(shell git -C $(ROOT) describe --tags --always --dirty 2>/dev/null || echo dev)
 CFLAGS += -DMMZ_VERSION='"$(VERSION)"'
@@ -47,9 +53,9 @@ ifeq ($(WINDOWS),1)
 endif
 
 $(OUT)/lifted/%.o: $(ROOT)/lifted/%.c $(ROOT)/tools/lift/lift.h imm.h | $(OUT)/lifted
-	$(CC) $(CFLAGS) -include imm.h -c -o $@ $<
+	$(CC) $(CFLAGS) $(TRACE) -include imm.h -c -o $@ $<
 $(OUT)/src/%.o: $(ROOT)/src/%.c | $(OUT)/src
-	$(CC) $(CFLAGS) -DPLATFORM_PC -c -o $@ $<
+	$(CC) $(CFLAGS) $(TRACE) -DPLATFORM_PC -c -o $@ $<
 $(OUT)/pc/%.o: %.c pc.h settings.h input.h ui.h | $(OUT)/pc
 	$(CC) $(CFLAGS) -Wall -Wno-unused-function -c -o $@ $<
 $(OUT)/pc/ui.o: ui.cpp ui.h pc.h settings.h input.h | $(OUT)/pc
