@@ -503,6 +503,13 @@ void frontend_frame(void) {
 	frameCount++;
 	ui_game_frame(frameCount);
 	if (headless && wavFile) wav_write();
+	if (headless && getenv("MMZ_FILLSHOT")) {   /* testing: the view after entering a filled area */
+		extern int fill_shot_in; extern u32 fill_shot_key;
+		if (fill_shot_in > 0 && --fill_shot_in == 0) {
+			char p[400]; snprintf(p, sizeof p, "%s/%08x_%ld.ppm", getenv("MMZ_FILLSHOT"), fill_shot_key, frameCount);
+			write_ppm(p);
+		}
+	}
 	if (headless) route_step();
 	else {
 		sdl_frame();

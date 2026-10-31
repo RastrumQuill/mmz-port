@@ -284,7 +284,7 @@ static void content_bounds(s32 *l, s32 *t, s32 *r, s32 *b) {
  * Areas that are not rectangles have empty chunks inside their bounding box:
  * the GBA camera never showed them, so the level data has nothing there, and
  * a wide view would show black. Each empty chunk of a stage layer is filled
- * once, when the area (or its graphics) changes, by a wave function collapse
+ * once per area, ahead of time (the fill patch below), by a wave function collapse
  * over metatiles (16x16):
  * - which metatile may sit right of / below which is learned from the layer's
  *   real chunks in this area (with how often each metatile is used);
@@ -499,10 +499,118 @@ out:
 	#undef PUSH
 }
 
+/* ------------------------------------------------------------ fill patch
+ *
+ * The fill is the same every time for a given area, so it is worked out once
+ * and kept in fills.bin next to mmz.ini: `make -C port fills` builds it by
+ * playing the routes, and an area it misses is worked out on first entry and
+ * added to it. Entering an area then only looks its fill up. One record per
+ * area, graphics sets, stage position and BG (a record with nothing to fill
+ * is kept too, so it is not worked out again).
+ */
+struct FillRec { u32 key; s32 sx, sy; s32 bg, cx0, cy0, cw, ch; u16 *mt; s16 *donor; };
+static struct FillRec *patch;
+static int npatch, patchLoaded;
+static char patchPath[600];
+
+static const char *patch_path(void) {
+	if (!patchPath[0]) {
+		const char *e = getenv("MMZ_FILLS");
+		if (e) snprintf(patchPath, sizeof patchPath, "%s", e);
+		else {
+			snprintf(patchPath, sizeof patchPath, "%s", settings_path());
+			char *sl = strrchr(patchPath, '/'), *bs = strrchr(patchPath, '\\');
+			if (bs > sl) sl = bs;
+			snprintf(sl ? sl + 1 : patchPath, sizeof patchPath - (sl ? sl + 1 - patchPath : 0), "fills.bin");
+		}
+	}
+	return patchPath;
+}
+
+static void patch_add(const struct FillRec *r) {
+	struct FillRec *n = realloc(patch, (npatch + 1) * sizeof *patch);
+	if (!n) return;
+	patch = n;
+	patch[npatch++] = *r;
+}
+
+static void patch_load(void) {
+	patchLoaded = 1;
+	FILE *f = fopen(patch_path(), "rb");
+	if (!f) return;
+	char magic[8];
+	if (fread(magic, 1, 8, f) != 8 || memcmp(magic, "MMZFILL1", 8)) { fclose(f); return; }
+	struct FillRec r;
+	s32 h[7];
+	while (fread(h, 4, 7, f) == 7) {
+		r.key = h[0]; r.sx = h[1]; r.sy = h[2]; r.bg = h[3]; r.cx0 = h[4]; r.cy0 = h[5]; r.cw = h[6] & 0xFFFF; r.ch = (u32)h[6] >> 16;
+		size_t cells = (size_t)r.cw * r.ch * 150, ck = (size_t)r.cw * r.ch;
+		r.mt = cells ? malloc(cells * 2) : NULL;
+		r.donor = ck ? malloc(ck * 2) : NULL;
+		if ((cells && (!r.mt || fread(r.mt, 2, cells, f) != cells)) || (ck && (!r.donor || fread(r.donor, 2, ck, f) != ck))) {
+			free(r.mt); free(r.donor); break;
+		}
+		patch_add(&r);
+	}
+	fclose(f);
+}
+
+static void patch_append(const struct FillRec *r) {
+	const char *p = patch_path();
+	FILE *f = fopen(p, "rb");
+	int fresh = !f;
+	if (f) fclose(f);
+	f = fopen(p, "ab");
+	if (!f) return;
+	if (fresh) fwrite("MMZFILL1", 1, 8, f);
+	s32 h[7] = { (s32)r->key, r->sx, r->sy, r->bg, r->cx0, r->cy0, r->cw | r->ch << 16 };
+	fwrite(h, 4, 7, f);
+	size_t cells = (size_t)r->cw * r->ch * 150, ck = (size_t)r->cw * r->ch;
+	if (cells) fwrite(r->mt, 2, cells, f);
+	if (ck) fwrite(r->donor, 2, ck, f);
+	fclose(f);
+}
+
+/* fills[k] for the current area: from the patch, or worked out and added */
+/* testing (MMZ_FILLSHOT): frames until a screenshot of a newly entered filled area */
+int fill_shot_in = -1;
+u32 fill_shot_key;
+static void fill_get(int k, u32 key) {
+	struct Fill *F = &fills[k];
+	if (!patchLoaded) patch_load();
+	for (int i = 0; i < npatch; i++) {
+		const struct FillRec *r = &patch[i];
+		if (r->key != key || r->sx != stageX || r->sy != stageY || r->bg != k) continue;
+		free(F->mt); free(F->donor);
+		memset(F, 0, sizeof *F);
+		if (!r->cw) return;
+		size_t cells = (size_t)r->cw * r->ch * 150, ck = (size_t)r->cw * r->ch;
+		F->mt = malloc(cells * 2); F->donor = malloc(ck * 2);
+		if (!F->mt || !F->donor) { free(F->mt); free(F->donor); F->mt = NULL; F->donor = NULL; return; }
+		memcpy(F->mt, r->mt, cells * 2); memcpy(F->donor, r->donor, ck * 2);
+		F->cx0 = r->cx0; F->cy0 = r->cy0; F->cw = r->cw; F->ch = r->ch; F->on = 1;
+		return;
+	}
+	fill_build(k, key * 2654435761u + 1);
+	struct FillRec r = { key, stageX, stageY, k, 0, 0, 0, 0, NULL, NULL };
+	if (F->on) {
+		size_t cells = (size_t)F->cw * F->ch * 150, ck = (size_t)F->cw * F->ch;
+		r.mt = malloc(cells * 2); r.donor = malloc(ck * 2);
+		if (!r.mt || !r.donor) { free(r.mt); free(r.donor); return; }
+		memcpy(r.mt, F->mt, cells * 2); memcpy(r.donor, F->donor, ck * 2);
+		r.cx0 = F->cx0; r.cy0 = F->cy0; r.cw = F->cw; r.ch = F->ch;
+	}
+	patch_add(&r);
+	patch_append(&r);
+}
+
 /* a filled cell's tilemap entry at a layer pixel (0: not filled) */
 static int fill_entry(const struct Layer *L, s32 wx, s32 wy, u16 *out) {
 	if (L->bg < 0 || L->bg > 3) return 0;
 	const struct Fill *F = &fills[L->bg];   /* (layers[] is by BG; L may be a copy) */
+	static int hide = -1;   /* testing (MMZ_FILLHIDE): work the fill out but do not draw it */
+	if (hide < 0) hide = getenv("MMZ_FILLHIDE") != NULL;
+	if (hide) return 0;
 	if (!F->on || wx < 0 || wy < 0) return 0;
 	int cx = wx / 240 - F->cx0, cy = wy / 160 - F->cy0;
 	if (cx < 0 || cy < 0 || cx >= F->cw || cy >= F->ch) return 0;
@@ -1388,7 +1496,7 @@ int view_render(void) {
 		if (key != bKey || stageX != bStageX || stageY != bStageY || bFill != settings.fillGaps) {
 			content_bounds(&bL, &bT, &bR, &bB);
 			for (int k = 1; k < 4; k++) {
-				if (settings.fillGaps) fill_build(k, key * 2654435761u + 1);
+				if (settings.fillGaps) { fill_get(k, key); if (fills[k].on) { fill_shot_in = 90; fill_shot_key = key ^ (u32)stageX << 4 ^ (u32)stageY; } }
 				else { free(fills[k].mt); free(fills[k].donor); memset(&fills[k], 0, sizeof fills[k]); }
 			}
 			bKey = key; bStageX = stageX; bStageY = stageY; bFill = settings.fillGaps;

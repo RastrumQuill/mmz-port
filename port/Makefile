@@ -68,13 +68,25 @@ $(OUT)/runtime.o: $(ROOT)/tools/lift/runtime.c $(ROOT)/tools/lift/lift.h | $(OUT
 $(OUT) $(OUT)/lifted $(OUT)/src $(OUT)/pc $(OUT)/imgui:
 	mkdir -p $@
 
-.PHONY: clean dist
+.PHONY: clean dist fills
+# fills: the gap fill of every area the routes reach, worked out once into
+# fills.bin next to the program (port/view.c). The mission routes need a save
+# with every mission open (SAVE). Areas no route reaches are added on first entry.
+ROUTES ?= $(wildcard $(ROOT)/tools/emu/routes/*.txt $(ROOT)/build_lift/m*.txt)
+SAVE ?= $(ROOT)/build_lift/mmz1.sav
+fills: $(OUT)/$(EXE)
+	rm -f $(OUT)/fills.bin
+	for r in $(ROUTES); do grep -v ' shot ' $$r > $(OUT)/fills_route.txt; \
+	  MMZ_FILLS=$(OUT)/fills.bin $(OUT)/$(EXE) --headless --route $(OUT)/fills_route.txt --view x3 \
+	    --rom $(ROOT)/baserom.gba $(if $(wildcard $(SAVE)),--save $(SAVE)) >/dev/null || exit 1; done
+	rm -f $(OUT)/fills_route.txt
 # dist (with WINDOWS=1): a zip to hand out, without debug information
 dist: $(OUT)/$(EXE)
 	rm -rf $(OUT)/dist && mkdir -p $(OUT)/dist/mmz
 	$(if $(filter 1,$(WINDOWS)),x86_64-w64-mingw32-strip,strip) -o $(OUT)/dist/mmz/$(EXE) $(OUT)/$(EXE)
 	$(if $(filter 1,$(WINDOWS)),cp $(OUT)/SDL2.dll $(OUT)/dist/mmz/,)
 	cp README.md $(OUT)/dist/mmz/README.txt
+	$(if $(wildcard $(OUT)/fills.bin),cp $(OUT)/fills.bin $(OUT)/dist/mmz/,)
 	cp third_party/gamecontrollerdb/gamecontrollerdb.txt $(OUT)/dist/mmz/
 	cd $(OUT)/dist && zip -qr ../mmz-$(if $(filter 1,$(WINDOWS)),windows,linux).zip mmz
 

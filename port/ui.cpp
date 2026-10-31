@@ -328,7 +328,7 @@ static void settings_window() {
 		if (ImGui::Checkbox("Fit small rooms to the screen", &fr)) settings.fitRooms = fr;
 		if (ImGui::IsItemHovered()) ImGui::SetTooltip("A rectangular room smaller than the view: the view zooms in to fill the screen with it\n(smoothly, when you enter it) instead of showing black around it.");
 		if (ImGui::Checkbox("Fill empty parts of areas", &fg)) settings.fillGaps = fg;
-		if (ImGui::IsItemHovered()) ImGui::SetTooltip("Parts of an area the GBA camera never showed (empty in the level data) are filled\nwith the area's own tiles, arranged to match what is around them.");
+		if (ImGui::IsItemHovered()) ImGui::SetTooltip("Parts of an area the GBA camera never showed (empty in the level data) are filled\nwith the area's own tiles, arranged to match what is around them.\nWorked out once (fills.bin, made with the build); off shows the GBA's level data as it is.");
 		bool is = settings.integerScale, sm = settings.smooth;
 		if (ImGui::Checkbox("Whole-number scaling only", &is)) settings.integerScale = is;
 		if (ImGui::Checkbox("Smooth (filtered) pixels", &sm)) settings.smooth = sm;
