@@ -811,6 +811,11 @@ static void find_fx(void) {
 /* Finds the stage layers and keeps the ones video memory agrees with. */
 static int tile_empty(u16 e, u32 charBase);
 static int stageBg[4];   /* BGs a stage layer (moving with the camera) is on, matched or not */
+/* BGs whose stage layer has not matched video memory for a while and whose
+   tilemap is a pattern of a few tiles: the game draws something else there
+   (mission 3's rain), so its tilemap repeats over
+   the whole view like a background's */
+static int freeBg[4];
 
 static void find_layers(void) {
 	memset(layers, 0, sizeof layers);
@@ -853,6 +858,22 @@ static void find_layers(void) {
 		/* (the game changes some tiles in video memory: doors, blocks, bosses;
 		   on the GBA screen the view draws from video memory) */
 		if (match * 2 >= n) layers[bg] = L;
+	}
+	static int mism[4];
+	for (int bg = 1; bg < 4; bg++) {
+		mism[bg] = stageBg[bg] && !layers[bg].map && (R16(80, 0) & (0x100 << bg)) ? mism[bg] + 1 : 0;
+		freeBg[bg] = 0;
+		if (mism[bg] < 30) continue;
+		/* (a pattern: few distinct tiles in its 256x256 map; level graphics have many) */
+		u16 seen[24]; int ns = 0, many = 0;
+		for (int ty = 0; ty < 32 && !many; ty++)
+			for (int tx = 0; tx < 32 && !many; tx++) {
+				u16 e = vram_entry(bg, 80, tx * 8, ty * 8) & 0x3FF;
+				int i;
+				for (i = 0; i < ns && seen[i] != e; i++) ;
+				if (i == ns) { if (ns == 24) many = 1; else seen[ns++] = e; }
+			}
+		freeBg[bg] = !many;
 	}
 }
 
@@ -1055,7 +1076,7 @@ static void draw_vram_row(int bg, int line, int vy, int oy, int ox, u16 *out, in
 	int l = vy - oy;
 	/* a stage layer the level data could not draw this frame (it is being
 	   rebuilt): its tilemap holds only what is around the GBA screen */
-	int gbaOnly = stageBg[bg];
+	int gbaOnly = stageBg[bg] && !freeBg[bg];
 	if (gbaOnly && (l < 0 || l >= SCREEN_H)) { for (int x = 0; x < w; x++) out[x] = TRANSPARENT; return; }
 	u16 cnt = R16(line, 0x08 + bg * 2);
 	if (cnt & 0x80) { for (int x = 0; x < w; x++) out[x] = TRANSPARENT; return; }   /* (256-colour layers: not in stages) */
@@ -1064,6 +1085,7 @@ static void draw_vram_row(int bg, int line, int vy, int oy, int ox, u16 *out, in
 	/* rows beyond the GBA screen repeat its first or last line (games scroll
 	   such layers line by line for gradients) */
 	int py = (l < 0 ? 0 : l >= SCREEN_H ? SCREEN_H - 1 : l) + vofs;
+	if (freeBg[bg]) py = l + vofs;   /* (it repeats up and down too) */
 	if (fx[bg].kind) { fx_regs(&fx[bg], l, &hofs, &vofs); py = l + vofs; }
 	for (int vx = 0; vx < w; vx++) {
 		if (gbaOnly && (vx < ox || vx >= ox + SCREEN_W)) { out[vx] = TRANSPARENT; continue; }
