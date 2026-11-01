@@ -136,9 +136,10 @@ static int chunk_level(int gx, int gy, int area) {
 /* Which metatile sits right of / below which inside the stage layers' own
    chunks (not across chunk borders): the level's look. A neighbouring part
    of the area whose border continues it (most border pairs are pairs the
-   level uses inside its chunks) is drawn even across a camera step: it is
-   the same place to the eye (the camera only stops there). The rooms under
-   the desert floor do not continue it, so they stay hidden. */
+   level uses inside its chunks) and uses the same graphics sets is drawn
+   even across a camera step: it is the same place to the eye (the camera
+   only stops there). The rooms under the desert floor are set in its sand
+   but use indoor graphics, so they stay hidden. */
 #define ADJ_SIZE (1 << 17)
 static u32 adjSet[ADJ_SIZE];   /* (a << 16 | b) * 2 + dir + 1, 0 empty */
 static u32 adjKey = ~0u;
@@ -202,6 +203,7 @@ static int continues(int ax, int ay, int bx, int by) {
 	return total && known * 2 >= total;
 }
 
+static int chunk_sets(int cx, int cy, int area);
 static void find_reach(int camGx, int camGy) {
 	static int qx[128 * 128], qy[128 * 128];
 	int area = CUR_AREA & 0x7F, n = 0, h = 0;
@@ -221,7 +223,7 @@ static void find_reach(int camGx, int camGy) {
 			if (nx < 0 || ny < 0 || nx >= 128 || ny >= 128 || reach[ny][nx]) continue;
 			int l2 = chunk_level(nx, ny, area);
 			if (l2 == 15) continue;
-			if ((l2 > lv + 1 || l2 < lv - 1) && !continues(x, y, nx, ny)) continue;
+			if ((l2 > lv + 1 || l2 < lv - 1) && (chunk_sets(nx, ny, area) != chunk_sets(x, y, area) || !continues(x, y, nx, ny))) continue;
 			reach[ny][nx] = 1; qx[n] = nx; qy[n++] = ny;
 			reachKey = reachKey * 31 + (u32)(ny * 128 + nx);
 		}
