@@ -1,3 +1,5 @@
+#include <stdio.h>
+#include <stdlib.h>
 /* Sprites for the zoomed-out view (view.c).
  *
  * The game draws sprites by queueing draw tasks on a renderer and flushing
@@ -36,15 +38,23 @@ int view_sprite_count = -1;    /* -1: none (use OAM) */
 static inline u16 peek16(u32 a) { return *(const u16 *)(uintptr_t)a; }
 static inline u32 peek32(u32 a) { return *(const u32 *)(uintptr_t)a; }
 
-/* draw callbacks that only write OAM entries */
+/* Draw callbacks that are not sprites (src/ in the decomp says what they do):
+   they are not run again for the other cells. Every other callback is: the
+   game's RAM is put back after each extra pass, so whatever else it does
+   (graphics queued, counters, state) is undone and only its OAM entries are
+   kept. */
 static int pure_callback(u32 fn) {
 	switch (fn & ~1u) {
-	case 0x08002184:   /* metasprite, by flip: sub_080021A8 / 2280 / 2380 / 2480 */
-		return 1;
+	case 0x080070DC:   /* Stage_Draw: the stage layers */
+	case 0x0808C3AC:   /* kind 5 window effect: H-blank DMA to the window registers */
+		return 0;
 	}
-	return 0;
+	return 1;
 }
 
+#define EWRAM_SIZE 0x40000
+#define IWRAM_SIZE 0x8000
+static u8 *ramSave;
 
 static void add(int x, int y, u32 e) {
 	struct ExtSprite *s;
@@ -90,6 +100,12 @@ static void run_gba_pass(u32 r, u32 pivot) {
 	for (int i = 0; i < 4; i++)
 		for (u32 node = lift_read32(r + i * 4); node; node = lift_read32(node)) {
 			u32 from = peek32(OAM_PTR);
+			if (getenv("SPRITEDEBUG")) {   /* testing: each draw callback the game uses, once */
+				static u32 seen[256]; static int ns;
+				u32 fn = peek32(node + 4); int k;
+				for (k = 0; k < ns && seen[k] != fn; k++) ;
+				if (k == ns && ns < 256) { seen[ns++] = fn; extern long frameCount; fprintf(stderr, "sprite callback %08X (frame %ld)\n", fn, frameCount); }
+			}
 			call_task(node, pivot);
 			collect(from, 0, 0, !pure_callback(peek32(node + 4)));
 		}
@@ -99,10 +115,16 @@ static void run_gba_pass(u32 r, u32 pivot) {
    out of the game's OAM buffer */
 static void run_cell_pass(u32 r, u32 pivot, int cx, int cy) {
 	u32 from = lift_read32(OAM_PTR);
+	u32 sp = cpu.r[13];
 	for (int i = 0; i < 4; i++)
 		for (u32 node = lift_read32(r + i * 4); node; node = lift_read32(node))
 			if (pure_callback(lift_read32(node + 4))) call_task(node, pivot);
 	collect(from, cx, cy, 0);
+	/* the game's RAM as it was before the pass (the stack below sp too: the
+	   pivot lives there) */
+	memcpy((void *)(uintptr_t)0x02000000, ramSave, EWRAM_SIZE);
+	memcpy((void *)(uintptr_t)0x03000000, ramSave + EWRAM_SIZE, IWRAM_SIZE);
+	cpu.r[13] = sp;
 	lift_write32(OAM_PTR, from);
 }
 
@@ -126,6 +148,9 @@ void lift_sub_0800338C(void) {
 		run_gba_pass(r, pivot);
 		if (wide) {
 			s32 left = lift_read32(pivot + 8), top = lift_read32(pivot + 12);
+			if (!ramSave) ramSave = malloc(EWRAM_SIZE + IWRAM_SIZE);
+			memcpy(ramSave, (void *)(uintptr_t)0x02000000, EWRAM_SIZE);
+			memcpy(ramSave + EWRAM_SIZE, (void *)(uintptr_t)0x03000000, IWRAM_SIZE);
 			for (int cy = -view_cells_up; cy <= view_cells_down; cy++)
 				for (int cx = -view_cells_left; cx <= view_cells_right; cx++) {
 					if (!cx && !cy) continue;

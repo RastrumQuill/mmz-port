@@ -133,11 +133,81 @@ static int chunk_level(int gx, int gy, int area) {
 	return ((const u16 *)(map + 8))[((gy - top) << shift) + (gx - left)] >> 12;
 }
 
+/* Which metatile sits right of / below which inside the stage layers' own
+   chunks (not across chunk borders): the level's look. A neighbouring part
+   of the area whose border continues it (most border pairs are pairs the
+   level uses inside its chunks) is drawn even across a camera step: it is
+   the same place to the eye (the camera only stops there). The rooms under
+   the desert floor do not continue it, so they stay hidden. */
+#define ADJ_SIZE (1 << 17)
+static u32 adjSet[ADJ_SIZE];   /* (a << 16 | b) * 2 + dir + 1, 0 empty */
+static u32 adjKey = ~0u;
+
+static void adj_put(u32 v) {
+	u32 h = (v * 2654435761u) & (ADJ_SIZE - 1);
+	while (adjSet[h] && adjSet[h] != v) h = (h + 1) & (ADJ_SIZE - 1);
+	adjSet[h] = v;
+}
+static int adj_has(u32 v) {
+	u32 h = (v * 2654435761u) & (ADJ_SIZE - 1);
+	while (adjSet[h]) { if (adjSet[h] == v) return 1; h = (h + 1) & (ADJ_SIZE - 1); }
+	return 0;
+}
+static u32 adj_val(u16 a, u16 b, int down) { return (((u32)a << 16 | b) * 2 + down + 1) | 1u << 31; }
+
+static void adj_build(void) {
+	u32 key = (u32)CUR_AREA << 24 ^ (u32)stageX << 8 ^ (u32)stageY;
+	if (key == adjKey) return;
+	memset(adjSet, 0, sizeof adjSet);
+	int n = 0;
+	for (int k = 1; k < 4; k++) {
+		const struct Layer *L = &layers[k];
+		if (!L->map || L->backdrop) continue;
+		for (int cy = 0; cy < L->h; cy++)
+			for (int cx = 0; cx < L->w; cx++) {
+				int cid = L->map[4 + cy * L->stride + cx];
+				if (cid == L->null) continue;
+				const u16 *c = L->chunks + cid * 150;
+				for (int r = 0; r < 10; r++)
+					for (int col = 0; col < 15; col++) {
+						if (n > ADJ_SIZE / 2) { adjKey = key; return; }
+						if (col < 14) { adj_put(adj_val(c[r * 15 + col], c[r * 15 + col + 1], 0)); n++; }
+						if (r < 9) { adj_put(adj_val(c[r * 15 + col], c[(r + 1) * 15 + col], 1)); n++; }
+					}
+			}
+	}
+	if (n) adjKey = key;   /* (no layers yet: try again next frame) */
+}
+
+/* does global chunk (bx, by) continue (ax, ay) (its neighbour) to the eye? */
+static int continues(int ax, int ay, int bx, int by) {
+	int known = 0, total = 0;
+	for (int k = 1; k < 4; k++) {
+		const struct Layer *L = &layers[k];
+		if (!L->map || L->backdrop) continue;
+		int lax = ax - stageX / 240, lay = ay - stageY / 160, lbx = bx - stageX / 240, lby = by - stageY / 160;
+		if (lax < 0 || lay < 0 || lbx < 0 || lby < 0 || lax >= L->w || lbx >= L->w || lay >= L->h || lby >= L->h) continue;
+		int ca = L->map[4 + lay * L->stride + lax], cb = L->map[4 + lby * L->stride + lbx];
+		if (ca == L->null || cb == L->null) continue;
+		const u16 *A = L->chunks + ca * 150, *B = L->chunks + cb * 150;
+		int dx = bx - ax, dy = by - ay;
+		if (dy) {   /* (b below a, or above) */
+			const u16 *top = dy > 0 ? A : B, *bot = dy > 0 ? B : A;
+			for (int col = 0; col < 15; col++, total++) known += adj_has(adj_val(top[9 * 15 + col], bot[col], 1));
+		} else if (dx) {
+			const u16 *lft = dx > 0 ? A : B, *rgt = dx > 0 ? B : A;
+			for (int r = 0; r < 10; r++, total++) known += adj_has(adj_val(lft[r * 15 + 14], rgt[r * 15], 0));
+		}
+	}
+	return total && known * 2 >= total;
+}
+
 static void find_reach(int camGx, int camGy) {
 	static int qx[128 * 128], qy[128 * 128];
 	int area = CUR_AREA & 0x7F, n = 0, h = 0;
 	memset(reach, 0, sizeof reach);
 	reachKey = 0;
+	adj_build();
 	if (chunk_level(camGx, camGy, area) == 15) {   /* (not in a room: everything, as before) */
 		memset(reach, 1, sizeof reach);
 		return;
@@ -150,7 +220,8 @@ static void find_reach(int camGx, int camGy) {
 			int nx = x + dx[k], ny = y + dy[k];
 			if (nx < 0 || ny < 0 || nx >= 128 || ny >= 128 || reach[ny][nx]) continue;
 			int l2 = chunk_level(nx, ny, area);
-			if (l2 == 15 || l2 > lv + 1 || l2 < lv - 1) continue;
+			if (l2 == 15) continue;
+			if ((l2 > lv + 1 || l2 < lv - 1) && !continues(x, y, nx, ny)) continue;
 			reach[ny][nx] = 1; qx[n] = nx; qy[n++] = ny;
 			reachKey = reachKey * 31 + (u32)(ny * 128 + nx);
 		}
@@ -342,6 +413,7 @@ static void content_bounds(s32 *l, s32 *t, s32 *r, s32 *b) {
  * view keeps inside it).
  */
 #define FILL_NONE 0xFFFF
+#define FILL_UP 0x8000   /* (a filled cell's metatile: repeat its top 8x8 row, not its bottom one) */
 struct Fill {
 	int on;
 	int cx0, cy0, cw, ch;    /* chunks, layer coordinates */
@@ -415,24 +487,41 @@ static void fill_build(int k, u32 seed) {
 	if (!src) goto out;
 	memcpy(src, grid, (size_t)W * H * 2);
 	/* below the level: each empty cell repeats the lowest real cell above it
-	   in its column, so posts, pillars and walls go on down. Nothing is
-	   filled above or beside the level (sky, open space). */
+	   in its column, so posts, pillars and walls go on down. A gap with level
+	   below it too is split: its upper chunks go on down from above, its
+	   lower ones up from below (FILL_UP: the top 8x8 row of that metatile).
+	   Nothing is filled above or beside the level (sky, open space). */
 	int filled = 0;
-	for (int x = 0; x < W; x++) {
-		u16 last = FILL_NONE;
-		for (int y = 0; y < H; y++) {
-			if (src[y * W + x] != FILL_NONE) { last = src[y * W + x]; continue; }
-			if (last != FILL_NONE) { grid[y * W + x] = last; filled++; }
+	for (int x = 0; x < W; x++)
+		for (int y = 0; y < H; ) {
+			if (src[y * W + x] != FILL_NONE) { y++; continue; }
+			int y1 = y;
+			while (y1 < H && src[y1 * W + x] == FILL_NONE) y1++;
+			u16 above = y > 0 ? src[(y - 1) * W + x] : FILL_NONE, below = y1 < H ? src[y1 * W + x] : FILL_NONE;
+			int n = (y1 - y + 9) / 10;
+			for (int yy = y; yy < y1; yy++) {
+				int i = (yy - y) / 10;
+				if (above == FILL_NONE) continue;
+				if (below == FILL_NONE || i < (n + 1) / 2) grid[yy * W + x] = above;
+				else grid[yy * W + x] = below | FILL_UP;
+				filled++;
+			}
+			y = y1;
 		}
-	}
-	/* a filled chunk is drawn with the graphics of the real chunk above it */
-	for (int cy = 0; cy < ch; cy++)
-		for (int cx = 0; cx < cw; cx++) {
-			if (REAL(cx + x0, cy + y0)) continue;
-			int d = -1;
-			for (int y = cy - 1; y >= 0 && d < 0; y--)
-				if (REAL(cx + x0, y + y0)) d = (((cx + x0) * 240 + stageX) / 240) | (((y + y0) * 160 + stageY) / 160) << 8;
-			if (d >= 0) F->donor[cy * cw + cx] = d;
+	/* a filled chunk is drawn with the graphics of the real chunk it copies */
+	for (int cx = 0; cx < cw; cx++)
+		for (int cy = 0; cy < ch; ) {
+			if (REAL(cx + x0, cy + y0)) { cy++; continue; }
+			int c1 = cy;
+			while (c1 < ch && !REAL(cx + x0, c1 + y0)) c1++;
+			int n = c1 - cy;
+			for (int c = cy; c < c1; c++) {
+				int from = -1;
+				if (cy > 0 && (c1 >= ch || c - cy < (n + 1) / 2)) from = cy - 1;
+				else if (cy > 0 && c1 < ch) from = c1;
+				if (from >= 0) F->donor[c * cw + cx] = (((cx + x0) * 240 + stageX) / 240) | (((from + y0) * 160 + stageY) / 160) << 8;
+			}
+			cy = c1;
 		}
 	if (getenv("MMZ_FILLDEBUG"))
 		fprintf(stderr, "fill: area %d bg %d chunks %d,%d %dx%d stage %d,%d: %d cells\n", CUR_AREA & 0x7F, k, x0, y0, cw, ch, stageX, stageY, filled);
@@ -494,7 +583,7 @@ static void patch_load(void) {
 	FILE *f = fopen(patch_path(), "rb");
 	if (!f) return;
 	char magic[8];
-	if (fread(magic, 1, 8, f) != 8 || memcmp(magic, "MMZFILL2", 8)) { fclose(f); return; }
+	if (fread(magic, 1, 8, f) != 8 || memcmp(magic, "MMZFILL3", 8)) { fclose(f); return; }
 	struct FillRec r;
 	s32 h[7];
 	while (fread(h, 4, 7, f) == 7) {
@@ -517,7 +606,7 @@ static void patch_append(const struct FillRec *r) {
 	if (f) fclose(f);
 	f = fopen(p, "ab");
 	if (!f) return;
-	if (fresh) fwrite("MMZFILL2", 1, 8, f);
+	if (fresh) fwrite("MMZFILL3", 1, 8, f);
 	s32 h[7] = { (s32)r->key, r->sx, r->sy, r->bg, r->cx0, r->cy0, r->cw | r->ch << 16 };
 	fwrite(h, 4, 7, f);
 	size_t cells = (size_t)r->cw * r->ch * 150, ck = (size_t)r->cw * r->ch;
@@ -575,8 +664,10 @@ static int fill_entry(const struct Layer *L, s32 wx, s32 wy, u16 *out) {
 	levelSrc = chunk_source(d & 0xFF, d >> 8);
 	if (levelSrc < 0) return 0;
 	levelFy = wy & 7;
-	/* the lowest 8x8 row of the metatile above, repeated (finer than whole 16x16 metatiles: a post's cap is not copied) */
-	*out = L->tiledata[m * 4 + 2 + ((wx >> 3) & 1)];
+	/* one 8x8 row of the metatile repeated (finer than whole 16x16 metatiles:
+	   a post's cap is not copied): the bottom row going down, the top one
+	   coming up from below */
+	*out = m & FILL_UP ? L->tiledata[(m & ~FILL_UP) * 4 + ((wx >> 3) & 1)] : L->tiledata[m * 4 + 2 + ((wx >> 3) & 1)];
 	return 1;
 }
 
