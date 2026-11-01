@@ -429,6 +429,27 @@ static int in_area(int gx, int gy) {
 	return gx >= 0 && gy >= 0 && gx < 128 && gy < 128 && (CHUNK_AREA[gy * 128 + gx] & 15) == (CUR_AREA & 0x7F) && reach[gy][gx];
 }
 
+/* The 8x8 row a gap repeats, from the level at its edge (cell (x, y), going
+   away from the gap in direction dir: -1 up, 1 down): the row nearest the gap
+   that repeats in the level itself (equal to its neighbour on the gap's
+   side: grass, a wall's face, posts), so edge details (a cliff's rim) are not
+   smeared; the edge row when none does within 4 metatiles. As the fill keeps
+   it: a metatile, | FILL_UP for its top row. */
+static u16 fill_row(const struct Layer *L, const u16 *src, int W, int H, int x, int y, int dir) {
+	u16 rm[8]; int rh[8], n = 0;
+	for (int c = y; n < 8 && c >= 0 && c < H && src[c * W + x] != FILL_NONE; c += dir) {
+		u16 m = src[c * W + x];
+		rm[n] = m; rh[n++] = dir < 0;    /* (nearest the gap first: the bottom row going up, the top one going down) */
+		rm[n] = m; rh[n++] = dir > 0;
+	}
+	if (!n) return FILL_NONE;
+	#define ROW(i) (L->tiledata[rm[i] * 4 + rh[i] * 2] | (u32)L->tiledata[rm[i] * 4 + rh[i] * 2 + 1] << 16)
+	for (int i = 1; i < n; i++)
+		if (ROW(i) == ROW(i - 1)) return rm[i - 1] | (rh[i - 1] ? 0 : FILL_UP);
+	#undef ROW
+	return rm[0] | (rh[0] ? 0 : FILL_UP);
+}
+
 static void fill_build(int k, u32 seed) {
 	struct Fill *F = &fills[k];
 	const struct Layer *L = &layers[k];
@@ -497,13 +518,14 @@ static void fill_build(int k, u32 seed) {
 			if (src[y * W + x] != FILL_NONE) { y++; continue; }
 			int y1 = y;
 			while (y1 < H && src[y1 * W + x] == FILL_NONE) y1++;
-			u16 above = y > 0 ? src[(y - 1) * W + x] : FILL_NONE, below = y1 < H ? src[y1 * W + x] : FILL_NONE;
+			u16 above = y > 0 ? fill_row(L, src, W, H, x, y - 1, -1) : FILL_NONE;
+			u16 below = y1 < H ? fill_row(L, src, W, H, x, y1, 1) : FILL_NONE;
 			int n = (y1 - y + 9) / 10;
 			for (int yy = y; yy < y1; yy++) {
 				int i = (yy - y) / 10;
 				if (above == FILL_NONE) continue;
 				if (below == FILL_NONE || i < (n + 1) / 2) grid[yy * W + x] = above;
-				else grid[yy * W + x] = below | FILL_UP;
+				else grid[yy * W + x] = below;
 				filled++;
 			}
 			y = y1;
@@ -583,7 +605,7 @@ static void patch_load(void) {
 	FILE *f = fopen(patch_path(), "rb");
 	if (!f) return;
 	char magic[8];
-	if (fread(magic, 1, 8, f) != 8 || memcmp(magic, "MMZFILL3", 8)) { fclose(f); return; }
+	if (fread(magic, 1, 8, f) != 8 || memcmp(magic, "MMZFILL4", 8)) { fclose(f); return; }
 	struct FillRec r;
 	s32 h[7];
 	while (fread(h, 4, 7, f) == 7) {
@@ -606,7 +628,7 @@ static void patch_append(const struct FillRec *r) {
 	if (f) fclose(f);
 	f = fopen(p, "ab");
 	if (!f) return;
-	if (fresh) fwrite("MMZFILL3", 1, 8, f);
+	if (fresh) fwrite("MMZFILL4", 1, 8, f);
 	s32 h[7] = { (s32)r->key, r->sx, r->sy, r->bg, r->cx0, r->cy0, r->cw | r->ch << 16 };
 	fwrite(h, 4, 7, f);
 	size_t cells = (size_t)r->cw * r->ch * 150, ck = (size_t)r->cw * r->ch;
