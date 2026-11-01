@@ -15,16 +15,17 @@ Off: the old behaviour (the room centred, black around it).
 ## 2. Areas that are not rectangles: fill (built, `fill_gaps`)
 
 Empty chunks inside the bounding box (an L-shaped area, the space below the first room) are filled once per
-area by a wave function collapse over 16x16 metatiles, per stage layer:
+area by extending the level at its edges, per stage layer and a 16x16 metatile at a time (worked out once
+into `fills.bin`, `make -C port fills`):
 
-- adjacency (which metatile may be right of / below which) and frequencies are learned from the layer's real
-  chunks in the same area;
-- each empty chunk takes the graphics group (graphics-set byte) of its nearest real chunk, preferring sideways
-  neighbours (walls and floors continue more often sideways than up and down), and only metatiles used with
-  that group, so every tile it draws is loaded;
-- real cells around the gap constrain it; the cell with the fewest possibilities is collapsed first, weighted
-  by frequency, seeded by the area (the same picture every time);
-- a cell left with no possibility takes the metatile that agrees with most of its decided neighbours.
+- each empty cell copies the nearest real cell in its row or column; up and down count as closer, so ground
+  goes on below a floor and walls above;
+- when the last 1-4 metatiles of that edge repeat, the repetition carries on into the gap, so patterns
+  (pillars, brickwork) continue instead of one metatile smearing;
+- each empty chunk is drawn with the graphics of its nearest real chunk, so every tile it draws is loaded.
+
+(A wave function collapse over the area's metatiles was tried first: with the few metatiles one area has, it
+spread the commonest wall or sand block into the gap.)
 
 Filled cells are only pictures: collision, enemies and the game itself do not see them.
 

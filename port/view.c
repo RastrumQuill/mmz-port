@@ -284,16 +284,11 @@ static void content_bounds(s32 *l, s32 *t, s32 *r, s32 *b) {
  * Areas that are not rectangles have empty chunks inside their bounding box:
  * the GBA camera never showed them, so the level data has nothing there, and
  * a wide view would show black. Each empty chunk of a stage layer is filled
- * once per area, ahead of time (the fill patch below), by a wave function collapse
- * over metatiles (16x16):
- * - which metatile may sit right of / below which is learned from the layer's
- *   real chunks in this area (with how often each metatile is used);
- * - the cells of the empty chunks start with every metatile of the graphics
- *   group of their nearest real chunk (so only tiles that are loaded), the
- *   real cells around them constrain them, and the least uncertain cell is
- *   collapsed first (weighted by use, seeded by the area: the same every time);
- * - a cell left with nothing possible takes the group's metatile that agrees
- *   with most of its decided neighbours (no backtracking).
+ * once per area, ahead of time (the fill patch below), by extending the level
+ * at its edges, a metatile (16x16) at a time: each empty cell copies the
+ * nearest real cell in its row or column (up and down count closer, so ground
+ * goes on below and walls above), repeating the last 1-4 metatiles of that
+ * edge when they repeat, so patterns carry on into the gap.
  * Filled cells are drawn with the graphics source of their nearest real chunk.
  * Only what can show is filled: the bounding box of the area's chunks (the
  * view keeps inside it).
@@ -308,10 +303,7 @@ struct Fill {
 static struct Fill fills[4];
 static int fillsBuilt;
 
-typedef unsigned long long Bits;
-static int popcount_bits(const Bits *b, int W) { int n = 0; for (int i = 0; i < W; i++) n += __builtin_popcountll(b[i]); return n; }
 
-static u32 fill_rng(u32 *s) { *s ^= *s << 13; *s ^= *s >> 17; *s ^= *s << 5; return *s; }
 
 static int in_area(int gx, int gy) {
 	return gx >= 0 && gy >= 0 && gx < 128 && gy < 128 && (CHUNK_AREA[gy * 128 + gx] & 15) == (CUR_AREA & 0x7F);
@@ -369,119 +361,43 @@ static void fill_build(int k, u32 seed) {
 						}
 			F->donor[cy * cw + cx] = real ? -1 : best;
 		}
-	int Wd = (N + 63) / 64;
-	Bits *right = calloc((size_t)N * Wd, 8), *down = calloc((size_t)N * Wd, 8);
-	Bits *left = calloc((size_t)N * Wd, 8), *up = calloc((size_t)N * Wd, 8);
-	int *freq = calloc(N, sizeof(int));
-	int ngroups = 0, groupKey[64];
-	Bits *group = calloc((size_t)64 * Wd, 8);
-	Bits *dom = calloc((size_t)W * H * Wd, 8);
-	u8 *cellGroup = calloc((size_t)W * H, 1);
-	if (!right || !down || !left || !up || !freq || !group || !dom || !cellGroup) goto out;
-	#define SET(b, i) ((b)[(i) >> 6] |= 1ull << ((i) & 63))
-	#define HAS(b, i) (((b)[(i) >> 6] >> ((i) & 63)) & 1)
-	/* adjacency and frequency from the real cells; groups by graphics-set byte */
+	/* each empty cell copies the nearest real cell in its row or column,
+	   repeating the edge's pattern (period 1-4 metatiles) into the gap */
+	u16 *src = malloc((size_t)W * H * 2);
+	if (!src) goto out;
+	memcpy(src, grid, (size_t)W * H * 2);
 	for (int y = 0; y < H; y++)
 		for (int x = 0; x < W; x++) {
-			u16 m = grid[y * W + x];
-			if (m == FILL_NONE) continue;
-			int a = dense[m];
-			freq[a]++;
-			if (x + 1 < W && grid[y * W + x + 1] != FILL_NONE) { int b = dense[grid[y * W + x + 1]]; SET(right + a * Wd, b); SET(left + b * Wd, a); }
-			if (y + 1 < H && grid[(y + 1) * W + x] != FILL_NONE) { int b = dense[grid[(y + 1) * W + x]]; SET(down + a * Wd, b); SET(up + b * Wd, a); }
-		}
-	for (int cy = 0; cy < ch; cy++)
-		for (int cx = 0; cx < cw; cx++) {
-			if (!REAL(cx + x0, cy + y0)) continue;
-			int key = chunk_sets(((cx + x0) * 240 + stageX) / 240, ((cy + y0) * 160 + stageY) / 160, CUR_AREA & 0x7F), g;
-			for (g = 0; g < ngroups && groupKey[g] != key; g++) ;
-			if (g == ngroups) { if (ngroups == 64) continue; groupKey[ngroups++] = key; }
-			int lx = cx + x0, ly = cy + y0, cid = L->map[4 + ly * L->stride + lx];
-			for (int i = 0; i < 150; i++) SET(group + g * Wd, dense[L->chunks[cid * 150 + i]]);
-		}
-	/* unknown cells: the domain of their donor's group */
-	int unknown = 0;
-	for (int y = 0; y < H; y++)
-		for (int x = 0; x < W; x++) {
-			if (grid[y * W + x] != FILL_NONE) continue;
-			int d = F->donor[(y / 10) * cw + x / 15], g = 0;
-			if (d >= 0) {
-				int key = chunk_sets(d & 0xFF, d >> 8, CUR_AREA & 0x7F);
-				for (g = 0; g < ngroups && groupKey[g] != key; g++) ;
-				if (g == ngroups) g = 0;
-			}
-			cellGroup[y * W + x] = g;
-			memcpy(dom + ((size_t)y * W + x) * Wd, group + g * Wd, Wd * 8);
-			unknown++;
-		}
-	/* propagation: a cell's possible metatiles limit its neighbours' */
-	int *queue = malloc((size_t)W * H * 4 * sizeof(int)), qh = 0, qt = 0;
-	Bits *allow = malloc(Wd * 8);
-	if (!queue || !allow) { free(queue); free(allow); goto out; }
-	#define PUSH(i) do { if (qt < W * H * 4) queue[qt++] = (i); } while (0)
-	for (int i = 0; i < W * H; i++) if (grid[i] != FILL_NONE) PUSH(i);
-	for (;;) {
-		while (qh < qt) {
-			int i = queue[qh++], x = i % W, y = i / W;
-			static const int ddx[4] = { 1, -1, 0, 0 }, ddy[4] = { 0, 0, 1, -1 };
+			if (src[y * W + x] != FILL_NONE) continue;
+			static const int ddx[4] = { -1, 1, 0, 0 }, ddy[4] = { 0, 0, -1, 1 };
+			int bestDir = -1, bestDist = 1 << 30;
 			for (int dir = 0; dir < 4; dir++) {
-				int nx = x + ddx[dir], ny = y + ddy[dir];
+				int d = 1, nx = x + ddx[dir], ny = y + ddy[dir];
+				while (nx >= 0 && ny >= 0 && nx < W && ny < H && src[ny * W + nx] == FILL_NONE) { nx += ddx[dir]; ny += ddy[dir]; d++; }
 				if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
-				int j = ny * W + nx;
-				if (grid[j] != FILL_NONE) continue;
-				Bits *rel = dir == 0 ? right : dir == 1 ? left : dir == 2 ? down : up;
-				memset(allow, 0, Wd * 8);
-				if (grid[i] != FILL_NONE) memcpy(allow, rel + dense[grid[i]] * Wd, Wd * 8);
-				else {
-					const Bits *di = dom + (size_t)i * Wd;
-					for (int a = 0; a < N; a++)
-						if (HAS(di, a)) for (int w2 = 0; w2 < Wd; w2++) allow[w2] |= rel[a * Wd + w2];
-				}
-				Bits *dj = dom + (size_t)j * Wd;
-				int changed = 0;
-				for (int w2 = 0; w2 < Wd; w2++) { Bits nv = dj[w2] & allow[w2]; if (nv != dj[w2]) { dj[w2] = nv; changed = 1; } }
-				if (changed) PUSH(j);
-				if (qt >= W * H * 4) { qh = 0; qt = 0; }   /* (queue full: restart it; propagation goes on from the next collapse) */
+				int dw = ddx[dir] ? d * 2 : d * 3;   /* (up and down first: ground and walls go on below and above) */
+				if (dw < bestDist) { bestDist = dw; bestDir = dir; }
 			}
-		}
-		/* collapse the cell with the fewest possibilities (> 0) */
-		int bi = -1, bn = 1 << 30;
-		for (int i = 0; i < W * H; i++) {
-			if (grid[i] != FILL_NONE) continue;
-			int n = popcount_bits(dom + (size_t)i * Wd, Wd);
-			if (n == 0) n = 1 << 29;   /* contradictions after the ones that can still choose */
-			n = n * 16 + (int)((i * 2654435761u + seed) >> 28);
-			if (n < bn) { bn = n; bi = i; }
-		}
-		if (bi < 0) break;
-		Bits *d = dom + (size_t)bi * Wd;
-		int pick = -1;
-		if (popcount_bits(d, Wd)) {
-			u32 total = 0, r;
-			for (int a = 0; a < N; a++) if (HAS(d, a)) total += freq[a] + 1;
-			u32 s2 = seed ^ (u32)bi * 0x9E3779B9u;
-			r = fill_rng(&s2) % total;
-			for (int a = 0; a < N; a++) if (HAS(d, a)) { u32 f = freq[a] + 1; if (r < f) { pick = a; break; } r -= f; }
-		} else {
-			/* nothing fits: the group's metatile agreeing with most decided neighbours */
-			int x = bi % W, y = bi / W, bs = -1;
-			const Bits *g = group + cellGroup[bi] * Wd;
-			for (int a = 0; a < N; a++) {
-				if (!HAS(g, a)) continue;
-				int sc = 0;
-				if (x > 0 && grid[bi - 1] != FILL_NONE) sc += HAS(right + dense[grid[bi - 1]] * Wd, a);
-				if (x + 1 < W && grid[bi + 1] != FILL_NONE) sc += HAS(left + dense[grid[bi + 1]] * Wd, a);
-				if (y > 0 && grid[bi - W] != FILL_NONE) sc += HAS(down + dense[grid[bi - W]] * Wd, a);
-				if (y + 1 < H && grid[bi + W] != FILL_NONE) sc += HAS(up + dense[grid[bi + W]] * Wd, a);
-				sc = sc * 1000000 + freq[a];
-				if (sc > bs) { bs = sc; pick = a; }
+			if (bestDir < 0) continue;
+			int dx = ddx[bestDir], dy = ddy[bestDir], d = 1;
+			while (src[(y + dy * d) * W + x + dx * d] == FILL_NONE) d++;
+			/* the edge strip, going away from the gap: e[i] = cell d+i away */
+			#define EDGE(i) ({ int ex = x + dx * (d + (i)), ey = y + dy * (d + (i)); \
+			                  (ex >= 0 && ey >= 0 && ex < W && ey < H) ? src[ey * W + ex] : FILL_NONE; })
+			int per = 1;
+			for (int p2 = 1; p2 <= 4; p2++) {
+				int ok = 1;
+				for (int i = 0; i < p2 && ok; i++) { u16 u = EDGE(i), v = EDGE(i + p2); if (u == FILL_NONE || u != v) ok = 0; }
+				if (ok) { per = p2; break; }
 			}
-			if (pick < 0) pick = 0;
+			/* walking into the gap repeats the strip backwards: k cells past the edge is e[(per - k % per) % per] */
+			int k = d - 1;
+			u16 m = EDGE((per - 1 - k % per) % per);
+			#undef EDGE
+			if (m == FILL_NONE) m = src[(y + dy * d) * W + x + dx * d];
+			grid[y * W + x] = m;
 		}
-		grid[bi] = ids[pick];
-		PUSH(bi);
-	}
-	free(queue); free(allow);
+	free(src);
 	/* keep only the filled cells */
 	F->mt = malloc((size_t)W * H * 2);
 	if (F->mt) {
@@ -491,7 +407,7 @@ static void fill_build(int k, u32 seed) {
 		F->cx0 = x0; F->cy0 = y0; F->cw = cw; F->ch = ch; F->on = 1;
 	}
 out:
-	free(grid); free(right); free(down); free(left); free(up); free(freq); free(group); free(dom); free(cellGroup);
+	free(grid);
 	if (!F->on) { free(F->donor); F->donor = NULL; }
 	#undef REAL
 	#undef SET
@@ -539,7 +455,7 @@ static void patch_load(void) {
 	FILE *f = fopen(patch_path(), "rb");
 	if (!f) return;
 	char magic[8];
-	if (fread(magic, 1, 8, f) != 8 || memcmp(magic, "MMZFILL1", 8)) { fclose(f); return; }
+	if (fread(magic, 1, 8, f) != 8 || memcmp(magic, "MMZFILL2", 8)) { fclose(f); return; }
 	struct FillRec r;
 	s32 h[7];
 	while (fread(h, 4, 7, f) == 7) {
@@ -562,7 +478,7 @@ static void patch_append(const struct FillRec *r) {
 	if (f) fclose(f);
 	f = fopen(p, "ab");
 	if (!f) return;
-	if (fresh) fwrite("MMZFILL1", 1, 8, f);
+	if (fresh) fwrite("MMZFILL2", 1, 8, f);
 	s32 h[7] = { (s32)r->key, r->sx, r->sy, r->bg, r->cx0, r->cy0, r->cw | r->ch << 16 };
 	fwrite(h, 4, 7, f);
 	size_t cells = (size_t)r->cw * r->ch * 150, ck = (size_t)r->cw * r->ch;
