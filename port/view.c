@@ -283,13 +283,11 @@ static void content_bounds(s32 *l, s32 *t, s32 *r, s32 *b) {
  *
  * Areas that are not rectangles have empty chunks inside their bounding box:
  * the GBA camera never showed them, so the level data has nothing there, and
- * a wide view would show black. Each empty chunk of a stage layer is filled
- * once per area, ahead of time (the fill patch below), by extending the level
- * at its edges, a metatile (16x16) at a time: each empty cell copies the
- * nearest real cell in its row or column (up and down count closer, so ground
- * goes on below and walls above), repeating the last 1-4 metatiles of that
- * edge, so patterns carry on into the gap. An edge that does not repeat (a
- * lamp's top, a door) is not extended: the cells stay empty.
+ * a wide view would show black. The part of such a gap below the level is
+ * filled once per area, ahead of time (the fill patch below): each empty
+ * metatile (16x16) repeats the lowest real one above it in its column, so
+ * posts, pillars and walls go on down. Gaps above or beside the level (sky,
+ * open space) are left as they are.
  * Filled cells are drawn with the graphics source of their nearest real chunk.
  * Only what can show is filled: the bounding box of the area's chunks (the
  * view keeps inside it).
@@ -367,38 +365,28 @@ static void fill_build(int k, u32 seed) {
 	u16 *src = malloc((size_t)W * H * 2);
 	if (!src) goto out;
 	memcpy(src, grid, (size_t)W * H * 2);
-	for (int y = 0; y < H; y++)
-		for (int x = 0; x < W; x++) {
-			if (src[y * W + x] != FILL_NONE) continue;
-			static const int ddx[4] = { -1, 1, 0, 0 }, ddy[4] = { 0, 0, -1, 1 };
-			int bestDir = -1, bestDist = 1 << 30;
-			for (int dir = 0; dir < 4; dir++) {
-				int d = 1, nx = x + ddx[dir], ny = y + ddy[dir];
-				while (nx >= 0 && ny >= 0 && nx < W && ny < H && src[ny * W + nx] == FILL_NONE) { nx += ddx[dir]; ny += ddy[dir]; d++; }
-				if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
-				int dw = ddx[dir] ? d * 2 : d * 3;   /* (up and down first: ground and walls go on below and above) */
-				if (dw < bestDist) { bestDist = dw; bestDir = dir; }
-			}
-			if (bestDir < 0) continue;
-			int dx = ddx[bestDir], dy = ddy[bestDir], d = 1;
-			while (src[(y + dy * d) * W + x + dx * d] == FILL_NONE) d++;
-			/* the edge strip, going away from the gap: e[i] = cell d+i away */
-			#define EDGE(i) ({ int ex = x + dx * (d + (i)), ey = y + dy * (d + (i)); \
-			                  (ex >= 0 && ey >= 0 && ex < W && ey < H) ? src[ey * W + ex] : FILL_NONE; })
-			int per = 0;   /* (0: the edge does not repeat, so it is not extended: a lamp's top, a door) */
-			for (int p2 = 1; p2 <= 4; p2++) {
-				int ok = 1;
-				for (int i = 0; i < p2 && ok; i++) { u16 u = EDGE(i), v = EDGE(i + p2); if (u == FILL_NONE || u != v) ok = 0; }
-				if (ok) { per = p2; break; }
-			}
-			/* walking into the gap repeats the strip backwards: k cells past the edge is e[(per - k % per) % per] */
-			if (!per) continue;
-			int k = d - 1;
-			u16 m = EDGE((per - 1 - k % per) % per);
-			#undef EDGE
-			if (m == FILL_NONE) m = src[(y + dy * d) * W + x + dx * d];
-			grid[y * W + x] = m;
+	/* below the level: each empty cell repeats the lowest real cell above it
+	   in its column, so posts, pillars and walls go on down. Nothing is
+	   filled above or beside the level (sky, open space). */
+	int filled = 0;
+	for (int x = 0; x < W; x++) {
+		u16 last = FILL_NONE;
+		for (int y = 0; y < H; y++) {
+			if (src[y * W + x] != FILL_NONE) { last = src[y * W + x]; continue; }
+			if (last != FILL_NONE) { grid[y * W + x] = last; filled++; }
 		}
+	}
+	/* a filled chunk is drawn with the graphics of the real chunk above it */
+	for (int cy = 0; cy < ch; cy++)
+		for (int cx = 0; cx < cw; cx++) {
+			if (REAL(cx + x0, cy + y0)) continue;
+			int d = -1;
+			for (int y = cy - 1; y >= 0 && d < 0; y--)
+				if (REAL(cx + x0, y + y0)) d = (((cx + x0) * 240 + stageX) / 240) | (((y + y0) * 160 + stageY) / 160) << 8;
+			if (d >= 0) F->donor[cy * cw + cx] = d;
+		}
+	if (getenv("MMZ_FILLDEBUG"))
+		fprintf(stderr, "fill: area %d bg %d chunks %d,%d %dx%d stage %d,%d: %d cells\n", CUR_AREA & 0x7F, k, x0, y0, cw, ch, stageX, stageY, filled);
 	free(src);
 	/* keep only the filled cells */
 	F->mt = malloc((size_t)W * H * 2);
