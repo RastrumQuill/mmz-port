@@ -526,7 +526,8 @@ static int fill_entry(const struct Layer *L, s32 wx, s32 wy, u16 *out) {
 	levelSrc = chunk_source(d & 0xFF, d >> 8);
 	if (levelSrc < 0) return 0;
 	levelFy = wy & 7;
-	*out = L->tiledata[m * 4 + ((wy >> 3) & 1) * 2 + ((wx >> 3) & 1)];
+	/* the lowest 8x8 row of the metatile above, repeated (finer than whole 16x16 metatiles: a post's cap is not copied) */
+	*out = L->tiledata[m * 4 + 2 + ((wx >> 3) & 1)];
 	return 1;
 }
 
