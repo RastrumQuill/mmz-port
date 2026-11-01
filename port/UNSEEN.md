@@ -21,7 +21,7 @@ into `fills.bin`, `make -C port fills`):
 - each empty cell copies the nearest real cell in its row or column; up and down count as closer, so ground
   goes on below a floor and walls above;
 - when the last 1-4 metatiles of that edge repeat, the repetition carries on into the gap, so patterns
-  (pillars, brickwork) continue instead of one metatile smearing;
+  (pillars, brickwork) continue; an edge that does not repeat (a lamp's top, a door) is not extended;
 - each empty chunk is drawn with the graphics of its nearest real chunk, so every tile it draws is loaded.
 
 (A wave function collapse over the area's metatiles was tried first: with the few metatiles one area has, it

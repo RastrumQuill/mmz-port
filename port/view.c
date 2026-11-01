@@ -288,7 +288,8 @@ static void content_bounds(s32 *l, s32 *t, s32 *r, s32 *b) {
  * at its edges, a metatile (16x16) at a time: each empty cell copies the
  * nearest real cell in its row or column (up and down count closer, so ground
  * goes on below and walls above), repeating the last 1-4 metatiles of that
- * edge when they repeat, so patterns carry on into the gap.
+ * edge, so patterns carry on into the gap. An edge that does not repeat (a
+ * lamp's top, a door) is not extended: the cells stay empty.
  * Filled cells are drawn with the graphics source of their nearest real chunk.
  * Only what can show is filled: the bounding box of the area's chunks (the
  * view keeps inside it).
@@ -384,13 +385,14 @@ static void fill_build(int k, u32 seed) {
 			/* the edge strip, going away from the gap: e[i] = cell d+i away */
 			#define EDGE(i) ({ int ex = x + dx * (d + (i)), ey = y + dy * (d + (i)); \
 			                  (ex >= 0 && ey >= 0 && ex < W && ey < H) ? src[ey * W + ex] : FILL_NONE; })
-			int per = 1;
+			int per = 0;   /* (0: the edge does not repeat, so it is not extended: a lamp's top, a door) */
 			for (int p2 = 1; p2 <= 4; p2++) {
 				int ok = 1;
 				for (int i = 0; i < p2 && ok; i++) { u16 u = EDGE(i), v = EDGE(i + p2); if (u == FILL_NONE || u != v) ok = 0; }
 				if (ok) { per = p2; break; }
 			}
 			/* walking into the gap repeats the strip backwards: k cells past the edge is e[(per - k % per) % per] */
+			if (!per) continue;
 			int k = d - 1;
 			u16 m = EDGE((per - 1 - k % per) % per);
 			#undef EDGE
