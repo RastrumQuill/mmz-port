@@ -223,7 +223,7 @@ static void find_reach(int camGx, int camGy) {
 			if (nx < 0 || ny < 0 || nx >= 128 || ny >= 128 || reach[ny][nx]) continue;
 			int l2 = chunk_level(nx, ny, area);
 			if (l2 == 15) continue;
-			if ((l2 > lv + 1 || l2 < lv - 1) && (chunk_sets(nx, ny, area) != chunk_sets(x, y, area) || !continues(x, y, nx, ny))) continue;
+			if ((l2 > lv + 1 || l2 < lv - 1) && (getenv("MMZ_NOCONT") || chunk_sets(nx, ny, area) != chunk_sets(x, y, area) || !continues(x, y, nx, ny))) continue;
 			reach[ny][nx] = 1; qx[n] = nx; qy[n++] = ny;
 			reachKey = reachKey * 31 + (u32)(ny * 128 + nx);
 		}
@@ -445,6 +445,7 @@ static u16 fill_row(const struct Layer *L, const u16 *src, int W, int H, int x, 
 		rm[n] = m; rh[n++] = dir > 0;
 	}
 	if (!n) return FILL_NONE;
+	if (getenv("MMZ_FILLEDGE")) return rm[0] | (rh[0] ? 0 : FILL_UP);   /* testing */
 	#define ROW(i) (L->tiledata[rm[i] * 4 + rh[i] * 2] | (u32)L->tiledata[rm[i] * 4 + rh[i] * 2 + 1] << 16)
 	for (int i = 1; i < n; i++)
 		if (ROW(i) == ROW(i - 1)) return rm[i - 1] | (rh[i - 1] ? 0 : FILL_UP);
