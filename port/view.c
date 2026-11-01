@@ -434,12 +434,15 @@ static int in_area(int gx, int gy) {
 /* The 8x8 row a gap repeats, from the level at its edge (cell (x, y), going
    away from the gap in direction dir: -1 up, 1 down): the row nearest the gap
    that repeats in the level itself (equal to its neighbour on the gap's
-   side: grass, a wall's face, posts), so edge details (a cliff's rim) are not
-   smeared; the edge row when none does within 4 metatiles. As the fill keeps
+   side: grass, a wall's face, posts; not a blank one), so edge details (a
+   cliff's rim) are not smeared; the edge row when none does within 2
+   metatiles. As the fill keeps
    it: a metatile, | FILL_UP for its top row. */
+static int tile_empty(u16 e, u32 charBase);
 static u16 fill_row(const struct Layer *L, const u16 *src, int W, int H, int x, int y, int dir) {
-	u16 rm[8]; int rh[8], n = 0;
-	for (int c = y; n < 8 && c >= 0 && c < H && src[c * W + x] != FILL_NONE; c += dir) {
+	u16 rm[4]; int rh[4], n = 0;
+	u32 cb = ((R16(80, 0x08 + L->bg * 2) >> 2) & 3) * 0x4000;
+	for (int c = y; n < 4 && c >= 0 && c < H && src[c * W + x] != FILL_NONE; c += dir) {
 		u16 m = src[c * W + x];
 		rm[n] = m; rh[n++] = dir < 0;    /* (nearest the gap first: the bottom row going up, the top one going down) */
 		rm[n] = m; rh[n++] = dir > 0;
@@ -448,7 +451,8 @@ static u16 fill_row(const struct Layer *L, const u16 *src, int W, int H, int x, 
 	if (getenv("MMZ_FILLEDGE")) return rm[0] | (rh[0] ? 0 : FILL_UP);   /* testing */
 	#define ROW(i) (L->tiledata[rm[i] * 4 + rh[i] * 2] | (u32)L->tiledata[rm[i] * 4 + rh[i] * 2 + 1] << 16)
 	for (int i = 1; i < n; i++)
-		if (ROW(i) == ROW(i - 1)) return rm[i - 1] | (rh[i - 1] ? 0 : FILL_UP);
+		if (ROW(i) == ROW(i - 1) && !(tile_empty(ROW(i) & 0xFFFF, cb) && tile_empty(ROW(i) >> 16, cb)))   /* (not a blank row) */
+			return rm[i - 1] | (rh[i - 1] ? 0 : FILL_UP);
 	#undef ROW
 	return rm[0] | (rh[0] ? 0 : FILL_UP);
 }
