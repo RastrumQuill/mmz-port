@@ -109,6 +109,54 @@ static const u8 *area_desc(int area) {
 	return (const u8 *)(uintptr_t)*(u32 *)(uintptr_t)(list + ((AREA_STATES >> (area * 2)) & 3) * 4);
 }
 
+/* ------------------------------------------------------------ rooms
+ *
+ * An area can hold rooms the camera never shows together: each chunk has a
+ * level (the top 4 bits of the area's layer map, sub_08006B4C), and the
+ * camera stops where it changes by more than 1 (sub_080066F8). The view does
+ * the same: it draws only the chunks the camera's chunk reaches without such
+ * a step (the rest of the area, like rooms under the desert floor, is left to
+ * the gap fill).
+ */
+static u8 reach[128][128];
+static u32 reachKey;
+
+static int chunk_level(int gx, int gy, int area) {
+	if (gx < 0 || gy < 0 || gx >= 128 || gy >= 128) return 15;
+	u8 a = CHUNK_AREA[gy * 128 + gx];
+	if (a > 0xEF || (a & 15) != area) return 15;
+	const u8 *d = area_desc(area);
+	s32 left = *(s32 *)(d + 0x6C), top = *(s32 *)(d + 0x70);
+	const u8 *map = (const u8 *)(uintptr_t)*(u32 *)(d + 0x7C);
+	if (!map) return 0;
+	u16 shift = *(const u16 *)map;
+	return ((const u16 *)(map + 8))[((gy - top) << shift) + (gx - left)] >> 12;
+}
+
+static void find_reach(int camGx, int camGy) {
+	static int qx[128 * 128], qy[128 * 128];
+	int area = CUR_AREA & 0x7F, n = 0, h = 0;
+	memset(reach, 0, sizeof reach);
+	reachKey = 0;
+	if (chunk_level(camGx, camGy, area) == 15) {   /* (not in a room: everything, as before) */
+		memset(reach, 1, sizeof reach);
+		return;
+	}
+	reach[camGy][camGx] = 1; qx[n] = camGx; qy[n++] = camGy;
+	while (h < n) {
+		int x = qx[h], y = qy[h++], lv = chunk_level(x, y, area);
+		static const int dx[4] = { 1, -1, 0, 0 }, dy[4] = { 0, 0, 1, -1 };
+		for (int k = 0; k < 4; k++) {
+			int nx = x + dx[k], ny = y + dy[k];
+			if (nx < 0 || ny < 0 || nx >= 128 || ny >= 128 || reach[ny][nx]) continue;
+			int l2 = chunk_level(nx, ny, area);
+			if (l2 == 15 || l2 > lv + 1 || l2 < lv - 1) continue;
+			reach[ny][nx] = 1; qx[n] = nx; qy[n++] = ny;
+			reachKey = reachKey * 31 + (u32)(ny * 128 + nx);
+		}
+	}
+}
+
 static int set_loaded(int set, u16 loaded, int area) {
 	return (loaded >> 8) == area && set == (loaded & 0xFF);
 }
@@ -221,7 +269,8 @@ static int chunk_source(int cx, int cy) {
 	if (chunkOk[cy][cx]) return chunkOk[cy][cx] - 2;
 	if (drawing) return -1;   /* (worked out before the threads start) */
 	int src = -1, area = CUR_AREA & 0x7F;
-	if ((CHUNK_AREA[cy * 128 + cx] & 15) == area) {
+	int onGba = cx >= gbaCx0 && cx <= gbaCx1 && cy >= gbaCy0 && cy <= gbaCy1;
+	if ((CHUNK_AREA[cy * 128 + cx] & 15) == area && (reach[cy][cx] || onGba)) {
 		int b = chunk_sets(cx, cy, area);
 		if (b >= 0) {
 			int hi = b >> 4, lo = b & 15;
@@ -305,7 +354,7 @@ static int fillsBuilt;
 
 
 static int in_area(int gx, int gy) {
-	return gx >= 0 && gy >= 0 && gx < 128 && gy < 128 && (CHUNK_AREA[gy * 128 + gx] & 15) == (CUR_AREA & 0x7F);
+	return gx >= 0 && gy >= 0 && gx < 128 && gy < 128 && (CHUNK_AREA[gy * 128 + gx] & 15) == (CUR_AREA & 0x7F) && reach[gy][gx];
 }
 
 static void fill_build(int k, u32 seed) {
@@ -325,7 +374,7 @@ static void fill_build(int k, u32 seed) {
 	if (x1 < 0) return;
 	for (int cy = y0; cy <= y1; cy++)
 		for (int cx = x0; cx <= x1; cx++)
-			if (!REAL(cx, cy) && L->map[4 + cy * L->stride + cx] == L->null) gaps++;
+			if (!REAL(cx, cy)) gaps++;   /* (empty, or a part of the area the camera does not reach from here) */
 	if (!gaps) return;
 	int cw = x1 - x0 + 1, ch = y1 - y0 + 1, W = cw * 15, H = ch * 10;
 	/* the metatiles of the area (dense indices) and their graphics groups */
@@ -614,7 +663,7 @@ static int level_entry(const struct Layer *L, s32 wx, s32 wy, u16 *out) {
 	int cid = L->map[4 + cy * L->stride + cx];
 	if (cid == L->null) return fill_entry(L, wx, wy, out);
 	levelSrc = chunk_source((wx + stageX) / 240, (wy + stageY) / 160);
-	if (levelSrc < 0) return 0;
+	if (levelSrc < 0) return fill_entry(L, wx, wy, out);
 	u16 mt = L->chunks[cid * 150 + ((wy % 160) >> 4) * 15 + ((wx % 240) >> 4)];
 	*out = L->tiledata[mt * 4 + ((wy >> 3) & 1) * 2 + ((wx >> 3) & 1)];
 	return 1;
@@ -1364,6 +1413,7 @@ int view_render(void) {
 	stageX = (stageX + 120) / 240 * 240;
 	stageY = (stageY + 80) / 160 * 160;
 	find_area();
+	find_reach((CAMERA_X >> 8) / 240, (CAMERA_Y >> 8) / 160);
 	memset(chunkOk, 0, sizeof chunkOk);
 	/* the copies with other graphics sets are kept for a while (rebuilt when
 	   the loaded sets change, and every half second for animated tiles) */
@@ -1398,7 +1448,7 @@ int view_render(void) {
 	{
 		/* (the same while the area and its sets are) */
 		static s32 bL, bT, bR, bB; static u32 bKey = ~0u; static s32 bStageX, bStageY;
-		u32 key = (u32)CUR_AREA << 24 ^ (u32)GFX_SET_A << 12 ^ GFX_SET_B;
+		u32 key = ((u32)CUR_AREA << 24 ^ (u32)GFX_SET_A << 12 ^ GFX_SET_B) + reachKey * 2654435761u;
 		static int bFill = -1;
 		if (key != bKey || stageX != bStageX || stageY != bStageY || bFill != settings.fillGaps) {
 			content_bounds(&bL, &bT, &bR, &bB);
