@@ -13,6 +13,8 @@ struct DebugState {
 	int step;            /* frames to run while paused */
 	int fastForward;     /* run without waiting, show every few frames */
 	int layerMask;       /* bits: BG0-BG3, OBJ (ppu.c) */
+	long pauseAt;        /* pause when this frame is reached (0: no) */
+	int overlay;         /* frame, position and bookmark drawn over the game */
 };
 extern struct DebugState debug;
 

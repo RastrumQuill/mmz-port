@@ -13,6 +13,10 @@ void report_note(const char *fmt, ...);           /* a line for the report's rec
 void report_snapshot(void);                       /* picture + memory now (when the report key is pressed) */
 const char *report_write(int kind, const char *message);   /* → the zip's path (or NULL) */
 void report_open_issue(int kind, const char *message, const char *zip);
+enum { SHARE_GITHUB, SHARE_EMAIL, SHARE_DISCORD, SHARE_DRIVE };
+/* copies the report text to the clipboard, opens the zip's folder and the
+   target; a one-line hint for the player goes to hint */
+void report_share(int target, int kind, const char *message, const char *zip, char *hint, size_t n);
 const char *report_pending_crash(char *msg, size_t n);     /* last run's crash zip, or NULL */
 void report_clear_pending_crash(void);
 const char *report_folder(void);

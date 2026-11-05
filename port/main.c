@@ -18,6 +18,7 @@
 #include <string.h>
 #ifdef _WIN32
 #include <windows.h>
+#include <process.h>
 #else
 #include <sys/mman.h>
 #include <unistd.h>
@@ -32,6 +33,7 @@
 #include "ui.h"
 #include "report.h"
 #include "input.h"
+#include "debug.h"
 
 extern u32 romSize, biosBus;
 extern jmp_buf failJmp;
@@ -108,6 +110,7 @@ __attribute__((constructor(101))) static void reserve_gba_ranges(void) {
 #endif
 
 static char **mainArgv;
+static int frontendStarted;
 static void *map_at(u32 addr, u32 size) {
 #ifdef _WIN32
 	void *p = VirtualAlloc((void *)(uintptr_t)addr, size, MEM_COMMIT, PAGE_READWRITE);   /* reserved at start */
@@ -226,7 +229,7 @@ static void save_flush(void) {
 
 static FILE *route;
 static long routeFrame = -1;
-static char routeCmd[64], routeArg1[256], routeArg2[64], routeArg3[256];
+static char routeCmd[64], routeArg1[256], routeArg2[64], routeArg3[256], routeLine[512];
 
 static int keymask(const char *s) {
 	static const char *names[] = { "A", "B", "SELECT", "START", "RIGHT", "LEFT", "UP", "DOWN", "R", "L" };
@@ -266,24 +269,44 @@ static void write_ppm(const char *path) {
 	}
 }
 
+static long routeDelay;   /* frames a warp took: later lines wait for it */
 static void route_step(void) {
+	if (warp_active()) { routeDelay++; return; }
 	for (;;) {
 		if (routeFrame < 0) {
 			char line[512];
 			if (!fgets(line, sizeof line, route)) { save_flush(); exit(0); }
 			if (getenv("LAGDEBUG")) { extern long sprite_commits; fprintf(stderr, "lag: frame %ld game frames %ld\n", frameCount, sprite_commits); }
 			routeArg1[0] = routeArg2[0] = routeArg3[0] = 0;
+			snprintf(routeLine, sizeof routeLine, "%s", line);
 			if (line[0] == '#' || sscanf(line, "%ld %63s %255s %63s %255s", &routeFrame, routeCmd, routeArg1, routeArg2, routeArg3) < 2) {
 				routeFrame = -1;
 				continue;
 			}
 		}
-		if (routeFrame > frameCount) return;
+		if (routeFrame + routeDelay > frameCount) return;
 		if (!strcmp(routeCmd, "shot")) write_ppm(routeArg1);
 		else if (!strcmp(routeCmd, "end")) { save_flush(); exit(0); }
 		else if (!strcmp(routeCmd, "poke")) *(u8 *)(uintptr_t)strtoul(routeArg1, 0, 0) = strtoul(routeArg2, 0, 0);
 		else if (!strcmp(routeCmd, "ff")) debug.fastForward = atoi(routeArg1);   /* ff 1 / ff 0: Tab held or not */
-		else if (!strcmp(routeCmd, "report")) { report_snapshot(); const char *z = report_write(REPORT_PROBLEM, routeArg1); fprintf(stderr, "report: %s\n", z ? z : "(failed)"); }   /* testing: as if F12 */
+		else if (!strcmp(routeCmd, "report")) { report_snapshot(); const char *z = report_write(REPORT_PROBLEM, routeArg1); fprintf(stderr, "report: %s\n", z ? z : "(failed)"); if (getenv("MMZ_PRINT_URL")) for (int t = 0; t < 4; t++) { char h[300]; report_share(t, REPORT_PROBLEM, routeArg1, z, h, sizeof h); } }   /* testing: as if F12 */
+		else if (!strcmp(routeCmd, "warp")) {   /* warp mmz:... (a bookmark): from the title to there */
+			struct Location l;
+			if (loc_parse(routeLine, &l)) warp_start(&l);
+			else fprintf(stderr, "route: not a bookmark: %s", routeLine);
+		}
+		else if (!strcmp(routeCmd, "cheat")) {   /* cheat invincible|noenemies 1|0 (Debug window toggles) */
+			int on = atoi(routeArg2);
+			if (!strcmp(routeArg1, "invincible")) cheat_invincible = on;
+			else if (!strcmp(routeArg1, "noenemies")) cheat_no_enemies = on;
+		}
+		else if (!strcmp(routeCmd, "where")) {   /* where: the bookmark of here, on stderr */
+			struct Location l;
+			char b[160];
+			loc_now(&l);
+			loc_format(&l, b, sizeof b);
+			fprintf(stderr, "where: frame %ld %s life %d\n", frameCount, b, zero_hp());
+		}
 		else if (!strcmp(routeCmd, "dump")) {   /* dump ADDR LEN FILE */
 			u32 a = strtoul(routeArg1, 0, 0), len = strtoul(routeArg2, 0, 0);
 			FILE *o = fopen(routeArg3, "wb");
@@ -516,6 +539,9 @@ void frontend_frame(void) {
 		if (route) route_step();   /* testing: scripted input in the window too */
 		frame_log();
 	}
+	warp_step(&keys);   /* a warp (--warp, route, Debug window) holds the buttons until it is there */
+	cheats_frame();
+	if (debug.pauseAt && frameCount == debug.pauseAt) debug.paused = 1;
 	report_input(frameCount, keys);   /* for problem reports: the buttons of every frame */
 	/* hand-written C reads the register directly */
 	*(u16 *)0x04000130 = frontend_keys();
@@ -528,10 +554,45 @@ u16 frontend_keys(void) {
 
 /* --------------------------------------------------------------- start */
 
+/* Debug window, Go on a bookmark: start the game again with --warp, so the
+   warp begins from the title like a fresh start (debug.c) */
+void frontend_restart_warp(const char *bookmark) {
+	if (!frontendStarted) return;
+	save_flush();
+	settings_save();
+	static char *args[64];
+	int n = 0;
+	for (int i = 0; mainArgv[i] && n < 60; i++) {
+		if (!strcmp(mainArgv[i], "--warp") && mainArgv[i + 1]) { i++; continue; }
+		args[n++] = mainArgv[i];
+	}
+	static char bm[200];
+	snprintf(bm, sizeof bm, "%s", bookmark);
+	args[n++] = "--warp";
+#ifdef _WIN32
+	/* (the argument has spaces) */
+	static char quoted[210];
+	snprintf(quoted, sizeof quoted, "\"%s\"", bm);
+	args[n++] = quoted;
+	args[n] = NULL;
+	SetEnvironmentVariableA("MMZ_RELAUNCHED", NULL);
+	char exe[MAX_PATH];
+	GetModuleFileNameA(NULL, exe, MAX_PATH);
+	_execv(exe, (const char *const *)args);
+#else
+	args[n++] = bm;
+	args[n] = NULL;
+	unsetenv("MMZ_RELAUNCHED");
+	execv("/proc/self/exe", args);
+	execv(mainArgv[0], args);
+#endif
+	fprintf(stderr, "cannot start again for the warp\n");
+}
+
 int main(int argc, char **argv) {
 	mainArgv = argv;
 	report_install_crash_handler();
-	const char *romArg = NULL, *configArg = NULL, *viewArg = NULL;
+	const char *romArg = NULL, *configArg = NULL, *viewArg = NULL, *warpArg = NULL;
 	int scale = 0, cpuArg = 0;
 	savePath = NULL;
 	for (int i = 1; i < argc; i++) {
@@ -541,6 +602,8 @@ int main(int argc, char **argv) {
 		else if (!strcmp(argv[i], "--scale") && i + 1 < argc) scale = atoi(argv[++i]);
 		else if (!strcmp(argv[i], "--headless")) headless = 1;
 		else if (!strcmp(argv[i], "--skip-intro")) skipIntro = 1;
+		else if (!strcmp(argv[i], "--warp") && i + 1 < argc) warpArg = argv[++i];
+		else if (!strcmp(argv[i], "--pause-at") && i + 1 < argc) debug.pauseAt = atol(argv[++i]);
 		else if (!strcmp(argv[i], "--cpu-speed") && i + 1 < argc) cpuArg = atoi(argv[++i]);
 		else if (!strcmp(argv[i], "--view") && i + 1 < argc) viewArg = argv[++i];
 		else if (!strcmp(argv[i], "--ui-test") && i + 1 < argc) ui_test(argv[++i]);
@@ -556,12 +619,21 @@ int main(int argc, char **argv) {
 		}
 		else {
 			fprintf(stderr, "usage: mmz [--rom FILE] [--save FILE] [--config FILE] [--scale N] [--view MODE] [--cpu-speed PERCENT] [--skip-intro]\n"
+			                "           [--warp \"mmz:m9 a2 cp1 x1234 y567\"] [--pause-at FRAME]\n"
 			                "       mmz --headless --route FILE [--wav FILE] [--rom FILE] [--save FILE]\n");
 			return 1;
 		}
 	}
 	if (headless && !route) { fprintf(stderr, "--headless needs --route\n"); return 1; }
 	settings_load(configArg);
+	bookmarks_load();
+	if (warpArg) {
+		struct Location l;
+		if (!loc_parse(warpArg, &l)) { fprintf(stderr, "--warp: not a bookmark (mmz:m<mission> ...): %s\n", warpArg); return 1; }
+		warp_start(&l);
+		ui_no_startup_dialogs = 1;
+	}
+	if (getenv("WARPDEBUG")) warp_verbose = atoi(getenv("WARPDEBUG")) > 1 ? 2 : 1;
 	if (scale > 0) settings.scale = scale;
 	if (cpuArg > 0) settings.cpuSpeed = cpuArg;
 	hw_cpu_speed = settings.cpuSpeed < 100 ? 100 : settings.cpuSpeed > 1600 ? 1600 : settings.cpuSpeed;
@@ -593,6 +665,7 @@ int main(int argc, char **argv) {
 	save_load();
 	report_boot_save(SRAM);
 	if (!headless) sdl_init(settings.scale > 0 ? settings.scale : 3);
+	frontendStarted = 1;
 
 	/* the state the BIOS leaves, and the start-up code (crt0) */
 	*(u16 *)0x04000130 = 0x3FF;    /* KEYINPUT */
@@ -602,6 +675,7 @@ int main(int argc, char **argv) {
 	budget = INT64_MAX;
 	if (getenv("MMZ_CYCLE_SCALE")) hw_cycle_scale = atoi(getenv("MMZ_CYCLE_SCALE"));
 	if (getenv("MMZ_FASTFORWARD")) debug.fastForward = 1;   /* testing: as if Tab were held */
+	if (getenv("MMZ_OVERLAY")) debug.overlay = 1;   /* testing: the position overlay on */
 	if (getenv("MMZ_LAYERS")) debug.layerMask = strtol(getenv("MMZ_LAYERS"), NULL, 0);   /* bits: BG0-BG3, OBJ */
 	hw_reset();
 	tasks_reset();

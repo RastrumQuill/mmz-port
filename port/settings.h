@@ -15,6 +15,8 @@ enum { BIND_MENU = 10, BIND_FAST, BINDS };
 struct Settings {
 	char rom[512];
 	char save[512];          /* empty: next to the ROM, as .sav */
+	char reportEmail[256];   /* F12 Share, Email: the address (empty: the player fills it in) */
+	char reportDiscord[512]; /* F12 Share, Discord: an invite or channel link (empty: none) */
 	int scale;
 	int fullscreen;
 	int volume;              /* percent */

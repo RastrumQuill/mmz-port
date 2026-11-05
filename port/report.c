@@ -4,7 +4,9 @@
  * Everything needed to see the problem again goes into one zip in reports/
  * next to the game:
  *   report.txt       the player's message, version, system, settings, where
- *                    the game was (frame, mode, event), the recent log
+ *                    the game was (frame, mode, event; mission, area,
+ *                    checkpoint, Zero and camera), the recent log
+ *   bookmark.txt     that place as a bookmark line (mmz --warp)
  *   inputs.route     every change of the buttons since start, as a route:
  *                    `mmz --route inputs.route --save save_at_start.sav`
  *                    plays the session again (with the settings in mmz.ini)
@@ -28,6 +30,7 @@
 #include "pc.h"
 #include "settings.h"
 #include "report.h"
+#include "debug.h"
 #include <SDL.h>
 #ifdef _WIN32
 #include <windows.h>
@@ -42,6 +45,9 @@
 
 #ifndef MMZ_VERSION
 #define MMZ_VERSION "dev"
+#endif
+#ifndef MMZ_COMMIT
+#define MMZ_COMMIT "unknown"
 #endif
 #define REPO "RastrumQuill/mmz-port"
 
@@ -94,6 +100,8 @@ static struct {
 	long frame;
 	u8 mode;
 	u16 event;
+	struct Location loc;
+	char bookmark[160];
 	int w, h;
 	u32 *pixels;
 	u8 ewram[0x40000], iwram[0x8000], io[0x400], pal[0x400], vram[0x18000], oam[0x400];
@@ -110,6 +118,8 @@ void report_snapshot(void) {
 	snap.frame = frameCount;
 	snap.mode = *(u8 *)0x020236E1;
 	snap.event = *(u16 *)0x02022B6E;
+	loc_now(&snap.loc);
+	loc_format(&snap.loc, snap.bookmark, sizeof snap.bookmark);
 	memcpy(snap.ewram, (void *)0x02000000, sizeof snap.ewram);
 	memcpy(snap.iwram, (void *)0x03000000, sizeof snap.iwram);
 	memcpy(snap.io, (void *)0x04000000, sizeof snap.io);
@@ -268,7 +278,13 @@ const char *report_write(int kind, const char *message) {
 	tbLen = 0;
 	tprintf("Mega Man Zero PC port %s report\n\n", kind_name(kind));
 	tprintf("message: %s\n\n", message && *message ? message : "(none)");
-	tprintf("version: %s\nsystem: %s\n", MMZ_VERSION, system_name());
+	tprintf("version: %s (commit %s)\nsystem: %s\n", MMZ_VERSION, MMZ_COMMIT, system_name());
+	const struct Location *l = &snap.loc;
+	tprintf("where: mission %d (stage %d), area %d variant %d, checkpoint %d, Zero %d,%d, camera %d,%d%s\n",
+	        l->mission, l->stage, l->area, l->variant, l->checkpoint, l->x, l->y, l->camX, l->camY,
+	        l->inStage ? "" : " (not playing a stage)");
+	tprintf("bookmark: %s\n  (to go there: mmz --warp \"%s\", or paste it in the Debug window, F2)\n", snap.bookmark, snap.bookmark);
+	if (warp_origin[0]) tprintf("warped: to %s (the inputs replay only with the same warp)\n", warp_origin);
 	tprintf("frame: %ld  mode: %02X  event: %04X  frames recorded: %ld (button changes)\n", snap.frame, snap.mode,
 	        snap.event, nChanges);
 	tprintf("view: %s %dx%d (active %d), cpu %d%%, scale %d, fullscreen %d\n", kViewNames[settings.viewMode], view_w,
@@ -277,6 +293,9 @@ const char *report_write(int kind, const char *message) {
 	tprintf("\nrecent log:\n");
 	for (int i = 0; i < noteCount; i++) tprintf("  %s\n", notes[(noteHead - noteCount + i + NOTES) % NOTES]);
 	zip_add("report.txt", tb, tbLen);
+	tbLen = 0;
+	tprintf("%s\n", snap.bookmark);
+	zip_add("bookmark.txt", tb, tbLen);
 
 	tbLen = 0;
 	tprintf("# inputs since start (%s %s report). replay: mmz --route inputs.route --save save_at_start.sav\n",
@@ -332,9 +351,17 @@ void report_open_issue(int kind, const char *message, const char *zip) {
 	         *msg ? msg : (kind == REPORT_CRASH ? "the game crashed" : "(describe the problem)"));
 	char *nl = strchr(title, '\n');
 	if (nl) *nl = 0;
-	snprintf(details, sizeof details, "version %s; %s; frame %ld, mode %02X, event %04X; view %s %dx%d, cpu %d%%",
-	         MMZ_VERSION, system_name(), snap.frame ? snap.frame : frameCount, snap.mode, snap.event,
-	         kViewNames[settings.viewMode], view_w, view_h, hw_cpu_speed);
+	if (!snap.loc.mission && !snap.bookmark[0]) { loc_now(&snap.loc); loc_format(&snap.loc, snap.bookmark, sizeof snap.bookmark); }
+	const struct Location *l = &snap.loc;
+	char where[600];
+	snprintf(where, sizeof where,
+	         "bookmark: %s\nmission %d (stage %d), area %d variant %d, checkpoint %d; Zero %d,%d; camera %d,%d%s",
+	         snap.bookmark, l->mission, l->stage, l->area, l->variant, l->checkpoint, l->x, l->y, l->camX, l->camY,
+	         l->inStage ? "" : " (not in a stage)");
+	snprintf(details, sizeof details,
+	         "version %s (commit %s); %s; frame %ld, mode %02X, event %04X; view %s %dx%d (active %d), cpu %d%%, scale %d, fullscreen %d",
+	         MMZ_VERSION, MMZ_COMMIT, system_name(), snap.frame ? snap.frame : frameCount, snap.mode, snap.event,
+	         kViewNames[settings.viewMode], view_w, view_h, view_active, hw_cpu_speed, settings.scale, settings.fullscreen);
 	snprintf(url, sizeof url, "https://github.com/" REPO "/issues/new?template=%s.yml&title=",
 	         kind == REPORT_CRASH ? "crash" : "bug");
 	url_append(url, sizeof url, title);
@@ -342,6 +369,8 @@ void report_open_issue(int kind, const char *message, const char *zip) {
 	char what[3000];
 	snprintf(what, sizeof what, "%s", msg);
 	url_append(url, sizeof url, what);
+	strncat(url, "&location=", sizeof url - strlen(url) - 1);
+	url_append(url, sizeof url, where);
 	strncat(url, "&details=", sizeof url - strlen(url) - 1);
 	url_append(url, sizeof url, details);
 	strncat(url, "&report=", sizeof url - strlen(url) - 1);
@@ -350,11 +379,61 @@ void report_open_issue(int kind, const char *message, const char *zip) {
 	snprintf(att, sizeof att, "Attach %s from the game's reports folder here (drag it into this box).",
 	         base ? base + 1 : "the report zip");
 	url_append(url, sizeof url, att);
+	if (getenv("MMZ_PRINT_URL")) { fprintf(stderr, "issue: %s\n", url); return; }   /* testing */
 	SDL_OpenURL(url);
 	/* the folder too, so the zip is easy to drag in */
 	char folder[700];
 	snprintf(folder, sizeof folder, "file:///%s", report_dir());
 	SDL_OpenURL(folder);
+}
+
+/* Share (the report window): plain links cannot attach files, so every
+   target gets the text on the clipboard and the folder opened, and the
+   player drags the zip in. (A Discord webhook could upload the zip, but a
+   webhook address shipped in a public program can be abused.) */
+void report_share(int target, int kind, const char *message, const char *zip, char *hint, size_t n) {
+	const char *base = zip ? strrchr(zip, '/') : NULL;
+	const char *name = base ? base + 1 : "the report zip";
+	const struct Location *l = &snap.loc;
+	static char text[4000];
+	snprintf(text, sizeof text,
+	         "Mega Man Zero PC port %s report\n\n%s\n\nbookmark: %s\nmission %d (stage %d), area %d variant %d, "
+	         "checkpoint %d; Zero %d,%d; camera %d,%d\nversion %s (commit %s); %s; frame %ld, mode %02X, event %04X; "
+	         "view %s %dx%d, cpu %d%%\nzip: %s\n",
+	         kind_name(kind), message && *message ? message : "(no message)", snap.bookmark, l->mission, l->stage,
+	         l->area, l->variant, l->checkpoint, l->x, l->y, l->camX, l->camY, MMZ_VERSION, MMZ_COMMIT, system_name(),
+	         snap.frame, snap.mode, snap.event, kViewNames[settings.viewMode], view_w, view_h, hw_cpu_speed, name);
+	int test = getenv("MMZ_PRINT_URL") != NULL;
+	if (!test) SDL_SetClipboardText(text);
+	if (target == SHARE_GITHUB) {
+		report_open_issue(kind, message, zip);   /* (opens the folder too) */
+		snprintf(hint, n, "Report copied. Drag %s from the opened folder into the GitHub page.", name);
+		return;
+	}
+	char folder[700];
+	snprintf(folder, sizeof folder, "file:///%s", report_dir());
+	static char url[8192];
+	url[0] = 0;
+	if (target == SHARE_EMAIL) {
+		snprintf(url, sizeof url, "mailto:%s?subject=", settings.reportEmail);
+		char subj[200];
+		snprintf(subj, sizeof subj, "Mega Man Zero PC %s report (%s)", kind_name(kind), snap.bookmark);
+		url_append(url, sizeof url, subj);
+		strncat(url, "&body=", sizeof url - strlen(url) - 1);
+		url_append(url, sizeof url, text);
+		snprintf(hint, n, "Report copied. Drag %s from the opened folder into the message%s.", name,
+		         settings.reportEmail[0] ? "" : " (fill in the address)");
+	} else if (target == SHARE_DISCORD) {
+		if (settings.reportDiscord[0]) snprintf(url, sizeof url, "%s", settings.reportDiscord);
+		snprintf(hint, n, settings.reportDiscord[0] ? "Report copied. Paste it in Discord and drag %s from the opened folder into the message."
+		                                            : "Report copied (no Discord link set: report_discord in mmz.ini). Paste it in Discord and drag %s from the opened folder in.", name);
+	} else {
+		snprintf(url, sizeof url, "https://drive.google.com/drive/my-drive");
+		snprintf(hint, n, "Report copied. Drag %s from the opened folder into Google Drive, then share the link with the text.", name);
+	}
+	if (test) { fprintf(stderr, "share: %s | %s\n", url, hint); return; }
+	SDL_OpenURL(folder);
+	if (url[0]) SDL_OpenURL(url);
 }
 
 /* ------------------------------------------------------------ crashes */

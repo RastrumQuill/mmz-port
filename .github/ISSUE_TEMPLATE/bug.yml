@@ -19,6 +19,11 @@ body:
     attributes:
       label: Report zip
       description: Drag the zip from the game's `reports` folder here. It lets us replay your session exactly.
+  - type: textarea
+    id: location
+    attributes:
+      label: Where in the game
+      description: Filled in by the game. The bookmark line (mmz:...) goes straight there with `mmz --warp "mmz:..."` or the Debug window (F2).
   - type: input
     id: details
     attributes:

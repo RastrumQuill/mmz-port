@@ -41,6 +41,8 @@ can be used entirely with a controller.
 |---|---|
 | F1 | settings: video, sound, controls (the game waits while it is open) |
 | F2 | debug tools |
+| F5 | bookmark this place |
+| F12 | report a problem |
 | F11 | full screen |
 | P / N | pause / one frame while paused |
 | Tab (held) | fast-forward |
@@ -68,7 +70,31 @@ executable then lists frames that took long (stalls) and stretches where the
 game finished no frames, with the game's state.
 
 **Debug tools (F2).**
-* Status: frame, speed, scanline, game mode, mission, area, camera position.
+* Status: frame, speed, scanline, game mode, mission, area, checkpoint,
+  Zero's and the camera's position, Zero's life, and this place's bookmark
+  (Copy puts it on the clipboard).
+* Bookmarks: F5 saves the place you are at to `bookmarks.txt` (next to
+  `mmz.ini`, one `name<TAB>mmz:...` per line; also copied to the
+  clipboard). The list has Go / Copy / delete and an editable name; the
+  paste box takes any bookmark (from a report or an issue). A bookmark is
+  one line: `mmz:m9 a4 v1 cp0 x7164 y767 cx7164 cy720` = mission (as
+  picked at the base), area, area variant, checkpoint reached, Zero x/y,
+  camera centre x/y, in pixels (only `m` is needed; leaving out `x`/`y`
+  starts at the checkpoint).
+* Warp (Go, `--warp "mmz:..."`, route `warp mmz:...`): the game is started
+  again and plays its own way there, fast-forwarded: through the title and
+  menus (Start / A), the mission is forced once the game picks one (the
+  base's mission choice, or a new game's first), the bookmark's checkpoint
+  is set while the stage starts (so the stage's own checkpoint start runs),
+  and after a second of play Zero and the camera are put at the position.
+  Works from a new game and from a save. Not a memory restore, so the
+  stage state is the checkpoint's: events between the checkpoint and the
+  spot have not happened.
+* Position overlay (frame, mission, area, checkpoint, Zero, camera, life),
+  Pause at frame N (also `--pause-at N`), Invincible (gHitboxes.flags bit
+  0: Zero's side cannot be hurt, as the game sets it for its scenes), No
+  enemies (gHitboxes.killMask bit 1, as when a boss is beaten: every enemy
+  dies; bosses too, which may end the mission).
 * Speed: pause, frame step, fast-forward, and the timing calibration.
 * Layers: show or hide each background and the sprites.
 * Mission warp: with Force on, any mission picked at the base loads the
@@ -78,6 +104,32 @@ game finished no frames, with the game's state.
   health, ammunition...), then freeze them.
 * Viewers: memory (hex), palette, tiles (any VRAM block and palette),
   sprites (the OAM table), I/O registers.
+
+**Problem reports (F12).** `report.txt` in the zip, the pre-filled GitHub
+issue ("Where in the game") and `bookmark.txt` carry the mission, area,
+variant, checkpoint, Zero and camera position, the bookmark line, the view
+settings and the version and commit. Share offers GitHub, Email, Discord
+and Google Drive: each saves the zip, copies the report text (with the
+bookmark) to the clipboard, opens the reports folder and the target (the
+issue page; a `mailto:` to `report_email`; the `report_discord` link;
+Drive), and the player drags the zip in. Both addresses are in `mmz.ini`,
+empty by default. (A Discord webhook could upload the zip by itself, but a
+webhook address in a public program can be abused, so there is none.)
+
+**Save states: not done.** The game runs as native code on its own task
+stacks (fibers, `tasks.c`) with return addresses and C locals of the host
+program on them; RAM can be saved, but the native stacks, the lifted
+code's position in them and the platform layer's state cannot be put back
+portably (and not across builds). The warp is the replacement.
+
+**Routes for checks.** Besides button lines, `shot`, `poke`, `ff`,
+`report`, `dump`, `end`: `warp mmz:...` (later lines wait until it is
+there: their frames count from its end), `where` (prints the bookmark of
+here and Zero's life), `cheat invincible|noenemies 1|0`. E.g.
+
+    0 warp mmz:m9 a4 v1 cp0 x7164 y767 cx7164 cy720
+    60 shot door.png
+    61 end
 
 **Testing.** `mmz --skip-intro` fast-forwards through the title, menus and
 cutscenes (pressing Start / A) to the first moment of play.

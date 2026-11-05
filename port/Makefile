@@ -31,7 +31,8 @@ endif
 CFLAGS := $(DEFS_TRACE) -std=gnu11 $(OPT) -g -fwrapv -w -fno-pie -I $(ROOT)/tools/lift -I $(ROOT)/lifted -I $(ROOT)/include $(SDL_CFLAGS)
 # the version reports carry (report.c): the release tag, or the commit
 VERSION ?= $(shell git -C $(ROOT) describe --tags --always --dirty 2>/dev/null || echo dev)
-CFLAGS += -DMMZ_VERSION='"$(VERSION)"'
+COMMIT ?= $(shell git -C $(ROOT) rev-parse --short HEAD 2>/dev/null || echo unknown)
+CFLAGS += -DMMZ_VERSION='"$(VERSION)"' -DMMZ_COMMIT='"$(COMMIT)"'
 CXXFLAGS := $(OPT) -g -w -fno-pie -I $(ROOT)/tools/lift -I third_party/imgui $(SDL_CFLAGS)
 LIBS := $(SDL_LIBS)
 
@@ -56,9 +57,9 @@ $(OUT)/lifted/%.o: $(ROOT)/lifted/%.c $(ROOT)/tools/lift/lift.h imm.h | $(OUT)/l
 	$(CC) $(CFLAGS) $(TRACE) -include imm.h -c -o $@ $<
 $(OUT)/src/%.o: $(ROOT)/src/%.c | $(OUT)/src
 	$(CC) $(CFLAGS) $(TRACE) -DPLATFORM_PC -c -o $@ $<
-$(OUT)/pc/%.o: %.c pc.h settings.h input.h ui.h | $(OUT)/pc
+$(OUT)/pc/%.o: %.c pc.h settings.h input.h ui.h debug.h | $(OUT)/pc
 	$(CC) $(CFLAGS) -Wall -Wno-unused-function -c -o $@ $<
-$(OUT)/pc/ui.o: ui.cpp ui.h pc.h settings.h input.h | $(OUT)/pc
+$(OUT)/pc/ui.o: ui.cpp ui.h pc.h settings.h input.h debug.h report.h | $(OUT)/pc
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
 $(OUT)/imgui/%.o: third_party/imgui/%.cpp | $(OUT)/imgui
 	$(CXX) $(CXXFLAGS) -c -o $@ $<

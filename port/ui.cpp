@@ -2,6 +2,7 @@
 //   F1   settings: video, sound, controls (click a binding, press the new key)
 //   F2   debug tools: status, speed, layers, mission warp, RAM freezes and
 //        search, memory, palette, tiles, sprites, I/O registers
+//   F5   bookmark this place (bookmarks.txt; Debug window: Go warps there)
 //   F12  report a problem: freezes the game, asks what went wrong, saves a
 //        zip with what is needed to see it again, opens the GitHub issue page
 //   P    pause, N one frame while paused, Tab (held) fast-forward
@@ -10,6 +11,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdarg.h>
 #include <SDL.h>
 #include "imgui.h"
 #include "imgui_impl_sdl2.h"
@@ -21,9 +23,10 @@ extern "C" {
 #include "ui.h"
 #include "input.h"
 #include "report.h"
+#include "debug.h"
 }
 
-struct DebugState debug = { 0, 0, 0, 0x1F };
+struct DebugState debug = { 0, 0, 0, 0x1F, 0, 0 };
 
 static SDL_Window *sWindow;
 static SDL_Renderer *sRenderer;
@@ -138,6 +141,22 @@ extern "C" void ui_init(SDL_Window *window, SDL_Renderer *renderer) {
 
 static bool menus_open() { return sShowSettings || sShowDebug || sShowReport; }
 
+// a short message over the game (F5)
+static char sToast[200];
+static Uint32 sToastUntil;
+static void toast(const char *fmt, ...) {
+	va_list ap;
+	va_start(ap, fmt);
+	vsnprintf(sToast, sizeof sToast, fmt, ap);
+	va_end(ap);
+	sToastUntil = SDL_GetTicks() + 3000;
+}
+static void bookmark_here() {
+	const char *b = bookmark_add_here();
+	if (b) { SDL_SetClipboardText(b); toast("Bookmarked (and copied): %s", b); }
+	else toast("Too many bookmarks: remove some in the Debug window (F2)");
+}
+
 extern "C" int ui_pauses_game(void) { return (sShowSettings || sShowReport) && !sTestDir; }
 
 // open the report window; the picture and memory are taken now, before it is drawn
@@ -203,6 +222,7 @@ extern "C" int ui_event(const SDL_Event *e) {
 		case SDL_SCANCODE_F1: ui_toggle_settings(); return 1;
 		case SDL_SCANCODE_F2: sShowDebug = !sShowDebug; return 1;
 		case SDL_SCANCODE_F12: open_report(REPORT_PROBLEM); return 1;
+		case SDL_SCANCODE_F5: bookmark_here(); return 1;
 		case SDL_SCANCODE_ESCAPE:
 			if (sShowSettings) { sShowSettings = false; settings_save(); return 1; }
 			break;
@@ -424,8 +444,15 @@ static void debug_window() {
 	ImGui::Text("Frame %ld   %.1f fps   line %d", sFrame, sFps, hw_line);
 	ImGui::Text("Game mode %02X.%02X   mission %u   area %u", rd(ADDR_MODE, 1), rd(ADDR_SUBMODE, 1),
 	            rd(ADDR_MISSION, 1), rd(ADDR_AREA, 1) & 0x7F);
-	s32 cx = (s32)rd(ADDR_CAMERA + 0x38, 4), cy = (s32)rd(ADDR_CAMERA + 0x3C, 4);
-	ImGui::Text("Camera centre %d, %d (pixels)", cx >> 8, cy >> 8);
+	struct Location here;
+	loc_now(&here);
+	ImGui::Text("Checkpoint %d   variant %d   Zero %d, %d   camera %d, %d   life %d", here.checkpoint, here.variant,
+	            here.x, here.y, here.camX, here.camY, zero_hp());
+	char hereText[160];
+	loc_format(&here, hereText, sizeof hereText);
+	ImGui::TextUnformatted(hereText);
+	ImGui::SameLine();
+	if (ImGui::SmallButton("Copy")) SDL_SetClipboardText(hereText);
 
 	ImGui::SeparatorText("Speed");
 	bool paused = debug.paused, ff = debug.fastForward;
@@ -435,6 +462,49 @@ static void debug_window() {
 	ImGui::SameLine();
 	if (ImGui::Checkbox("Fast-forward (Tab)", &ff)) debug.fastForward = ff;
 	ImGui::SliderInt("Cycle scale %", &hw_cycle_scale, 50, 200);
+	static int pauseAt = 0;
+	ImGui::SetNextItemWidth(120);
+	ImGui::InputInt("##pauseat", &pauseAt, 60, 600);
+	ImGui::SameLine();
+	bool pa = debug.pauseAt != 0;
+	if (ImGui::Checkbox("Pause at frame", &pa)) debug.pauseAt = pa ? pauseAt : 0;
+	if (pa) debug.pauseAt = pauseAt;
+	bool ov = debug.overlay, inv = cheat_invincible, ne = cheat_no_enemies;
+	if (ImGui::Checkbox("Position overlay", &ov)) debug.overlay = ov;
+	ImGui::SameLine();
+	if (ImGui::Checkbox("Invincible", &inv)) cheat_invincible = inv;
+	ImGui::SameLine();
+	if (ImGui::Checkbox("No enemies", &ne)) cheat_no_enemies = ne;
+
+	ImGui::SeparatorText("Bookmarks (F5 saves this place)");
+	static char paste[200];
+	ImGui::SetNextItemWidth(330);
+	ImGui::InputTextWithHint("##paste", "paste a bookmark: mmz:m9 a2 cp1 x1234 y567", paste, sizeof paste);
+	ImGui::SameLine();
+	struct Location pl;
+	bool valid = loc_parse(paste, &pl);
+	ImGui::BeginDisabled(!valid);
+	if (ImGui::Button("Go##paste")) frontend_restart_warp(paste);
+	ImGui::EndDisabled();
+	ImGui::SameLine();
+	if (ImGui::Button("Save here")) bookmark_here();
+	for (int i = 0; i < bookmarkCount; i++) {
+		ImGui::PushID(i);
+		if (ImGui::SmallButton("Go")) frontend_restart_warp(bookmarks[i].text);
+		ImGui::SameLine();
+		if (ImGui::SmallButton("Copy")) SDL_SetClipboardText(bookmarks[i].text);
+		ImGui::SameLine();
+		bool del = ImGui::SmallButton("x");
+		ImGui::SameLine();
+		ImGui::SetNextItemWidth(200);
+		if (ImGui::InputText("##name", bookmarks[i].name, sizeof bookmarks[i].name, ImGuiInputTextFlags_EnterReturnsTrue)) bookmarks_save();
+		if (ImGui::IsItemDeactivatedAfterEdit()) bookmarks_save();
+		ImGui::SameLine();
+		ImGui::TextDisabled("%s", bookmarks[i].text);
+		ImGui::PopID();
+		if (del) { bookmark_remove(i); break; }
+	}
+	ImGui::TextDisabled("Go starts the game again and plays to there (the mission from its checkpoint).");
 
 	ImGui::SeparatorText("Layers");
 	static const char *const layers[5] = { "BG0", "BG1", "BG2", "BG3", "Sprites" };
@@ -721,7 +791,9 @@ static void test_step() {
 	if (sFrame == 1210) shot = 2;
 	if (sFrame == 1211) { sShowFreezes = sShowSearch = sShowMemory = sShowPalette = false; sShowTiles = sShowSprites = sShowIo = true; }
 	if (sFrame == 1216) shot = 3;
-	if (sFrame == 1217) exit(0);
+	if (sFrame == 1217) sShowTiles = sShowSprites = sShowIo = false;
+	if (sFrame == 1222) shot = 4;   // the Debug window alone
+	if (sFrame == 1223) exit(0);
 	if (!shot) return;
 	int w, h;
 	SDL_GetRendererOutputSize(sRenderer, &w, &h);
@@ -746,14 +818,19 @@ static void report_window() {
 	ImGui::InputTextMultiline("##msg", sReportMsg, sizeof sReportMsg, ImVec2(ImGui::GetFontSize() * 30, ImGui::GetFontSize() * 8));
 	ImGui::TextDisabled("Saved with it: your inputs since the game started, the save as it was then,");
 	ImGui::TextDisabled("a screenshot, the game's memory and your settings. Nothing is sent by itself.");
-	if (ImGui::Button("Save and open GitHub")) {
-		const char *z = sReportKind == REPORT_CRASH && sReportZip[0] ? sReportZip : report_write(sReportKind, sReportMsg);
-		if (z) {
-			snprintf(sReportZip, sizeof sReportZip, "%s", z);
-			report_open_issue(sReportKind, sReportMsg, z);
-			snprintf(sReportStatus, sizeof sReportStatus, "Saved %s. Drag it into the GitHub page to attach it.", z);
-			if (sReportKind == REPORT_CRASH) report_clear_pending_crash();
-		} else snprintf(sReportStatus, sizeof sReportStatus, "Could not write to %s.", report_folder());
+	if (ImGui::Button("Share...")) ImGui::OpenPopup("share");
+	if (ImGui::BeginPopup("share")) {
+		static const char *const targets[] = { "GitHub issue", "Email", "Discord", "Google Drive" };
+		for (int t = 0; t < 4; t++)
+			if (ImGui::Selectable(targets[t])) {
+				const char *z = sReportKind == REPORT_CRASH && sReportZip[0] ? sReportZip : report_write(sReportKind, sReportMsg);
+				if (z) {
+					snprintf(sReportZip, sizeof sReportZip, "%s", z);
+					report_share(t, sReportKind, sReportMsg, z, sReportStatus, sizeof sReportStatus);
+					if (sReportKind == REPORT_CRASH) report_clear_pending_crash();
+				} else snprintf(sReportStatus, sizeof sReportStatus, "Could not write to %s.", report_folder());
+			}
+		ImGui::EndPopup();
 	}
 	ImGui::SameLine();
 	if (ImGui::Button("Save only")) {
@@ -774,6 +851,29 @@ static void report_window() {
 	}
 }
 
+// over the game: the frame and where Zero is (Debug window, Position
+// overlay), and the F5 message
+static void overlay(bool toastOn) {
+	ImDrawList *dl = ImGui::GetForegroundDrawList();
+	char line[300];
+	int lines = (debug.overlay ? 1 : 0) + (toastOn ? 1 : 0);
+	float y = ImGui::GetMainViewport()->Size.y - lines * (ImGui::GetFontSize() + 3) - 4;   // at the bottom
+	auto put = [&](const char *t) {
+		ImVec2 sz = ImGui::CalcTextSize(t);
+		dl->AddRectFilled(ImVec2(4, y - 1), ImVec2(10 + sz.x, y + sz.y + 1), IM_COL32(0, 0, 0, 170));
+		dl->AddText(ImVec2(7, y), IM_COL32(255, 255, 255, 255), t);
+		y += sz.y + 3;
+	};
+	if (debug.overlay) {
+		struct Location l;
+		loc_now(&l);
+		snprintf(line, sizeof line, "frame %ld  mission %d area %d cp %d  Zero %d,%d  camera %d,%d  life %d%s", sFrame,
+		         l.mission, l.area, l.checkpoint, l.x, l.y, l.camX, l.camY, zero_hp(), warp_active() ? "  (warping)" : "");
+		put(line);
+	}
+	if (toastOn) put(sToast);
+}
+
 extern "C" void ui_present(SDL_Texture *game) {
 	int ww, wh;
 	SDL_GetRendererOutputSize(sRenderer, &ww, &wh);
@@ -791,7 +891,9 @@ extern "C" void ui_present(SDL_Texture *game) {
 
 	if (sTestDir && sFrame == 1200) sShowSettings = true;
 	if (sRebindPad >= 0 && SDL_GetTicks() - sRebindTime > 5000) sRebindPad = -1;   // nothing pressed
-	if (menus_open()) {
+	bool wasOpen = menus_open();
+	bool toastOn = sToast[0] && SDL_GetTicks() < sToastUntil;
+	if (wasOpen || debug.overlay || toastOn) {
 		// while a controller binding waits, the controller does not move around the menu
 		ImGuiIO &io = ImGui::GetIO();
 		if (sRebindPad >= 0) io.ConfigFlags &= ~ImGuiConfigFlags_NavEnableGamepad;
@@ -800,6 +902,7 @@ extern "C" void ui_present(SDL_Texture *game) {
 		ImGui_ImplSDL2_NewFrame();
 		ImGui::GetIO().FontGlobalScale = wh >= 1400 ? 2.0f : wh >= 1000 ? 1.5f : 1.0f;
 		ImGui::NewFrame();
+		if (debug.overlay || toastOn) overlay(toastOn);
 		if (sShowSettings) settings_window();
 		if (sShowReport) report_window();
 		if (sShowDebug) {
@@ -815,7 +918,7 @@ extern "C" void ui_present(SDL_Texture *game) {
 		ImGui::Render();
 		ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData(), sRenderer);
 		test_step();
-		if (!sShowSettings && !sShowDebug && !sShowReport) settings_save();
+		if (wasOpen && !menus_open()) settings_save();
 	}
 	SDL_RenderPresent(sRenderer);
 }

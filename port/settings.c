@@ -181,6 +181,8 @@ static void apply(const char *key, const char *value) {
 	else if (!strcmp(key, "fill_gaps")) settings.fillGaps = atoi(value);
 	else if (!strcmp(key, "cpu_speed")) settings.cpuSpeed = atoi(value);
 	else if (!strcmp(key, "log")) settings.log = atoi(value);
+	else if (!strcmp(key, "report_email")) snprintf(settings.reportEmail, sizeof settings.reportEmail, "%s", value);
+	else if (!strcmp(key, "report_discord")) snprintf(settings.reportDiscord, sizeof settings.reportDiscord, "%s", value);
 	else if (!strcmp(key, "stick_moves")) settings.stickMoves = atoi(value);
 	else if (!strcmp(key, "stick_deadzone")) settings.deadzone = atoi(value);
 	else if (!strncmp(key, "key_", 4) || !strncmp(key, "pad_", 4) || !strncmp(key, "joy_", 4)) {
@@ -236,6 +238,8 @@ void settings_save(void) {
 	           "fit_small_rooms = %d\nfill_gaps = %d\n", settings.fitRooms, settings.fillGaps);
 	fprintf(f, "\n# CPU time the game gets per frame, percent of the GBA's (100: the GBA's slowdown)\ncpu_speed = %d\n", settings.cpuSpeed);
 	fprintf(f, "\n# 1: write mmz.log next to this file (for reporting problems)\nlog = %d\n", settings.log);
+	fprintf(f, "\n# F12 report, Share: the Email address and the Discord invite / channel link (empty: none)\n"
+	           "report_email = %s\nreport_discord = %s\n", settings.reportEmail, settings.reportDiscord);
 	fprintf(f, "\n# keyboard (SDL key names)\n");
 	for (int i = 0; i < 10; i++) fprintf(f, "key_%s = %s\n", kButtonNames[i], SDL_GetScancodeName(settings.keys[i]));
 	char buf[32];
