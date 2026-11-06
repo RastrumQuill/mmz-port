@@ -605,7 +605,9 @@ struct Fill {
 	s16 *donor;              /* per cell: the real chunk it is drawn like (global, gx | gy << 8), -1 none */
 	int nreps; s16 reps[64]; /* the distinct donors (their sources are worked out before drawing) */
 	int repSrc[64];          /* (tile fill) where each is drawn from this frame: -1 not, 0 video memory, 1 + n copy n */
+	int fine;                /* (tile fill) per 8x8 cell (cw*30 x ch*20): mt is the tilemap entry, donor < 0 nothing */
 };
+static size_t fill_cells(int cw, int ch, int fine) { return (size_t)cw * ch * (fine ? 600 : 150); }
 static struct Fill fills[4];
 static int fillsBuilt;
 
@@ -763,39 +765,40 @@ out:
 
 /* ------------------------------------------------------------ tile fill
  *
- * fill_gaps = 1: every cell (16x16 metatile) of the area's box the GBA camera
- * never shows (empty chunks, parts of the area the camera does not reach,
- * cells the shown map leaves out, a chunk of margin around the box) is made
- * up from what the camera does show, per BG layer (each layer from its own
- * cells: the sky stays sky, the level level), by constraint-based tile
- * synthesis (wave function collapse's rules, with texture synthesis'
- * patch copying):
- *  - tokens: (metatile, graphics class) of the shown cells of chunks whose
- *    two graphics sets are known; a made-up cell is drawn like a real chunk
- *    with the same sets, so its tiles, palettes and flips (they are in the
- *    metatile) are the ones the game shows;
- *  - rules: which token is right of / below which, from every pair of
- *    neighbouring cells of the level (inside chunks and across their
- *    borders; the level's cells the camera does not show teach rules
- *    between tokens it shows, but are never copied);
- *  - cells are decided from the seams outwards (the open cell with the most
- *    decided neighbours first, as WFC's lowest entropy); each one copies a
- *    shown cell: of the places in the level where its decided neighbours'
- *    tokens are, the one whose 5x5 surroundings match the decided cells
- *    around it best (overlapping patterns), keeping on copying from where its
- *    neighbours were copied from (whole pieces, not single metatiles),
- *    and first of all keeping to the rules with its 4 decided neighbours
- *    (so every seam with the real level is a pair the level has);
- *  - below the level (something solid shown above in the column) fully
- *    transparent tokens count against (no holes of open sky under the floor);
- *  - a cell no candidate fits the rules for (a contradiction) takes the best
- *    match anyway: counted, so seeds and settings can be compared.
- * Same area, same seed, same result: it is worked out once (fill patch).
+ * fill_gaps = 1: every 8x8 cell of the area's box (plus two chunks of margin:
+ * a room smaller than the view shows them) the GBA camera never shows is made
+ * up, per BG layer, by wave function collapse over the area's own tiles:
+ *  - tokens: the tilemap entries (tile, flips, palette) of the 8x8 cells the
+ *    camera shows, with their chunk's graphics class (two graphics sets);
+ *    every blank tile is one token, drawn as nothing. A gap cell's domain
+ *    holds only tokens shown in this area on this layer, so nothing the level
+ *    does not show can appear;
+ *  - rules: which token is right of / below which, from pairs of neighbouring
+ *    shown cells; a token never seen with a neighbour one way allows any
+ *    there (the edge of what is shown); frequencies are the weights;
+ *  - regions: a gap cell goes on from the level the way it is nearest it:
+ *    below the floor it continues its column downwards, above the level's top
+ *    edge upwards, beside it its row. Its domain is the tokens of that edge
+ *    of the level only (the 8 shown cells nearest the top / bottom / left /
+ *    right end of each column or row: open sky learns from the top rows, not
+ *    from the floor), and the edge's continuation (its period of 1-4 tiles
+ *    repeated; a cap or rim right at the edge skipped) is a strong prior: the
+ *    wood posts under the snow city go on down, a wall goes on sideways, open
+ *    space stays open (blank gets extra weight above and beside the level);
+ *  - solve: shown cells are fixed; the lowest-entropy open cell (nearest the
+ *    seams on ties) is collapsed to a weighted random token of its domain
+ *    and the rules are propagated (domains as bitsets); a contradiction
+ *    resets the cells around it (a wider square each time) and solves them
+ *    again; a cell that keeps failing takes its continuation (the 8x8 column
+ *    repeat), else stays black.
+ * The seed is fixed per area: the same result every time (fill patch).
  */
 typedef unsigned long long u64;
-#define FILL_FULL 0x4000   /* (a filled cell's metatile: drawn whole, the tile fill) */
-#define SYN_MAXT 4096
+#define FILL_FULL 0x4000   /* (a filled cell's metatile: drawn whole, the old tile fill) */
+#define WT_MAX 2048        /* tokens per layer */
+#define WT_EMPTY 0x7FFFFFFF
 
+static const int sdx[4] = { 1, -1, 0, 0 }, sdy[4] = { 0, 0, 1, -1 };
 static u32 syn_rng;
 static u32 syn_rand(void) { syn_rng ^= syn_rng << 13; syn_rng ^= syn_rng >> 17; syn_rng ^= syn_rng << 5; return syn_rng; }
 
@@ -810,143 +813,75 @@ static int chunk_class(int cx, int cy, int area) {
 	return hi << 4 | lo;
 }
 
-/* the rules: pairs (a, b, direction) in a hash set */
-#define SYN_RH (1 << 18)
-static u64 synRules[SYN_RH];
-static u8 *synRuled;   /* [dir * T + t]: t has a rule that way */
-static u64 rule_v(int a, int b, int d) { return ((u64)(a + 1) << 34 | (u64)(b + 1) << 4 | (u64)(d + 1)); }
-static void rule_put(int a, int b, int d) {
-	u64 v = rule_v(a, b, d), h = (v * 0x9E3779B97F4A7C15ull) >> 46;
-	while (synRules[h] && synRules[h] != v) h = (h + 1) & (SYN_RH - 1);
-	synRules[h] = v;
+/* video memory with a class's sets (to tell blank tiles), or NULL */
+static const u8 *class_vram(int area, int cls) {
+	if (set_loaded(cls >> 4, GFX_SET_A, area) && set_loaded(cls & 15, GFX_SET_B, area)) return vram;
+	int c = combo_fill(area, cls >> 4, cls & 15);
+	return c >= 0 ? comboVram[c] : NULL;
 }
-static int rule_has(int a, int b, int d) {
-	u64 v = rule_v(a, b, d), h = (v * 0x9E3779B97F4A7C15ull) >> 46;
-	while (synRules[h]) { if (synRules[h] == v) return 1; h = (h + 1) & (SYN_RH - 1); }
-	return 0;
+static int tile_blank(const u8 *vr, u16 e, u32 cb) {
+	u32 a = cb + (e & 0x3FF) * 32;
+	if (a + 32 > 0x10000) return 1;
+	for (int i = 0; i < 32; i++)
+		if (vr[a + i]) return 0;
+	return 1;
 }
 
-static const int sdx[4] = { 1, -1, 0, 0 }, sdy[4] = { 0, 0, 1, -1 };
-
-/* grid: per cell a shown token (>= 0, fixed) or -1 (to make up); sample: the
-   level's token per cell (shown or not, -1 none); out: per cell its token.
-   Returns the contradictions. */
-static int synth(int W, int H, int T, const int *grid, const int *sample, const u8 *clear, const u8 *under, const u8 *depth,
-                 const int *occ, const int *occAt, int *cell, int *src, u32 seed) {
-	size_t n = (size_t)W * H;
-	syn_rng = seed | 1;
-	int fails = 0;
-	u8 *cnt = calloc(n, 1);
-	int *bq[9], bh[9], bt[9];
-	size_t cap = n * 9 + 16;
-	for (int b = 0; b < 9; b++) { bq[b] = malloc(cap / 3 * sizeof(int) + 64); bh[b] = bt[b] = 0; }
-	int ok = cnt != NULL;
-	for (int b = 0; b < 9; b++) if (!bq[b]) ok = 0;
-	if (!ok) { free(cnt); for (int b = 0; b < 9; b++) free(bq[b]); return -1; }
-	int bcap = (int)(cap / 3);
-	#define PUSH(i) do { int b_ = cnt[i]; if (bt[b_] < bcap) bq[b_][bt[b_]++] = (i); } while (0)
-	for (size_t i = 0; i < n; i++) { cell[i] = grid[i]; src[i] = grid[i] >= 0 ? (int)i : -1; }
-	for (size_t i = 0; i < n; i++) {
-		if (cell[i] != -1) continue;
-		int x = i % W, y = i / W;
-		for (int dy = -1; dy <= 1; dy++)
-			for (int dx = -1; dx <= 1; dx++) {
-				int nx = x + dx, ny = y + dy;
-				if ((dx || dy) && nx >= 0 && ny >= 0 && nx < W && ny < H && cell[ny * W + nx] >= 0) cnt[i]++;
-			}
-		if (cnt[i]) PUSH((int)i);
+/* a sequence going away from a gap (s[0] at its edge) continued k cells into
+   it: its period (1-4 cells, seen repeating over at least 4 cells: posts, a
+   wall's face, not a one-off edge) repeated, after up to 3 cells of edge
+   detail (a cap, a rim). -1: it does not repeat */
+static int wfc_extrap(const int *s, int m, int k) {
+	for (int o = 0; o <= 3; o++)
+		for (int p = 1; p <= 4; p++) {
+			int len = p > 3 ? p : 3;
+			if (o + len + p > m) break;
+			int ok = 1;
+			for (int i = 0; i < len && ok; i++) if (s[o + i] != s[o + i + p]) ok = 0;
+			if (ok) return s[o + (((-k - o) % p) + p) % p];
+		}
+	return -1;
+}
+/* no period: the edge of a solid mass (most of the 8 cells nearest it not
+   blank) goes on as its body: the commonest of those cells' tokens that the
+   level has next to itself that way (dir: the rules' direction into the
+   gap); anything else (the underside of a platform, a ledge with air
+   behind it) as open space (0) */
+static int wfc_open_or_mass(const int *s, int m, const u64 *compat, const u8 *ruled, int T, int Wd, int dir) {
+	int solid = 0, c = m < 8 ? m : 8, best = 0, bn = 0;
+	for (int i = 0; i < c; i++) solid += s[i] != 0;
+	if (!c || solid * 4 < c * 3) return 0;
+	for (int i = 0; i < c; i++) {
+		int t = s[i], k = 0;
+		if (!t || !ruled[dir * T + t] || !(compat[((size_t)dir * T + t) * Wd + (t >> 6)] >> (t & 63) & 1)) continue;
+		for (int j = 0; j < c; j++) k += s[j] == t;
+		if (k > bn) { bn = k; best = t; }
 	}
-	static int cand[256];
+	return best;
+}
+
+static int popc(const u64 *b, int wd) { int c = 0; for (int w = 0; w < wd; w++) c += __builtin_popcountll(b[w]); return c; }
+
+struct WHeap { float key; int cell; };
+static struct WHeap *wh; static int whN, whCap;
+static void wh_push(float key, int cell) {
+	if (whN == whCap) { whCap = whCap ? whCap * 2 : 4096; wh = realloc(wh, whCap * sizeof *wh); }
+	int i = whN++;
+	while (i && wh[(i - 1) / 2].key > key) { wh[i] = wh[(i - 1) / 2]; i = (i - 1) / 2; }
+	wh[i].key = key; wh[i].cell = cell;
+}
+static struct WHeap wh_pop(void) {
+	struct WHeap top = wh[0], last = wh[--whN];
+	int i = 0;
 	for (;;) {
-		int i = -1;
-		for (int b = 8; b >= 1 && i < 0; b--)
-			while (bh[b] < bt[b]) {
-				int c = bq[b][bh[b]++];
-				if (cell[c] == -1 && cnt[c] == b) { i = c; break; }
-			}
-		if (i < 0) {   /* (a queue overflowed, or cells no seam reaches) */
-			size_t j = 0;
-			while (j < n && !(cell[j] == -1 && cnt[j])) j++;
-			if (j == n) break;
-			i = (int)j;
-		}
-		int x = i % W, y = i / W, nc = 0;
-		/* candidates: where the neighbours were copied from, and places of
-		   their tokens, at the same offset */
-		for (int dy = -1; dy <= 1; dy++)
-			for (int dx = -1; dx <= 1; dx++) {
-				int nx = x + dx, ny = y + dy;
-				if (!(dx || dy) || nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
-				int ni = ny * W + nx, t = cell[ni];
-				if (t < 0) continue;
-				if (src[ni] >= 0) {
-					int sx = src[ni] % W - dx, sy = src[ni] / W - dy;
-					if (sx >= 0 && sy >= 0 && sx < W && sy < H && grid[sy * W + sx] >= 0 && nc < 256) cand[nc++] = sy * W + sx;
-				}
-				int m = occAt[t + 1] - occAt[t];
-				for (int k = 0; k < (m < 6 ? m : 6) && nc < 256; k++) {
-					int o = occ[occAt[t] + (m <= 6 ? k : (int)(syn_rand() % m))];
-					int sx = o % W - dx, sy = o / W - dy;
-					if (sx >= 0 && sy >= 0 && sx < W && sy < H && grid[sy * W + sx] >= 0) cand[nc++] = sy * W + sx;
-				}
-			}
-		int best = -1, bestRules = 0; float bs = -1e30f;
-		for (int c = 0; c < nc; c++) {
-			int s = cand[c], t = grid[s], sx = s % W, sy = s / W, rules = 0, broken = 0, soft = 0;
-			for (int d = 0; d < 4; d++) {   /* the rules with the decided neighbours */
-				int nx = x + sdx[d], ny = y + sdy[d];
-				if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
-				int u = cell[ny * W + nx];
-				if (u < 0) continue;
-				if (!synRuled[d * T + t] || rule_has(t, u, d)) rules++;
-				else if (grid[ny * W + nx] >= 0) broken++;   /* (a seam with the real level: must hold) */
-				else soft++;
-			}
-			float sc = -1000.0f * broken - 30.0f * soft;
-			for (int dy = -2; dy <= 2; dy++)   /* the 5x5 patch around it */
-				for (int dx = -2; dx <= 2; dx++) {
-					int nx = x + dx, ny = y + dy, px = sx + dx, py = sy + dy;
-					if (!(dx || dy) || nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
-					int u = cell[ny * W + nx];
-					if (u < 0) continue;
-					float w = (dx >= -1 && dx <= 1 && dy >= -1 && dy <= 1) ? 4.0f : 1.0f;
-					if (px < 0 || py < 0 || px >= W || py >= H) continue;
-					if (sample[py * W + px] == u) sc += w;
-					if (src[ny * W + nx] == py * W + px) sc += w;   /* (copied from right there: coherent) */
-				}
-			if (under[i]) sc += clear[t] ? -80.0f : 1.5f * depth[s];   /* (below the level: copied from deep in it, not sky or its top) */
-			else if (clear[t]) sc += 6.0f;   /* (above and beside it: open space stays open) */
-			sc += (syn_rand() & 1023) / 4096.0f;
-			if (sc > bs) { bs = sc; best = s; bestRules = broken + soft == 0; }
-		}
-		if (best < 0) {   /* (no candidate at all: a neighbour's own token) */
-			for (int d = 0; d < 4 && best < 0; d++) {
-				int nx = x + sdx[d], ny = y + sdy[d];
-				if (nx >= 0 && ny >= 0 && nx < W && ny < H && cell[ny * W + nx] >= 0) {
-					int t = cell[ny * W + nx];
-					if (occAt[t + 1] > occAt[t]) best = occ[occAt[t]];
-				}
-			}
-			if (best < 0) { cell[i] = -2; continue; }
-			bestRules = 0;
-		}
-		if (!bestRules) fails++;
-		cell[i] = grid[best];
-		src[i] = best;
-		for (int dy = -1; dy <= 1; dy++)
-			for (int dx = -1; dx <= 1; dx++) {
-				int nx = x + dx, ny = y + dy;
-				if (!(dx || dy) || nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
-				int ni = ny * W + nx;
-				if (cell[ni] != -1) continue;
-				cnt[ni]++;
-				PUSH(ni);
-			}
+		int c = 2 * i + 1;
+		if (c >= whN) break;
+		if (c + 1 < whN && wh[c + 1].key < wh[c].key) c++;
+		if (wh[c].key >= last.key) break;
+		wh[i] = wh[c]; i = c;
 	}
-	#undef PUSH
-	free(cnt);
-	for (int b = 0; b < 9; b++) free(bq[b]);
-	return fails;
+	if (whN) wh[i] = last;
+	return top;
 }
 
 static void fill_build_wfc(int k, u32 seed) {
@@ -955,7 +890,7 @@ static void fill_build_wfc(int k, u32 seed) {
 	free(F->mt); free(F->donor);
 	memset(F, 0, sizeof *F);
 	int area = CUR_AREA & 0x7F, dbg = getenv("MMZ_FILLDEBUG") != NULL;
-	if (!L->map || L->backdrop) { if (dbg) fprintf(stderr, "fill: area %d bg %d: %s\n", area, k, L->map ? "background" : "no layer"); return; }
+	if (!L->map || L->backdrop) { if (dbg) fprintf(stderr, "fill: area %d bg %d: %s\n", area, k, L->map ? "background (repeats)" : "no layer"); return; }
 	#define REAL(cx, cy) ((cx) >= 0 && (cy) >= 0 && (cx) < L->w && (cy) < L->h && \
 	                      L->map[4 + (cy) * L->stride + (cx)] != L->null && \
 	                      in_area(((cx) * 240 + stageX) / 240, ((cy) * 160 + stageY) / 160))
@@ -964,120 +899,378 @@ static void fill_build_wfc(int k, u32 seed) {
 		for (int cx = 0; cx < L->w; cx++)
 			if (REAL(cx, cy)) { if (cx < x0) x0 = cx; if (cx > x1) x1 = cx; if (cy < y0) y0 = cy; if (cy > y1) y1 = cy; }
 	if (x1 < 0) { if (dbg) fprintf(stderr, "fill: area %d bg %d: no chunks\n", area, k); return; }
-	/* (two chunks around the box too: a room smaller than the view shows them) */
 	for (int m = 0; m < 2; m++) { if (x0 > 0) x0--; if (y0 > 0) y0--; if (x1 < L->w - 1) x1++; if (y1 < L->h - 1) y1++; }
-	int cw = x1 - x0 + 1, ch = y1 - y0 + 1, W = cw * 15, H = ch * 10;
+	int cw = x1 - x0 + 1, ch = y1 - y0 + 1, W = cw * 30, H = ch * 20;
 	size_t n = (size_t)W * H;
 	Uint64 t0 = SDL_GetPerformanceCounter();
-	/* the tokens: (metatile, graphics class) of the cells the camera shows */
-	static s32 tkey[SYN_MAXT]; static s16 trep[256];
-	static s16 tlook[1 << 16];   /* (token search: key hash -> token + 1) */
-	int T = 0, open = 0, fails = -1;
-	int *grid = malloc(n * sizeof *grid), *sample = malloc(n * sizeof *sample), *keys = malloc(n * sizeof *keys);
-	int *cell = malloc(n * sizeof *cell), *src = malloc(n * sizeof *src), *occ = malloc(n * sizeof *occ), *occAt = NULL;
-	u8 *clear = NULL, *under = calloc(n, 1), *depth = calloc(n, 1);
-	if (!grid || !sample || !keys || !cell || !src || !occ || !under || !depth) goto done;
+	u32 cb = ((R16(80, 0x08 + L->bg * 2) >> 2) & 3) * 0x4000;
+	static s32 tkey[WT_MAX]; static s16 trep[256];
+	static s32 tlook[1 << 16];
+	int T = 0, open = 0, Wd = 0;
+	long collapsed = 0, contra = 0, resets = 0, forced = 0, black = 0, priorHit = 0, priorCells = 0;
+	int *tok = malloc(n * sizeof *tok), *prior = malloc(n * sizeof *prior), *out = NULL;
+	u8 *reg = malloc(n), *state = calloc(n, 1), *tries = calloc(n, 1);
+	u16 *dist = malloc(n * 2);
+	u8 *mass = calloc(n, 1), *ruled = NULL, *covered = calloc(n, 1), *cdir = calloc(n, 1);
+	u64 *rep = NULL;   /* (the edge of a solid mass with no period: texture, no blanks) */
+	u64 *dom = NULL, *compat = NULL, *regDom = NULL;
+	float *freq = NULL;
+	int *work = NULL, *bad = NULL; u8 *inWork = NULL;
+	if (!tok || !prior || !reg || !state || !tries || !dist || !mass || !covered || !cdir) goto done;
 	memset(tlook, 0, sizeof tlook);
 	for (int i = 0; i < 256; i++) trep[i] = -1;
-	#define TOKEN(key, add) ({ s32 k_ = (key); u32 h_ = ((u32)k_ * 2654435761u) >> 16; int r_ = -1; \
+	#define TOKEN(key) ({ s32 k_ = (key); u32 h_ = ((u32)k_ * 2654435761u) >> 16; int r_; \
 		while (tlook[h_] && tkey[tlook[h_] - 1] != k_) h_ = (h_ + 1) & 0xFFFF; \
-		if (tlook[h_]) r_ = tlook[h_] - 1; else if ((add) && T < SYN_MAXT) { tkey[T] = k_; tlook[h_] = ++T; r_ = T - 1; } r_; })
+		if (tlook[h_]) r_ = tlook[h_] - 1; else if (T < WT_MAX) { tkey[T] = k_; tlook[h_] = ++T; r_ = T - 1; } else r_ = -2; r_; })
+	TOKEN(WT_EMPTY);   /* (token 0: blank) */
+	/* the shown cells' tokens; -1: a cell to make up, -2: shown, no token (any neighbour) */
 	for (int cy = 0; cy < ch; cy++)
 		for (int cx = 0; cx < cw; cx++) {
 			int lx = cx + x0, ly = cy + y0, gx = (lx * 240 + stageX) / 240, gy = (ly * 160 + stageY) / 160;
 			int real = REAL(lx, ly), cls = real ? chunk_class(gx, gy, area) : -1;
 			const u16 *C = real ? L->chunks + L->map[4 + ly * L->stride + lx] * 150 : NULL;
-			for (int r = 0; r < 10; r++)
-				for (int c = 0; c < 15; c++) {
-					int i = (cy * 10 + r) * W + cx * 15 + c;
-					keys[i] = cls >= 0 && C[r * 15 + c] < FILL_FULL ? C[r * 15 + c] | cls << 16 : -1;
-					grid[i] = -1;
-					if (keys[i] >= 0 && shown_at(gx * 240 + c * 16, gy * 160 + r * 16)) {
-						grid[i] = TOKEN(keys[i], 1);
-						if (grid[i] >= 0 && trep[cls] < 0) trep[cls] = gx | gy << 8;
-						if (grid[i] < 0) grid[i] = -3;   /* (too many tokens: shown, but not copied) */
+			const u8 *vr = cls >= 0 ? class_vram(area, cls) : NULL;
+			for (int r = 0; r < 20; r++)
+				for (int c = 0; c < 30; c++) {
+					int i = (cy * 20 + r) * W + cx * 30 + c, t = -1;
+					if (real && shown_at(gx * 240 + c * 8, gy * 160 + r * 8)) {
+						if (cls < 0) t = -2;
+						else {
+							u16 e = L->tiledata[C[(r >> 1) * 15 + (c >> 1)] * 4 + (r & 1) * 2 + (c & 1)];
+							t = TOKEN(vr && tile_blank(vr, e, cb) ? WT_EMPTY : e | cls << 16);
+							if (t > 0 && trep[cls] < 0) trep[cls] = gx | gy << 8;
+						}
 					}
-					if (grid[i] == -1) open++;
+					tok[i] = t;
+					if (t == -1) open++;
 				}
 		}
-	/* the level's cells the camera does not show: tokens it does show teach rules */
-	for (size_t i = 0; i < n; i++) sample[i] = grid[i] >= 0 ? grid[i] : keys[i] >= 0 && grid[i] == -1 ? TOKEN(keys[i], 0) : -1;
-	if (!T || !open) {
-		if (dbg) fprintf(stderr, "fill: area %d bg %d: %d tokens, %d cells to make up%s\n", area, k, T, open, open ? ": the column fill" : "");
-		free(grid); free(sample); free(keys); free(cell); free(src); free(occ); free(under); free(depth);
-		if (open) fill_build_column(k);
-		return;
+	if (T <= 1 || !open) {
+		if (dbg) fprintf(stderr, "fill: area %d bg %d: %d tokens, %d cells to make up\n", area, k, T, open);
+		goto done;
 	}
-	occAt = calloc(T + 2, sizeof *occAt);
-	clear = calloc(T, 1);
-	synRuled = calloc((size_t)4 * T, 1);
-	if (!occAt || !clear || !synRuled) goto done;
-	memset(synRules, 0, sizeof synRules);
+	Wd = (T + 63) / 64;
+	dom = malloc(n * Wd * 8); compat = calloc((size_t)4 * T * Wd, 8); regDom = calloc((size_t)5 * Wd, 8);
+	freq = calloc((size_t)5 * T, sizeof *freq);
+	work = malloc(n * 4 * sizeof *work); bad = malloc(n * sizeof *bad); inWork = calloc(n, 1); out = malloc(n * sizeof *out);
+	if (!dom || !compat || !regDom || !freq || !work || !bad || !inWork || !out) goto done;
+	#define CP(d, t) (compat + ((size_t)(d) * T + (t)) * Wd)
+	#define DOM(i) (dom + (size_t)(i) * Wd)
+	/* rules, from neighbouring shown cells (directions: right, left, down, up) */
 	for (int y = 0; y < H; y++)
 		for (int x = 0; x < W; x++) {
-			int a = sample[y * W + x];
+			int a = tok[y * W + x];
 			if (a < 0) continue;
+			freq[4 * T + a]++;
 			for (int d = 0; d < 4; d++) {
 				int nx = x + sdx[d], ny = y + sdy[d];
-				if (nx < 0 || ny < 0 || nx >= W || ny >= H || sample[ny * W + nx] < 0) continue;
-				rule_put(a, sample[ny * W + nx], d);
-				synRuled[d * T + a] = 1;
+				if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+				int b = tok[ny * W + nx];
+				if (b >= 0) CP(d, a)[b >> 6] |= 1ull << (b & 63);
 			}
 		}
-	for (size_t i = 0; i < n; i++) if (grid[i] >= 0) occAt[grid[i] + 2]++;
-	for (int t = 0; t < T; t++) occAt[t + 2] += occAt[t + 1];
-	for (size_t i = 0; i < n; i++) if (grid[i] >= 0) occ[occAt[grid[i] + 1]++] = (int)i;
+	ruled = calloc((size_t)4 * T, 1);
+	if (!ruled) goto done;
+	for (int d = 0; d < 4; d++)   /* (never seen with a neighbour that way: any) */
+		for (int t = 0; t < T; t++)
+			if (!popc(CP(d, t), Wd)) for (int w = 0; w < Wd; w++) CP(d, t)[w] = ~0ull;
+			else ruled[d * T + t] = 1;
+	/* an outdoor layer: a background layer (the sky) is behind it, or most
+	   columns' topmost shown cell is blank */
+	int outdoor = 0;
 	{
-		u32 cb = ((R16(80, 0x08 + L->bg * 2) >> 2) & 3) * 0x4000;
-		for (int t = 0; t < T; t++) {
-			int m = tkey[t] & 0xFFFF, e = 1;
-			for (int j = 0; j < 4; j++) if (!tile_empty(L->tiledata[m * 4 + j], cb)) e = 0;
-			clear[t] = e;
-		}
+		int cols = 0, blank = 0;
 		for (int x = 0; x < W; x++)
-			for (int y = 0, seen = 0; y < H; y++) {
-				int g = grid[y * W + x];
-				if (g >= 0 && !clear[g]) seen = 1;
-				under[y * W + x] = seen;
+			for (int y = 0; y < H; y++) { int t = tok[y * W + x]; if (t >= 0) { cols++; blank += t == 0; break; } }
+		outdoor = blank * 4 > cols;
+		for (int j = 1; j < 4; j++) if (layers[j].map && layers[j].backdrop) outdoor = 1;
+	}
+	/* the edge bands: the 8 shown cells nearest each end of every column (0 top, 1 bottom) and row (2 left, 3 right) */
+	for (int x = 0; x < W; x++) {
+		for (int y = 0, c = 0; y < H && c < 8; y++) { int t = tok[y * W + x]; if (t >= 0) { freq[0 * T + t]++; c++; } }
+		for (int y = H - 1, c = 0; y >= 0 && c < 8; y--) { int t = tok[y * W + x]; if (t >= 0) { freq[1 * T + t]++; c++; } }
+	}
+	for (int y = 0; y < H; y++) {
+		for (int x = 0, c = 0; x < W && c < 8; x++) { int t = tok[y * W + x]; if (t >= 0) { freq[2 * T + t]++; c++; } }
+		for (int x = W - 1, c = 0; x >= 0 && c < 8; x--) { int t = tok[y * W + x]; if (t >= 0) { freq[3 * T + t]++; c++; } }
+	}
+	for (int r = 0; r < 5; r++)
+		for (int t = 0; t < T; t++)
+			if (freq[r * T + t] > 0) regDom[r * Wd + (t >> 6)] |= 1ull << (t & 63);
+	/* tokens that repeat in the level up and down (rep[0]) / sideways (rep[1])
+	   within 4 cells: what a column or row going on can be made of (a post, a
+	   wall's body; not a one-off thing lying on the floor) */
+	rep = calloc((size_t)2 * Wd, 8);
+	if (!rep) goto done;
+	for (int y = 0; y < H; y++)
+		for (int x = 0; x < W; x++) {
+			int t = tok[y * W + x];
+			if (t < 0) continue;
+			for (int p = 1; p <= 4; p++) {
+				if (y + p < H && tok[(y + p) * W + x] == t) rep[t >> 6] |= 1ull << (t & 63);
+				if (x + p < W && tok[y * W + x + p] == t) rep[Wd + (t >> 6)] |= 1ull << (t & 63);
 			}
-		/* how deep in the level each shown cell is: solid shown cells above it (up to 8) */
-		for (int x = 0; x < W; x++)
-			for (int y = 0, run = 0; y < H; y++) {
-				int g = grid[y * W + x];
-				run = g >= 0 && !clear[g] ? run + 1 : 0;
-				depth[y * W + x] = run > 8 ? 8 : run;
+		}
+	if (dbg) fprintf(stderr, "fill: tokens %.1f ms\n", (SDL_GetPerformanceCounter() - t0) * 1000.0 / SDL_GetPerformanceFrequency());
+	/* each gap cell: the way it goes on from the level, its region and its prior */
+	int top = H, bottom = -1;
+	for (size_t i = 0; i < n; i++) if (tok[i] >= 0 || tok[i] == -2) { int y = i / W; if (y < top) top = y; if (y > bottom) bottom = y; }
+	{
+		int s[12];
+		for (size_t i = 0; i < n; i++) {
+			prior[i] = -1; dist[i] = 0xFFFF;
+			if (tok[i] != -1) continue;
+			int x = i % W, y = i / W, du = 0, dd = 0, dl = 0, dr = 0;
+			while (y - du - 1 >= 0 && tok[(y - du - 1) * W + x] == -1) du++;
+			while (y + dd + 1 < H && tok[(y + dd + 1) * W + x] == -1) dd++;
+			while (x - dl - 1 >= 0 && tok[y * W + x - dl - 1] == -1) dl++;
+			while (x + dr + 1 < W && tok[y * W + x + dr + 1] == -1) dr++;
+			/* (distance to the nearest shown cell that way, 0: none) */
+			du = y - du - 1 >= 0 && tok[(y - du - 1) * W + x] >= 0 ? du + 1 : 0;
+			dd = y + dd + 1 < H && tok[(y + dd + 1) * W + x] >= 0 ? dd + 1 : 0;
+			dl = x - dl - 1 >= 0 && tok[y * W + x - dl - 1] >= 0 ? dl + 1 : 0;
+			dr = x + dr + 1 < W && tok[y * W + x + dr + 1] >= 0 ? dr + 1 : 0;
+			int dv = du && dd ? (du < dd ? du : dd) : du ? du : dd;
+			int dh = dl && dr ? (dl < dr ? dl : dr) : dl ? dl : dr;
+			int m = 0, kk = 0, r = y < top ? 0 : y > bottom ? 1 : 4, dir = 0;   /* (dir: into the gap, as the rules') */
+			if (dv && (!dh || dv <= dh * 2 + 4)) {   /* (vertical first: posts and walls go on down) */
+				int up = du && (!dd || du <= dd);   /* (from the level above: going down) */
+				int sy = up ? y - du : y + dd, step = up ? -1 : 1;
+				for (int yy = sy; m < 12 && yy >= 0 && yy < H && tok[yy * W + x] >= 0; yy += step) s[m++] = tok[yy * W + x];
+				kk = up ? du : dd;
+				r = du && dd ? 4 : up ? 1 : 0;
+				dir = up ? 2 : 3;
+			} else if (dh) {
+				int lf = dl && (!dr || dl <= dr);   /* (the level to the left: going right) */
+				int sx = lf ? x - dl : x + dr, step = lf ? -1 : 1;
+				for (int xx = sx; m < 12 && xx >= 0 && xx < W && tok[y * W + xx] >= 0; xx += step) s[m++] = tok[y * W + xx];
+				kk = lf ? dl : dr;
+				if (r == 4) r = lf ? 3 : 2;
+				dir = lf ? 0 : 1;
+			}
+			reg[i] = r;
+			cdir[i] = m ? dir : 4;
+			if (m) {
+				/* (going up into the open above an outdoor level: open sky) */
+				prior[i] = dir == 3 && outdoor ? 0 : wfc_extrap(s, m, kk);
+				if (prior[i] < 0) { prior[i] = wfc_open_or_mass(s, m, compat, ruled, T, Wd, dir); mass[i] = prior[i] > 0; }
+				else if (prior[i] > 0) priorCells++;
+				dist[i] = kk;
+			}
+		}
+		/* cells with no level in their row or column (the box's corners):
+		   the continuation of their neighbours' rows, then columns */
+		for (int pass = 0; pass < 2; pass++)
+			for (size_t i = 0; i < n; i++) {
+				if (tok[i] != -1 || prior[i] >= 0 || mass[i]) continue;
+				int x = i % W, y = i / W, best = -1, bd = 1 << 30;
+				for (int dir = 0; dir < 4; dir++) {
+					if ((dir < 2) == pass) continue;   /* (pass 0: sideways, 1: up and down) */
+					int dx = sdx[dir], dy = sdy[dir], d = 1, m = 0;
+					#define VAL(j) (tok[j] >= 0 ? tok[j] : tok[j] == -1 ? prior[j] : -1)
+					while (x + dx * d >= 0 && x + dx * d < W && y + dy * d >= 0 && y + dy * d < H && VAL((y + dy * d) * W + x + dx * d) < 0) d++;
+					if (x + dx * d < 0 || x + dx * d >= W || y + dy * d < 0 || y + dy * d >= H || d >= bd) continue;
+					for (int e = d; m < 12 && x + dx * e >= 0 && x + dx * e < W && y + dy * e >= 0 && y + dy * e < H && VAL((y + dy * e) * W + x + dx * e) >= 0; e++)
+						s[m++] = VAL((y + dy * e) * W + x + dx * e);
+					#undef VAL
+					if (m) { int t_ = wfc_extrap(s, m, d); if (t_ >= 0 || best < 0) { best = t_ >= 0 ? t_ : -1; bd = d; } }
+				}
+				if (best >= 0) { prior[i] = best; dist[i] = bd + 8; }
 			}
 	}
-	for (size_t i = 0; i < n; i++) if (grid[i] == -3) grid[i] = -2;
-	fails = synth(W, H, T, grid, sample, clear, under, depth, occ, occAt, cell, src, seed);
-	if (fails < 0) goto done;
+	if (dbg) fprintf(stderr, "fill: setup %.1f ms\n", (SDL_GetPerformanceCounter() - t0) * 1000.0 / SDL_GetPerformanceFrequency());
+	for (size_t i = 0; i < n; i++) if (tok[i] == -1 && prior[i] < 0) prior[i] = 0;   /* (nothing to go on from: open space) */
+	/* where another stage layer shows something there, this one stays open
+	   (a gap in the front layer does not cover what the one behind shows) */
+	for (int j = 1; j < 4; j++) {
+		const struct Layer *M = &layers[j];
+		if (j == k || !M->map || M->backdrop) continue;
+		u32 mcb = ((R16(80, 0x08 + M->bg * 2) >> 2) & 3) * 0x4000;
+		for (size_t i = 0; i < n; i++) {
+			if (tok[i] != -1) continue;
+			s32 px = (x0 * 30 + (int)(i % W)) * 8, py = (y0 * 20 + (int)(i / W)) * 8;   /* (stage pixels) */
+			int mx = px / 240, my = py / 160;
+			if (mx >= M->w || my >= M->h || M->map[4 + my * M->stride + mx] == M->null) continue;
+			int gx = (mx * 240 + stageX) / 240, gy = (my * 160 + stageY) / 160;
+			if (!in_area(gx, gy) || !shown_at(px + stageX, py + stageY)) continue;
+			int cls = chunk_class(gx, gy, area);
+			const u8 *vr = cls >= 0 ? class_vram(area, cls) : NULL;
+			u16 e = M->tiledata[M->chunks[M->map[4 + my * M->stride + mx] * 150 + ((py % 160) >> 4) * 15 + ((px % 240) >> 4)] * 4 + ((py >> 3) & 1) * 2 + ((px >> 3) & 1)];
+			if (vr && !tile_blank(vr, e, mcb)) { prior[i] = 0; covered[i] = 1; }
+		}
+	}
+	/* weights */
+	#define WEIGHT(i, t) ((freq[reg[i] * T + (t)] + 0.05f) * ((t) == prior[i] ? 400.0f : 1.0f) * ((t) == 0 ? (mass[i] ? 0.002f : reg[i] != 1 ? 3.0f : 1.0f) : 1.0f))
+	#define INITDOM(i) do { u64 *d_ = DOM(i); memcpy(d_, regDom + (size_t)reg[i] * Wd, Wd * 8); \
+		if (cdir[i] < 4 && mass[i]) for (int w_ = 0; w_ < Wd; w_++) d_[w_] &= rep[(cdir[i] < 2) * Wd + w_]; \
+		if (!mass[i]) d_[0] |= 1; \
+		if (prior[i] >= 0) d_[prior[i] >> 6] |= 1ull << (prior[i] & 63); } while (0)
+	syn_rng = seed | 1;
+	whN = 0;
+	int nw = 0, nbad = 0;
+	#define PUSHW(i) do { if (!inWork[i]) { inWork[i] = 1; work[nw++] = (i); } } while (0)
+	for (size_t i = 0; i < n; i++) {
+		u64 *d = DOM(i);
+		if (tok[i] >= 0) { memset(d, 0, Wd * 8); d[tok[i] >> 6] = 1ull << (tok[i] & 63); state[i] = 2; }
+		else if (tok[i] == -2 || covered[i]) { memset(d, 0xFF, Wd * 8); state[i] = 3; }
+		else INITDOM(i);
+	}
+	for (size_t i = 0; i < n; i++)
+		if (tok[i] >= 0) {
+			int x = i % W, y = i / W;
+			for (int d = 0; d < 4; d++) { int nx = x + sdx[d], ny = y + sdy[d]; if (nx >= 0 && ny >= 0 && nx < W && ny < H && tok[ny * W + nx] == -1) { PUSHW((int)i); break; } }
+		}
+	/* entropy of an open cell (lower: fewer, surer choices; nearer the seams on ties) */
+	/* (as Shannon entropy with the prior's weight: a cell whose continuation is
+	   still possible is nearly decided; else the log of its domain's size) */
+	#define ENTROPY(i) ({ const u64 *d_ = DOM(i); int p_ = prior[i]; \
+		(p_ >= 0 && (d_[p_ >> 6] >> (p_ & 63) & 1) ? 0.0f : 4.0f + logf((float)popc(d_, Wd))) + 0.002f * dist[i] + (syn_rand() & 1023) * 1e-7f; })
+	static int PROP_MAX = -1; if (PROP_MAX < 0) PROP_MAX = getenv("MMZ_PROP") ? atoi(getenv("MMZ_PROP")) : 8;
+	u64 *allowed = malloc(Wd * 8);
+	if (!allowed) goto done;
+	long budget = (long)open + 20000;
+	size_t scan = 0;
+	Uint64 tp = 0, tr = 0, tc = 0, q0;
+	for (;;) {
+		/* propagate */
+		q0 = SDL_GetPerformanceCounter();
+		while (nw) {
+			int c = work[--nw];
+			inWork[c] = 0;
+			const u64 *dc = DOM(c);
+			if (state[c] == 3) continue;   /* (any neighbour) */
+			if (popc(dc, Wd) > PROP_MAX) continue;   /* (too open to narrow anything much) */
+			int x = c % W, y = c / W;
+			for (int d = 0; d < 4; d++) {
+				int nx = x + sdx[d], ny = y + sdy[d];
+				if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+				int ni = ny * W + nx;
+				if (state[ni]) continue;
+				memset(allowed, 0, Wd * 8);
+				for (int w = 0; w < Wd; w++)
+					for (u64 b = dc[w]; b; b &= b - 1) { const u64 *cp = CP(d, w * 64 + __builtin_ctzll(b)); for (int v = 0; v < Wd; v++) allowed[v] |= cp[v]; }
+				u64 *dn = DOM(ni); int changed = 0, any = 0;
+				for (int v = 0; v < Wd; v++) { u64 nb = dn[v] & allowed[v]; if (nb != dn[v]) changed = 1; any |= nb != 0; }
+				if (!changed) continue;
+				if (!any) { if (nbad < (int)n) bad[nbad++] = ni; continue; }
+				for (int v = 0; v < Wd; v++) dn[v] &= allowed[v];
+				PUSHW(ni);
+				wh_push(ENTROPY(ni), ni);
+			}
+		}
+		tp += SDL_GetPerformanceCounter() - q0; q0 = SDL_GetPerformanceCounter();
+		/* contradictions: the cells around solved again */
+		if (nbad) {
+			for (int b = 0; b < nbad; b++) {
+				int c = bad[b];
+				if (state[c]) continue;
+				contra++;
+				if (tries[c] >= 3 || resets > budget) {   /* (keeps failing: its continuation, or black) */
+					state[c] = 3; forced++;
+					if (prior[c] < 0) black++;
+					continue;
+				}
+				int rr = 1 + tries[c]++, x = c % W, y = c / W;
+				resets++;
+				for (int yy = y - rr - 1; yy <= y + rr + 1; yy++)
+					for (int xx = x - rr - 1; xx <= x + rr + 1; xx++) {
+						if (xx < 0 || yy < 0 || xx >= W || yy >= H) continue;
+						int j = yy * W + xx, edge = yy < y - rr || yy > y + rr || xx < x - rr || xx > x + rr;
+						if (!edge && tok[j] == -1 && state[j] != 3) {
+							if (state[j] == 1) collapsed--;
+							state[j] = 0; INITDOM(j);
+						}
+					}
+				for (int yy = y - rr - 1; yy <= y + rr + 1; yy++)
+					for (int xx = x - rr - 1; xx <= x + rr + 1; xx++) {
+						if (xx < 0 || yy < 0 || xx >= W || yy >= H) continue;
+						int j = yy * W + xx;
+						if (state[j] == 1 || state[j] == 2) PUSHW(j);
+						else if (!state[j]) wh_push(ENTROPY(j), j);
+					}
+			}
+			nbad = 0;
+			tr += SDL_GetPerformanceCounter() - q0;
+			continue;
+		}
+		/* collapse the lowest-entropy open cell */
+		int c = -1;
+		while (whN) {
+			struct WHeap e = wh_pop();
+			if (!state[e.cell]) { c = e.cell; break; }
+		}
+		if (c < 0) {   /* (cells no seam has reached yet) */
+			while (scan < n && (tok[scan] != -1 || state[scan])) scan++;
+			if (scan == n) { scan = 0; while (scan < n && (tok[scan] != -1 || state[scan])) scan++; if (scan == n) break; }
+			c = (int)scan;
+		}
+		u64 *dc = DOM(c);
+		float sum = 0;
+		for (int w = 0; w < Wd; w++) for (u64 b = dc[w]; b; b &= b - 1) sum += WEIGHT(c, w * 64 + __builtin_ctzll(b));
+		float pick = (syn_rand() & 0xFFFFFF) / (float)0x1000000 * sum;
+		int t = -1;
+		for (int w = 0; w < Wd && t < 0; w++)
+			for (u64 b = dc[w]; b; b &= b - 1) {
+				int u = w * 64 + __builtin_ctzll(b);
+				pick -= WEIGHT(c, u);
+				if (pick <= 0) { t = u; break; }
+			}
+		if (t < 0) for (int w = Wd - 1; w >= 0 && t < 0; w--) if (dc[w]) t = w * 64 + 63 - __builtin_clzll(dc[w]);
+		if (t < 0) { state[c] = 3; forced++; if (prior[c] < 0) black++; continue; }
+		memset(dc, 0, Wd * 8); dc[t >> 6] = 1ull << (t & 63);
+		state[c] = 1; collapsed++;
+		PUSHW(c);
+		tc += SDL_GetPerformanceCounter() - q0;
+	}
+	if (dbg) fprintf(stderr, "fill: propagate %.1f reset %.1f collapse %.1f ms\n", tp * 1000.0 / SDL_GetPerformanceFrequency(), tr * 1000.0 / SDL_GetPerformanceFrequency(), tc * 1000.0 / SDL_GetPerformanceFrequency());
+	free(allowed);
+	/* the result: collapsed cells their token, forced ones their continuation */
+	for (size_t i = 0; i < n; i++) {
+		out[i] = -1;
+		if (tok[i] != -1) continue;
+		if (state[i] == 1) { const u64 *d = DOM(i); for (int w = 0; w < Wd; w++) if (d[w]) { out[i] = w * 64 + __builtin_ctzll(d[w]); break; } }
+		else out[i] = prior[i];
+		if (out[i] >= 0 && out[i] == prior[i]) priorHit++;
+	}
 	F->mt = malloc(n * 2);
 	F->donor = malloc(n * 2);
 	if (!F->mt || !F->donor) { free(F->mt); free(F->donor); F->mt = NULL; F->donor = NULL; goto done; }
 	for (size_t i = 0; i < n; i++) {
-		int t = grid[i] == -1 ? cell[i] : -1;
-		F->mt[i] = t >= 0 ? (u16)(tkey[t] & 0xFFFF) | FILL_FULL : FILL_NONE;
-		F->donor[i] = t >= 0 ? trep[tkey[t] >> 16] : -1;
+		int t = out[i];
+		F->mt[i] = t > 0 ? (u16)(tkey[t] & 0xFFFF) : 0;
+		F->donor[i] = t > 0 ? trep[(tkey[t] >> 16) & 0xFF] : -1;   /* (blank: nothing drawn) */
 	}
-	F->cx0 = x0; F->cy0 = y0; F->cw = cw; F->ch = ch; F->on = 1;
-	if (getenv("MMZ_FILLMAP"))   /* (debug: per cell '#' shown, 'o' made up, 'c' made up transparent, '.' nothing; every 2nd column) */
-		for (int y = 0; y < H; y++) {
-			for (int x = 0; x < W; x += 2) { int i = y * W + x; fputc(grid[i] >= 0 ? '#' : grid[i] == -1 ? (cell[i] < 0 ? '?' : clear[cell[i]] ? 'c' : 'o') : '.', stderr); }
+	F->cx0 = x0; F->cy0 = y0; F->cw = cw; F->ch = ch; F->on = 1; F->fine = 1;
+	if (getenv("MMZ_FILLMAP"))   /* (debug, every 2nd cell: '#' shown (' ' blank), made up: '=' its continuation, ':' its body,
+	                                ',' open as it should be, 'c' covered, 'x' another token, '_' blank against its prior, '!' forced) */
+		for (int y = 0; y < H; y += 2) {
+			for (int x = 0; x < W; x += 2) {
+				int i = y * W + x;
+				fputc(tok[i] != -1 ? (tok[i] == 0 ? ' ' : '#') : covered[i] ? 'c' : state[i] == 3 ? '!' : out[i] == prior[i] ? (prior[i] == 0 ? ',' : mass[i] ? ':' : '=') : out[i] == 0 ? '_' : 'x', stderr);
+			}
 			fputc('\n', stderr);
 		}
 done:
 	if (dbg)
-		fprintf(stderr, "fill: area %d bg %d chunks %d,%d %dx%d: %d tokens, %d cells made up, %d contradictions, %.1f ms\n", area, k, x0, y0, cw, ch, T, open, fails,
+		fprintf(stderr, "fill: area %d bg %d chunks %d,%d %dx%d: %d tokens, %d cells made up (%ld with a period, %ld took their prior), %ld collapsed, %ld contradictions, %ld resets, %ld forced (%ld black), %.1f ms\n",
+		        area, k, x0, y0, cw, ch, T, open, priorCells, priorHit, collapsed, contra, resets, forced, black,
 		        (SDL_GetPerformanceCounter() - t0) * 1000.0 / SDL_GetPerformanceFrequency());
-	free(grid); free(sample); free(keys); free(cell); free(src); free(occ); free(under); free(depth); free(occAt); free(clear); free(synRuled); synRuled = NULL;
+	free(tok); free(prior); free(reg); free(state); free(tries); free(dist); free(mass); free(ruled); free(covered); free(cdir); free(rep); free(dom); free(compat); free(regDom);
+	free(freq); free(work); free(bad); free(inWork); free(out);
 	#undef TOKEN
 	#undef REAL
+	#undef CP
+	#undef DOM
+	#undef WEIGHT
+	#undef INITDOM
+	#undef PUSHW
+	#undef ENTROPY
 }
 
 static void fill_reps(struct Fill *F) {   /* the distinct donors */
 	F->nreps = 0;
 	if (F->on)
-		for (size_t i = 0; i < (size_t)F->cw * F->ch * 150; i++) {
+		for (size_t i = 0; i < fill_cells(F->cw, F->ch, F->fine); i++) {
 			int d = F->donor[i], j;
 			if (d < 0) continue;
 			for (j = 0; j < F->nreps && F->reps[j] != d; j++) ;
@@ -1099,7 +1292,7 @@ static void fill_build(int k, u32 seed) {
  * area, graphics sets, stage position and BG (a record with nothing to fill
  * is kept too, so it is not worked out again).
  */
-struct FillRec { u32 key; s32 sx, sy; s32 bg, cx0, cy0, cw, ch; u16 *mt; s16 *donor; };
+struct FillRec { u32 key; s32 sx, sy; s32 bg, cx0, cy0, cw, ch; u16 *mt; s16 *donor; int fine; };
 static struct FillRec *patch;
 static int npatch, patchLoaded, patchStale;   /* stale: the file is of an older format (written anew) */
 static char patchPath[600];
@@ -1130,12 +1323,12 @@ static void patch_load(void) {
 	FILE *f = fopen(patch_path(), "rb");
 	if (!f) return;
 	char magic[8];
-	if (fread(magic, 1, 8, f) != 8 || memcmp(magic, "MMZFILL5", 8)) { fclose(f); patchStale = 1; return; }
+	if (fread(magic, 1, 8, f) != 8 || memcmp(magic, "MMZFILL6", 8)) { fclose(f); patchStale = 1; return; }
 	struct FillRec r;
 	s32 h[7];
 	while (fread(h, 4, 7, f) == 7) {
-		r.key = h[0]; r.sx = h[1]; r.sy = h[2]; r.bg = h[3]; r.cx0 = h[4]; r.cy0 = h[5]; r.cw = h[6] & 0xFFFF; r.ch = (u32)h[6] >> 16;
-		size_t cells = (size_t)r.cw * r.ch * 150, ck = cells;
+		r.key = h[0]; r.sx = h[1]; r.sy = h[2]; r.bg = h[3] & 0xFF; r.fine = h[3] >> 8 & 1; r.cx0 = h[4]; r.cy0 = h[5]; r.cw = h[6] & 0xFFFF; r.ch = (u32)h[6] >> 16;
+		size_t cells = fill_cells(r.cw, r.ch, r.fine), ck = cells;
 		r.mt = cells ? malloc(cells * 2) : NULL;
 		r.donor = ck ? malloc(ck * 2) : NULL;
 		if ((cells && (!r.mt || fread(r.mt, 2, cells, f) != cells)) || (ck && (!r.donor || fread(r.donor, 2, ck, f) != ck))) {
@@ -1154,10 +1347,10 @@ static void patch_append(const struct FillRec *r) {
 	f = fopen(p, fresh ? "wb" : "ab");
 	patchStale = 0;
 	if (!f) return;
-	if (fresh) fwrite("MMZFILL5", 1, 8, f);
-	s32 h[7] = { (s32)r->key, r->sx, r->sy, r->bg, r->cx0, r->cy0, r->cw | r->ch << 16 };
+	if (fresh) fwrite("MMZFILL6", 1, 8, f);
+	s32 h[7] = { (s32)r->key, r->sx, r->sy, r->bg | r->fine << 8, r->cx0, r->cy0, r->cw | r->ch << 16 };
 	fwrite(h, 4, 7, f);
-	size_t cells = (size_t)r->cw * r->ch * 150, ck = cells;
+	size_t cells = fill_cells(r->cw, r->ch, r->fine), ck = cells;
 	if (cells) fwrite(r->mt, 2, cells, f);
 	if (ck) fwrite(r->donor, 2, ck, f);
 	fclose(f);
@@ -1176,23 +1369,23 @@ static void fill_get(int k, u32 key) {
 		free(F->mt); free(F->donor);
 		memset(F, 0, sizeof *F);
 		if (!r->cw) return;
-		size_t cells = (size_t)r->cw * r->ch * 150, ck = cells;
+		size_t cells = fill_cells(r->cw, r->ch, r->fine), ck = cells;
 		F->mt = malloc(cells * 2); F->donor = malloc(ck * 2);
 		if (!F->mt || !F->donor) { free(F->mt); free(F->donor); F->mt = NULL; F->donor = NULL; return; }
 		memcpy(F->mt, r->mt, cells * 2); memcpy(F->donor, r->donor, ck * 2);
-		F->cx0 = r->cx0; F->cy0 = r->cy0; F->cw = r->cw; F->ch = r->ch; F->on = 1;
+		F->cx0 = r->cx0; F->cy0 = r->cy0; F->cw = r->cw; F->ch = r->ch; F->on = 1; F->fine = r->fine;
 		fill_reps(F);
 		return;
 	}
 	fill_build(k, key * 2654435761u + 1);
 	fill_reps(F);
-	struct FillRec r = { key, stageX, stageY, k, 0, 0, 0, 0, NULL, NULL };
+	struct FillRec r = { key, stageX, stageY, k, 0, 0, 0, 0, NULL, NULL, 0 };
 	if (F->on) {
-		size_t cells = (size_t)F->cw * F->ch * 150, ck = cells;
+		size_t cells = fill_cells(F->cw, F->ch, F->fine), ck = cells;
 		r.mt = malloc(cells * 2); r.donor = malloc(ck * 2);
 		if (!r.mt || !r.donor) { free(r.mt); free(r.donor); return; }
 		memcpy(r.mt, F->mt, cells * 2); memcpy(r.donor, F->donor, ck * 2);
-		r.cx0 = F->cx0; r.cy0 = F->cy0; r.cw = F->cw; r.ch = F->ch;
+		r.cx0 = F->cx0; r.cy0 = F->cy0; r.cw = F->cw; r.ch = F->ch; r.fine = F->fine;
 	}
 	patch_add(&r);
 	patch_append(&r);
@@ -1204,10 +1397,24 @@ static int fill_entry(const struct Layer *L, s32 wx, s32 wy, u16 *out) {
 	const struct Fill *F = &fills[L->bg];   /* (layers[] is by BG; L may be a copy) */
 	static int hide = -1;   /* testing (MMZ_FILLHIDE): work the fill out but do not draw it */
 	if (hide < 0) hide = getenv("MMZ_FILLHIDE") != NULL;
-	if (hide || levelMatching) return 0;
+	static int only = -2;   /* testing (MMZ_FILLONLY=bg): draw only that BG's fill */
+	if (only == -2) only = getenv("MMZ_FILLONLY") ? atoi(getenv("MMZ_FILLONLY")) : -1;
+	if (hide || levelMatching || (only >= 0 && L->bg != only)) return 0;
 	if (!F->on || wx < 0 || wy < 0) return 0;
 	int cx = wx / 240 - F->cx0, cy = wy / 160 - F->cy0;
 	if (cx < 0 || cy < 0 || cx >= F->cw || cy >= F->ch) return 0;
+	if (F->fine) {   /* the tile fill: an 8x8 tilemap entry, with its class's own sets */
+		size_t i = (size_t)(cy * 20 + (wy % 160) / 8) * F->cw * 30 + cx * 30 + (wx % 240) / 8;
+		int d = F->donor[i], j = 0;
+		if (d < 0) return 0;
+		while (j < F->nreps && F->reps[j] != d) j++;
+		if (j == F->nreps || F->repSrc[j] < 0) return 0;
+		levelSrc = F->repSrc[j];
+		levelFilled = 1;
+		levelFy = wy & 7;
+		*out = F->mt[i];
+		return 1;
+	}
 	u16 m = F->mt[((cy * 10) + (wy % 160) / 16) * F->cw * 15 + cx * 15 + (wx % 240) / 16];
 	int d = F->donor[((cy * 10) + (wy % 160) / 16) * F->cw * 15 + cx * 15 + (wx % 240) / 16];
 	if (m == FILL_NONE || d < 0) return 0;

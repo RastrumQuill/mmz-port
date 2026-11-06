@@ -208,29 +208,41 @@ area's left) prints the flood around Zero.
 
 **Gap fill (`fill_gaps`).** Everything the wide view shows that the area
 does not (below, above and beside the level, and cells the shown map hides)
-is synthesized from the area's own shown tiles (view.c, "tile fill"):
-k-coherence patch synthesis with WFC-style ordering. Tokens are (metatile,
-graphics class) of shown cells. The 4-direction adjacency rules are learned
-from the area's real neighbours, and cells are filled most-constrained
-first. Each candidate is a continuation of a neighbour's source position,
-scored on 5x5 overlapping patches. A broken seam against a real cell is
-almost forbidden (-1000), and a pair never seen between synthesized cells
-costs -30. Below the level it prefers tiles from deep in the level, never
-transparent ones. Above and beside it, open space stays open. The seed is
-fixed per area, so the result is deterministic. It takes about 30-190 ms
-per layer, once, and is cached in fills.bin (format MMZFILL5) next to
-mmz.ini, or in `MMZ_FILLS`. Only graphics sets of the cell's own class are
-used, loaded into separate fill VRAM slots so the level's drawability does
-not change. Fill is drawing only: no collision, never seen by the layer
-matching (so GBA-visible pixels are unchanged; viewprobe matches the
-baseline), and each layer keeps its own fill. `fill_gaps = 0` is black,
-`1` the tile fill and `2` the old column repeat. `MMZ_FILLDEBUG=1` prints
-timing and contradictions, and `MMZ_FILLMAP=1` prints an ascii map.
-fills.bin holds ROM-derived metatile indices: it is generated at runtime,
-never committed and never shipped.
-Limits: the fill is plausible texture, not design. Copied structure
-(platforms, pipes, a train) can appear where no room is, and may look
-walkable, but it is not. Black stays outside a layer's bounds.
+is filled by wave function collapse over 8x8 tiles (view.c, "tile fill").
+A token is one 8x8 tilemap entry (tile, flips, palette) plus its graphics
+class. Each gap cell's domain holds only tokens this area's camera actually
+showed. The 4-direction adjacency rules and frequency weights are learned
+from the shown cells, and the real cells next to the gap are the seeds.
+Cells collapse lowest entropy first, with bitset propagation and a
+deterministic seed per area. On a contradiction a growing square around the
+cell is reset (3 tries); after that the cell is forced to its prior.
+Region priors steer it:
+- Each cell continues the nearest real edge: columns downward below the
+  level (posts and pillars extend), rows sideways beside it. This uses a
+  period of 1-4 seen at that edge.
+- A solid edge without a period gets its commonest self-compatible body tile.
+- Open edges, and anything above an outdoor layer, stay empty.
+- A front layer never fills over content a back layer shows.
+- The backdrop and level layers are filled separately.
+
+Cost is about 0.1-1 s per layer, once. The result is cached in fills.bin
+(format MMZFILL6, 8x8 cells) next to mmz.ini, or in `MMZ_FILLS`. Only
+graphics sets of the cell's own class are used, loaded into separate fill
+VRAM slots so the level's drawability does not change. Fill is drawing
+only: no collision, and the layer matching never sees it, so GBA-visible
+pixels are unchanged. `fill_gaps = 0` is black, `1` the tile WFC and `2`
+the old column repeat. `MMZ_FILLDEBUG=1` prints timing and contradictions,
+and `MMZ_FILLMAP=1` prints an ascii map.
+
+fills.bin holds ROM-derived tile entries: it is generated at runtime, never
+committed and never shipped.
+
+Limits:
+- The fill is plausible texture, not design.
+- Some layers show small patches of misplaced tiles where contradictions
+  forced a cell.
+- Filled ground may look walkable, but it is not.
+- Black stays outside a layer's bounds.
 
 **Testing.** `mmz --skip-intro` fast-forwards through the title, menus and
 cutscenes (pressing Start / A) to the first moment of play.
