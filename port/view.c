@@ -704,8 +704,13 @@ extern long frameCount;
 /* rooms smaller than the view (settings.fitRooms): the view size that fits
    the area's bounding box, same shape as asked for, at least the GBA's */
 int view_fit_w, view_fit_h;   /* 0: no fit */
+/* the area is no bigger than the GBA screen one way and at most two
+   screens the other: the wide view would only add borders, so the GBA picture is
+   shown, scaled to the window like the cutscenes' (issue #10) */
+int view_fit_gba;
 static void fit_target(void) {
 	view_fit_w = view_fit_h = 0;
+	view_fit_gba = 0;
 	/* the area's shape: its non-empty chunks in the stage layers, whatever
 	   graphics are loaded (content_bounds() only counts drawable chunks, which
 	   can be one chunk right after entering an area) */
@@ -722,6 +727,9 @@ static void fit_target(void) {
 	}
 	if (x1 < 0) return;
 	int bw = (x1 - x0 + 1) * 240, bh = (y1 - y0 + 1) * 160;
+	/* a room the GBA screen spans one way (a boss room two screens long, a
+	   shaft two high): fitted to the window's shape it is the GBA screen */
+	if (settings.fitRooms && ((bw <= 2 * 240 && bh <= 160) || (bw <= 240 && bh <= 2 * 160))) view_fit_gba = 1;
 	/* a background layer (it repeats sideways and carries its top and bottom
 	   bands on) covers the view around a small stage: nothing to fit */
 	if (backdrop) return;
@@ -1601,6 +1609,7 @@ int view_render(void) {
 			bKey = key; bStageX = stageX; bStageY = stageY; bFill = settings.fillGaps;
 		}
 		fit_target();
+		if (view_fit_gba) { shownFrames = 0; return 0; }
 		cL = bL; cT = bT; cR = bR; cB = bB;
 	}
 	s32 left = x0 - ox, top = y0 - oy;
