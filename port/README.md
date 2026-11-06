@@ -91,6 +91,11 @@ game finished no frames, with the game's state.
   Works from a new game and from a save. Not a memory restore, so the
   stage state is the checkpoint's: events between the checkpoint and the
   spot have not happened.
+* Base warp: `mmz:base a9 v0 x10328 y1439 cx10328 cy1423` (only `base` is
+  needed) is the Resistance base between missions (stage 0, mission 0).
+  The warp lets the save's start (or a new game, its mission put back to
+  0) go to the base, closes the terminal's menu with B and puts Zero at
+  the position. F5, F12 and `where` write such a line while in the base.
 * Position overlay (frame, mission, area, checkpoint, Zero, camera, life),
   Pause at frame N (also `--pause-at N`), Invincible (gHitboxes.flags bit
   0: Zero's side cannot be hurt, as the game sets it for its scenes), No
@@ -126,11 +131,28 @@ portably (and not across builds). The warp is the replacement.
 **Routes for checks.** Besides button lines, `shot`, `poke`, `ff`,
 `report`, `dump`, `end`: `warp mmz:...` (later lines wait until it is
 there: their frames count from its end), `where` (prints the bookmark of
-here and Zero's life), `cheat invincible|noenemies 1|0`. E.g.
+here and Zero's life), `cheat invincible|noenemies 1|0`, `viewcheck
+[DIFF.png]` (below). E.g.
 
     0 warp mmz:m9 a4 v1 cp0 x7164 y767 cx7164 cy720
     60 shot door.png
     61 end
+
+**Wide view check.** With a zoomed view on (`--view x3`), route
+`viewcheck [DIFF.png]` compares the GBA's 240x160 picture with the part of
+the wide view where the GBA screen sits, 2 frames later, and prints the
+frame, the bookmark, the share of pixels that differ and the GBA screen's
+offset. For the check that part is drawn from the level data, as the rest
+of the view is (normally it comes from video memory), so a wrong room or
+tile there shows. Only backgrounds are compared: pixels whose top two
+layers on the GBA include the HUD (BG0, which the view moves to its edges)
+or a sprite (the view draws its own) are left out. DIFF.png is three
+240x160 pictures stacked: the GBA's, the view's part, and the differences
+(red; dark grey: left out). `MMZ_VIEWCHECK=PCT` checks every frame and
+prints frames where at least PCT percent differs (at most every 30
+frames); the view is then drawn from the level data throughout. A frame
+where the view pasted the GBA picture (not drawable) says so: it agrees by
+construction. What is outside the GBA screen cannot be checked this way.
 
 **Testing.** `mmz --skip-intro` fast-forwards through the title, menus and
 cutscenes (pressing Start / A) to the first moment of play.

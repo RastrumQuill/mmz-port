@@ -13,6 +13,11 @@
  * bookmark's position. The checkpoint gets the right stage state (doors,
  * events); the move from the checkpoint to the spot does not walk through
  * events in between, so a spot behind a scripted event may look different.
+ *
+ * "mmz:base a9 x.. y.." is the Resistance base (stage 0, mission 0, between
+ * missions): the warp continues the save, which starts in the base with the
+ * terminal's menu open (StageMode_Continue), closes it with B and then puts
+ * Zero in the bookmark's room and spot.
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -31,6 +36,7 @@
 #define ADDR_AREA       0x0200520Cu   /* gStage.area (| 0x80) */
 #define ADDR_VARIANTS   0x02005208u   /* gStage.areaVariants: 2 bits per area */
 #define ADDR_CAMERA     0x02022C44u   /* gCamera: x, y at +0x38, target at +0x30 */
+#define ADDR_OVERLAY    0x020236E2u   /* gGameMode.sub: stage play's overlay (1: the terminal's menu) */
 #define ADDR_HITBOXES   0x02004FA0u   /* gHitboxes: flags (bit n: side n cannot be hurt), killMask */
 #define ZERO_X 0x4C                   /* struct Zero: x, y, vx, vy (24.8) */
 #define ZERO_HP 0x8C                  /* hitbox.hp */
@@ -59,7 +65,9 @@ void loc_now(struct Location *l) {
 }
 
 void loc_format(const struct Location *l, char *out, size_t n) {
-	snprintf(out, n, "mmz:m%d a%d v%d cp%d x%d y%d cx%d cy%d", l->mission, l->area, l->variant, l->checkpoint,
+	if (l->mission == 0)   /* the base */
+		snprintf(out, n, "mmz:base a%d v%d x%d y%d cx%d cy%d", l->area, l->variant, l->x, l->y, l->camX, l->camY);
+	else snprintf(out, n, "mmz:m%d a%d v%d cp%d x%d y%d cx%d cy%d", l->mission, l->area, l->variant, l->checkpoint,
 	         l->x, l->y, l->camX, l->camY);
 }
 
@@ -70,6 +78,7 @@ int loc_parse(const char *s, struct Location *l) {
 	const char *p = strstr(s, "mmz:");
 	if (!p) return 0;
 	p += 4;
+	if (!strncmp(p, "base", 4)) { l->mission = 0; p += 4; }
 	while (*p) {
 		while (*p == ' ' || *p == '\t' || *p == ',') p++;
 		if (!*p || *p == '\r' || *p == '\n') break;
@@ -124,7 +133,25 @@ static void place(void) {
 int warp_step(u16 *keys) {
 	if (!warp_active()) return 0;
 	warpFrames++;
-	if (warpState == 1) {
+	if (warpState == 1 && warpTo.mission == 0) {
+		/* the base: Continue starts there with the terminal's menu up */
+		int playing = view_gameplay && zero_addr();
+		/* (a new game picks mission 1: back to 0, the base, before it starts) */
+		if (!playing && RD8(ADDR_MISSION) != 0 && !getenv("WARPNOPOKE")) RD8(ADDR_MISSION) = 0;
+		int here = playing && RD16(ADDR_STAGE) == 0 && RD8(ADDR_MISSION) == 0 && RD8(ADDR_OVERLAY) == 0;
+		warpStable = here ? warpStable + 1 : 0;
+		if (warp_verbose && warpFrames % (warp_verbose > 1 ? 50 : 300) == 0)
+			fprintf(stderr, "warp: frame %ld mode %02X.%02X.%02X stage %d mission %d playing %d\n", warpFrames, RD8(0x020236E0), RD8(0x020236E1), RD8(ADDR_OVERLAY), RD16(ADDR_STAGE), RD8(ADDR_MISSION), playing);
+		if (warpStable >= 60) { warpState = 2; warpFrames = 0; }
+		else {
+			debug.fastForward = 1;
+			int t = warpFrames % 40;
+			*keys = t < 4 ? (warpFrames < 2400 && warpFrames % 80 < 40 ? 1 << 3 : 1 << 0) : 0;   /* Start (title), else A */
+			if (playing) *keys = t < 4 && RD8(ADDR_OVERLAY) ? 1 << 1 : 0;   /* B: out of the menu */
+			if (warpFrames > 20000) { fprintf(stderr, "warp: did not reach the base\n"); warpState = 0; debug.fastForward = 0; }
+			return 1;
+		}
+	} else if (warpState == 1) {
 		/* the mission is forced at the base; the checkpoint while the stage starts */
 		/* only once the game has picked one (the base's mission choice, or
 		   a new game's first): forced earlier, a save does not load right */

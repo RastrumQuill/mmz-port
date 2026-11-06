@@ -14,6 +14,7 @@ u16 hw_timer_reload(int timer);
 #define SCREEN_W 240
 #define SCREEN_H 160
 extern u32 ppu_frame[SCREEN_W * SCREEN_H];   /* 0x00RRGGBB */
+extern u8 ppu_layers[SCREEN_W * SCREEN_H];      /* top | second << 4 (ppu.c) */
 void ppu_draw_line(int line);
 void ppu_vblank(void);
 void ppu_affine_written(u32 o);
@@ -34,6 +35,8 @@ extern u32 *view_frame;
 void view_fit_apply(int *w, int *h);
 void view_record_line(int line);
 int view_render(void);
+void view_gba_origin(int *ox, int *oy);
+extern int view_level_only, view_gba_pasted;   /* viewcheck (main.c) */   /* where the GBA screen is in view_frame */
 
 /* audio.c */
 void audio_fifo_write(int fifo, u32 word);

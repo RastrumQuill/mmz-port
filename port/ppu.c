@@ -18,6 +18,7 @@
 #define PAL16(i) (*(u16 *)(pal + (i) * 2))
 
 u32 ppu_frame[SCREEN_W * SCREEN_H];
+u8 ppu_layers[SCREEN_W * SCREEN_H];   /* each pixel's top two layers (top | second << 4; 0-3 BG, 4 sprites, 5 backdrop) */
 
 #define TRANSPARENT 0x8000
 
@@ -257,7 +258,7 @@ void ppu_draw_line(int line) {
 	u16 dispcnt = IO16(0);
 	int mode = dispcnt & 7;
 	if (dispcnt & 0x80) {   /* forced blank */
-		for (int x = 0; x < SCREEN_W; x++) dst[x] = 0xFFFFFF;
+		for (int x = 0; x < SCREEN_W; x++) dst[x] = 0xFFFFFF, ppu_layers[line * SCREEN_W + x] = 0x55;
 		goto advance;
 	}
 	{
@@ -325,6 +326,7 @@ void ppu_draw_line(int line) {
 				}
 			}
 			dst[x] = to_rgb(c);
+			ppu_layers[line * SCREEN_W + x] = top | second << 4;
 		}
 	}
 advance:

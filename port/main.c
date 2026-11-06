@@ -332,6 +332,49 @@ static void write_ppm(const char *path) {
 }
 
 static long routeDelay;   /* frames a warp took: later lines wait for it */
+/* viewcheck: does the wide view agree with the GBA picture where the GBA
+   screen sits in it? The view normally draws that part from video memory;
+   for the check it draws it from the level data, as it draws the rest, so
+   a wrong room or tile there shows. Only the backgrounds are compared: pixels whose top
+   two layers (ppu_layers) include the HUD (BG0, which the view moves to its
+   edges) or sprites (the view draws its own, from more objects) are left
+   out. Prints the frame, the bookmark of here and the share that differs;
+   with a file name, a PNG of the GBA picture, the view's part and the
+   differences (red; grey: left out). Returns the share in percent (-1: no
+   wide view). */
+static double view_check(const char *png, int print) {
+	if (!view_active || !view_frame) return -1;
+	int ox, oy;
+	view_gba_origin(&ox, &oy);
+	static u32 out[SCREEN_W * SCREEN_H * 3];
+	long n = 0, bad = 0;
+	for (int y = 0; y < SCREEN_H; y++)
+		for (int x = 0; x < SCREEN_W; x++) {
+			int vx = x + ox, vy = y + oy, i = y * SCREEN_W + x;
+			u32 g = ppu_frame[i], v = vx >= 0 && vx < view_w && vy >= 0 && vy < view_h ? view_frame[(size_t)vy * view_w + vx] : 0;
+			int top = ppu_layers[i] & 15, second = ppu_layers[i] >> 4;
+			int skip = top == 0 || top == 4 || second == 0 || second == 4;
+			out[i] = g; out[i + SCREEN_W * SCREEN_H] = v;
+			u32 d = skip ? 0x404040 : g != v ? 0xFF0000 : (g >> 2) & 0x3F3F3F;
+			out[i + 2 * SCREEN_W * SCREEN_H] = d;
+			if (!skip) { n++; bad += g != v; }
+		}
+	double pct = n ? 100.0 * bad / n : 0;
+	if (print) {
+		struct Location l;
+		char b[160];
+		loc_now(&l);
+		loc_format(&l, b, sizeof b);
+		fprintf(stderr, "viewcheck: frame %ld %s differ %.2f%% (%ld of %ld pixels compared, GBA at %d,%d in %dx%d%s)\n", frameCount, b, pct, bad, n, ox, oy, view_w, view_h,
+		        view_gba_pasted ? ", GBA picture pasted: not drawable" : "");
+	}
+	if (png && *png) write_image(png, out, SCREEN_W, SCREEN_H * 3);
+	return pct;
+}
+
+static char viewCheckPng[256];
+static int viewCheckIn;   /* frames until the route's viewcheck */
+
 static void route_step(void) {
 	if (warp_active()) { routeDelay++; return; }
 	for (;;) {
@@ -362,6 +405,11 @@ static void route_step(void) {
 			int on = atoi(routeArg2);
 			if (!strcmp(routeArg1, "invincible")) cheat_invincible = on;
 			else if (!strcmp(routeArg1, "noenemies")) cheat_no_enemies = on;
+		}
+		else if (!strcmp(routeCmd, "viewcheck")) {   /* viewcheck [DIFF.png]: the wide view against the GBA picture (in 2 frames) */
+			snprintf(viewCheckPng, sizeof viewCheckPng, "%s", routeArg1);
+			viewCheckIn = 2;
+			view_level_only = 1;
 		}
 		else if (!strcmp(routeCmd, "where")) {   /* where: the bookmark of here, on stderr */
 			struct Location l;
@@ -601,6 +649,16 @@ void frontend_frame(void) {
 		sdl_frame();
 		if (route) route_step();   /* testing: scripted input in the window too */
 		frame_log();
+	}
+	if (viewCheckIn && --viewCheckIn == 0) {
+		if (view_check(viewCheckPng, 1) < 0) fprintf(stderr, "viewcheck: frame %ld: no wide view\n", frameCount);
+		view_level_only = getenv("MMZ_VIEWCHECK") != NULL;
+	}
+	if (getenv("MMZ_VIEWCHECK") && !warp_active()) {
+		view_level_only = 1;   /* every frame: print when at least that share (percent) differs */
+		static long lastPrint = -1000;
+		double pct = view_check(NULL, 0);
+		if (pct >= atof(getenv("MMZ_VIEWCHECK")) && pct > 0 && frameCount - lastPrint >= 30) { view_check(NULL, 1); lastPrint = frameCount; }
 	}
 	warp_step(&keys);   /* a warp (--warp, route, Debug window) holds the buttons until it is there */
 	cheats_frame();

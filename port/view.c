@@ -1383,6 +1383,8 @@ extern long frameCount;
  * The view's rows are drawn by several threads (each row only reads the
  * frame's state). */
 static int rw, rh, rox, roy;   /* the frame being drawn */
+int view_level_only;   /* the GBA screen's part from the level data too (viewcheck) */
+int view_gba_pasted;   /* the last frame has the GBA picture pasted in (not drawable) */
 
 static void render_row(int vy) {
 	int w = rw, h = rh, ox = rox, oy = roy;
@@ -1403,7 +1405,7 @@ static void render_row(int vy) {
 				draw_level_row(&layers[bg], line, vy, ox, oy, bgRow[bg], w);
 				/* on the GBA screen, what video memory has (the game's own
 				   changes to the tiles show) */
-				if (!layers[bg].backdrop && !fx[bg].kind && vy - oy >= 0 && vy - oy < SCREEN_H) gba_vram_span(bg, vy - oy, ox, bgRow[bg], w);
+				if (!view_level_only && !layers[bg].backdrop && !fx[bg].kind && vy - oy >= 0 && vy - oy < SCREEN_H) gba_vram_span(bg, vy - oy, ox, bgRow[bg], w);
 			}
 			else if (bg == 0) memcpy(bgRow[0], hudBuf + (size_t)vy * w, w * 2);
 			else draw_vram_row(bg, line, vy, oy, ox, bgRow[bg], w);
@@ -1514,6 +1516,8 @@ static void paste_gba(int w, int h, int ox, int oy) {
 	}
 }
 
+void view_gba_origin(int *ox, int *oy) { *ox = lastOx; *oy = lastOy; }
+
 int view_render(void) {
 	set_ranges(view_w, view_h);
 	view_active = 0;
@@ -1537,6 +1541,7 @@ int view_render(void) {
 		if (!shownFrames || ++badFrames >= SWITCH_FRAMES) { shownFrames = 0; return 0; }
 		for (size_t i = 0; i < (size_t)w * h; i++) view_frame[i] = 0;
 		paste_gba(w, h, lastOx, lastOy);
+		view_gba_pasted = 1;
 		view_active = 1;
 		return 1;
 	}
@@ -1552,6 +1557,7 @@ int view_render(void) {
 		if (!shownFrames || ++badFrames >= SWITCH_FRAMES) { shownFrames = 0; return 0; }
 		for (size_t i = 0; i < (size_t)w * h; i++) view_frame[i] = 0;
 		paste_gba(w, h, lastOx, lastOy);
+		view_gba_pasted = 1;
 		view_active = 1;
 		return 1;
 	}
@@ -1661,6 +1667,7 @@ int view_render(void) {
 	}
 	render_rows(w, h, ox, oy);
 	if (gbaOver) paste_gba(w, h, ox, oy);
+	view_gba_pasted = gbaOver;
 	view_active = 1;
 	return 1;
 }
