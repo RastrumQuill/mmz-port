@@ -50,6 +50,7 @@ int view_w = SCREEN_W, view_h = SCREEN_H;   /* the view size asked for */
 int view_cells_left, view_cells_right, view_cells_up, view_cells_down;
 int view_active;                            /* the last frame was drawn wide */
 u32 *view_frame;                            /* view_w x view_h, 0x00RRGGBB */
+u8 *view_layers;                            /* view_w x view_h: top | second << 4 (as ppu_layers; 5 backdrop) */
 
 /* the registers each GBA line was drawn with (DISPCNT to BLDY) */
 #define REGS 0x56
@@ -101,6 +102,8 @@ static int rom_ptr(u32 a) {
 static s32 stageX, stageY;      /* global pixel position of the stage layers' origin */
 static s32 areaLeft, areaTop, areaRight, areaBottom;   /* the current area, global pixels */
 static u8 chunkOk[128][128];    /* 0 unknown, else chunk_source() + 2 */
+static u8 chunkOff[128][128];   /* chunks under the GBA screen: the source of their part off it, + 2 */
+static s32 gbaL, gbaT;          /* the GBA screen's top-left this frame, global pixels */
 static int drawing;             /* rows are being drawn by several threads: chunk_source() only reads */
 static int gbaCx0, gbaCx1, gbaCy0, gbaCy1 = -1;   /* chunks under the GBA screen */
 
@@ -353,11 +356,16 @@ static int chunk_source(int cx, int cy) {
 			if (lo >= 14) { int n = chunk_sets(lx, ly, area); lo = n >= 0 ? n & 15 : -1; }
 			/* on the GBA screen the game shows it with what is loaded (it does
 			   not always have both sets of a chunk it shows, at their borders) */
-			if (cx >= gbaCx0 && cx <= gbaCx1 && cy >= gbaCy0 && cy <= gbaCy1) src = 0;
-			else if (hi >= 0 && lo >= 0 && hi < 14 && lo < 14) {
-				if (set_loaded(hi, GFX_SET_A, area) && set_loaded(lo, GFX_SET_B, area)) src = 0;
-				else { int c = combo(area, hi, lo); src = c >= 0 ? 1 + c : -1; }
+			int own = -1;   /* with its own sets */
+			if (hi >= 0 && lo >= 0 && hi < 14 && lo < 14) {
+				if (set_loaded(hi, GFX_SET_A, area) && set_loaded(lo, GFX_SET_B, area)) own = 0;
+				else { int c = combo(area, hi, lo); own = c >= 0 ? 1 + c : -1; }
 			}
+			/* (the part of it off the GBA screen: with its own sets, as the
+			   game would load them for a camera there; not with the loaded
+			   ones, issue #9) */
+			if (onGba) { src = 0; chunkOff[cy][cx] = own + 2; }
+			else src = own;
 		}
 	}
 	chunkOk[cy][cx] = src + 2;
@@ -377,7 +385,164 @@ static void find_area(void) {
 	areaBottom = areaTop + g[3] * 160;
 }
 
+/* ------------------------------------------------------------ shown
+ *
+ * What the GBA camera can show of the current area (issue #9). The level
+ * data has rooms the camera never goes to (a room under the train's floor,
+ * labelled like a test room, drawn with graphics sets the game never loads
+ * there): the chunk levels let the camera go there, but Zero cannot. The
+ * camera follows Zero (sub_08014030 modes 3-5: his position, 16-24 pixels
+ * above, pulled back from level steps by sub_080066F8, not moving while he
+ * is in a level-15 chunk, sub_080066AC), so what it can show is the GBA
+ * screens around the places Zero can be: a flood fill over the area's
+ * metatiles from where Zero is, through the ones the collision lets him
+ * through (sub_080079CC at four points; the objects' solid blocks, doors
+ * and shutters, left out), and each one's camera screen. Plus every screen
+ * the GBA camera really showed while in the area (cutscenes move it on
+ * their own). The rest of the level layers is not drawn (as if the chunk
+ * were empty: the gap fill or what is behind shows). Off: MMZ_NOSHOWN=1.
+ */
+static u8 *shownMap;              /* per metatile of the area: 1 the camera can show it */
+static int shownW, shownH, shownOn;
+static u32 shownKey = ~0u;
+extern long frameCount;
+static long shownFrom = -1;       /* (debug) */
+
+static int level_at(s32 x, s32 y) {   /* sub_08006B4C, global pixels */
+	if (x < 0 || y < 0 || x >= 128 * 240 || y >= 128 * 160) return 15;
+	u8 a = CHUNK_AREA[(y / 160) * 128 + x / 240];
+	if ((a >> 4) == 15) return 15;
+	const u8 *d = area_desc(a & 15);
+	s32 left = *(s32 *)(d + 0x6C), top = *(s32 *)(d + 0x70);
+	const u8 *map = (const u8 *)(uintptr_t)*(u32 *)(d + 0x7C);
+	if (!map) return 0;
+	u16 shift = *(const u16 *)map;
+	return ((const u16 *)(map + 8))[((y / 160 - top) << shift) + (x / 240 - left)] >> 12;
+}
+
+/* the camera's centre for a wanted one, pulled back from level steps (sub_080066F8) */
+static void camera_edge(s32 *x, s32 *y) {
+	int here = (s8)level_at(*x, *y) + 1;
+	s32 dx = 0, dy = 0;
+	if ((u8)(here - level_at(*x - 120, *y)) > 2) dx += 120 - *x % 120;
+	if ((u8)(here - level_at(*x + 120, *y)) > 2) dx -= *x % 120;
+	if ((u8)(here - level_at(*x, *y - 80)) > 2) dy += 80 - *y % 80;
+	if ((u8)(here - level_at(*x, *y + 80)) > 2) dy -= *y % 80;
+	*x += dx; *y += dy;
+}
+
+/* can Zero be in this metatile (global pixels of its top-left)? */
+static int metatile_open(s32 x, s32 y) {
+	static const int pt[4][2] = { { 4, 4 }, { 12, 4 }, { 4, 12 }, { 12, 12 } };
+	for (int k = 0; k < 4; k++)
+		if (!(u8)LIFT_CALL(sub_080079CC, (x + pt[k][0]) << 8, (y + pt[k][1]) << 8, 0, 0)) return 1;
+	return 0;
+}
+
+static void shown_mark(s32 cx, s32 cy, s32 *diff) {   /* a GBA screen centred there */
+	int x0 = (cx - 120 - areaLeft) >> 4, y0 = (cy - 80 - areaTop) >> 4, x1 = (cx + 119 - areaLeft) >> 4, y1 = (cy + 79 - areaTop) >> 4;
+	if (x0 < 0) x0 = 0; if (y0 < 0) y0 = 0; if (x1 >= shownW) x1 = shownW - 1; if (y1 >= shownH) y1 = shownH - 1;
+	if (x0 > x1 || y0 > y1) return;
+	int W = shownW + 1;
+	diff[y0 * W + x0]++; diff[y0 * W + x1 + 1]--; diff[(y1 + 1) * W + x0]--; diff[(y1 + 1) * W + x1 + 1]++;
+}
+
+static void shown_build(void) {
+	int area = CUR_AREA & 0x7F;
+	u32 key = (u32)area << 24 ^ AREA_STATES * 2654435761u;
+	s32 camX = CAMERA_X >> 8, camY = CAMERA_Y >> 8;
+	static int off = -1;
+	if (off < 0) off = getenv("MMZ_NOSHOWN") != NULL;
+	if (off) { shownOn = 0; return; }
+	if (key != shownKey) {
+		u32 z = *(u32 *)(uintptr_t)0x02022B7Cu;   /* Zero (gStageState.cutscene.slots[0].actor) */
+		if (z < 0x02000000 || z >= 0x0203FF00 || GAME_MODE != 3) { shownOn = 0; return; }
+		s32 zx = *(s32 *)(uintptr_t)(z + 0x4C) >> 8, zy = *(s32 *)(uintptr_t)(z + 0x50) >> 8;
+		shownKey = key;
+		shownW = (areaRight - areaLeft) / 16; shownH = (areaBottom - areaTop) / 16;
+		size_t n = (size_t)shownW * shownH;
+		u8 *open = calloc(n, 1);   /* 0 unknown, 1 open, 2 closed, | 4 reached */
+		int *q = malloc(n * sizeof *q);
+		s32 *diff = calloc((size_t)(shownW + 1) * (shownH + 1), sizeof *diff);
+		free(shownMap);
+		shownMap = calloc(n, 1);
+		if (!open || !q || !diff || !shownMap) { free(open); free(q); free(diff); shownOn = 0; return; }
+		/* the lifted calls run here, between the game's own: its registers
+		   and the clock are put back */
+		struct Cpu saved = cpu;
+		u32 sPc = lift_pc, sT1 = lift_tail_lr, sT2 = lift_tail_lr2, sRet = lift_ret, sCyc = lift_cycles;
+		int sTail = lift_tail, sVoid = lift_void;
+		u16 *numBlocks = (u16 *)(uintptr_t)0x0200520Eu, sBlocks = *numBlocks;
+		*numBlocks = 0;
+		cpu.r[13] = (cpu.r[13] - 64) & ~7u;
+		int h = 0, t = 0;
+		s32 seeds[2][2] = { { zx, zy - 8 }, { camX, camY + 20 } };
+		for (int k = 0; k < 2; k++) {
+			int tx = (seeds[k][0] - areaLeft) >> 4, ty = (seeds[k][1] - areaTop) >> 4;
+			if (tx < 0 || ty < 0 || tx >= shownW || ty >= shownH || open[ty * shownW + tx] & 4) continue;
+			open[ty * shownW + tx] = 4 | 1; q[t++] = ty * shownW + tx;
+		}
+		while (h < t) {
+			int i = q[h++], tx = i % shownW, ty = i / shownW;
+			s32 fx = areaLeft + tx * 16 + 8, fy = areaTop + ty * 16 + 15;   /* Zero's feet in it */
+			if (level_at(fx, fy) != 15) { s32 cx = fx, cy = fy - 20; camera_edge(&cx, &cy); shown_mark(cx, cy, diff); }
+			static const int dx[4] = { 1, -1, 0, 0 }, dy[4] = { 0, 0, 1, -1 };
+			for (int d = 0; d < 4; d++) {
+				int nx = tx + dx[d], ny = ty + dy[d];
+				if (nx < 0 || ny < 0 || nx >= shownW || ny >= shownH) continue;
+				u8 *o = &open[ny * shownW + nx];
+				if (*o & 4) continue;
+				if (!(*o & 3)) *o = metatile_open(areaLeft + nx * 16, areaTop + ny * 16) ? 1 : 2;
+				if (*o == 2) continue;
+				*o |= 4; q[t++] = ny * shownW + nx;
+			}
+		}
+		*numBlocks = sBlocks;
+		cpu = saved;
+		lift_pc = sPc; lift_tail_lr = sT1; lift_tail_lr2 = sT2; lift_ret = sRet; lift_cycles = sCyc; lift_tail = sTail; lift_void = sVoid;
+		int W = shownW + 1;
+		for (int y = 0; y < shownH; y++)
+			for (int x = 0; x < shownW; x++) {
+				s32 v = diff[y * W + x] + (x ? diff[y * W + x - 1] : 0) + (y ? diff[(y - 1) * W + x] : 0) - (x && y ? diff[(y - 1) * W + x - 1] : 0);
+				diff[y * W + x] = v;
+				shownMap[y * shownW + x] = v > 0;
+			}
+		shownOn = t > 0;
+		shownFrom = frameCount;
+		if (getenv("SHOWNDEBUG")) {   /* the flood and the shown map around Zero: '#' closed, 'o' open not reached, '+' reached; capitals: shown */
+			int tx0 = getenv("SHOWNDEBUG")[0] == 'L' ? 0 : (zx - areaLeft) / 16 - 30, ty0 = (zy - areaTop) / 16 - 12;
+			for (int y = ty0; y < ty0 + 30; y++) {
+				for (int x = tx0; x < tx0 + 60; x++) {
+					if (x < 0 || y < 0 || x >= shownW || y >= shownH) { fputc(' ', stderr); continue; }
+					u8 o = open[y * shownW + x];
+					int sh = diff[y * (shownW + 1) + x] > 0;
+					fputc(o & 4 ? (sh ? '+' : '*') : o == 1 ? (sh ? 'O' : 'o') : o == 2 ? (sh ? '#' : '=') : (sh ? '?' : '.'), stderr);
+				}
+				fputc('\n', stderr);
+			}
+		}
+		free(open); free(q); free(diff);
+		if (getenv("VIEWDEBUG")) fprintf(stderr, "shown: area %d %dx%d metatiles, %d reachable from Zero %d,%d\n", area, shownW, shownH, t, zx, zy);
+	}
+	/* what the GBA screen shows now is shown */
+	if (shownOn) {
+		int x0 = (camX - 120 - areaLeft) >> 4, y0 = (camY - 80 - areaTop) >> 4;
+		for (int y = y0; y <= y0 + 10; y++)
+			for (int x = x0; x <= x0 + 15; x++)
+				if (x >= 0 && y >= 0 && x < shownW && y < shownH) shownMap[y * shownW + x] = 1;
+	}
+}
+
+/* can the GBA camera show this global pixel? (1 when not known) */
+static int shown_at(s32 gx, s32 gy) {
+	if (!shownOn) return 1;
+	s32 x = (gx - areaLeft) >> 4, y = (gy - areaTop) >> 4;
+	if (x < 0 || y < 0 || x >= shownW || y >= shownH) return 0;
+	return shownMap[y * shownW + x];
+}
+
 static __thread int levelSrc;   /* chunk_source() of the last level_entry() */
+static __thread int levelFilled;  /* the last level_entry() came from the gap fill */
 static __thread int levelFy;    /* the row in the tile it found (backgrounds clamp it) */
 
 /* the stage-coordinate rectangle of the current area's chunks that have
@@ -692,6 +857,7 @@ static int fill_entry(const struct Layer *L, s32 wx, s32 wy, u16 *out) {
 	if (m == FILL_NONE || d < 0) return 0;
 	levelSrc = chunk_source(d & 0xFF, d >> 8);
 	if (levelSrc < 0) return 0;
+	levelFilled = 1;
 	levelFy = wy & 7;
 	/* one 8x8 row of the metatile repeated (finer than whole 16x16 metatiles:
 	   a post's cap is not copied): the bottom row going down, the top one
@@ -792,6 +958,14 @@ static int level_entry(const struct Layer *L, s32 wx, s32 wy, u16 *out) {
 	if (cid == L->null) return fill_entry(L, wx, wy, out);
 	levelSrc = chunk_source((wx + stageX) / 240, (wy + stageY) / 160);
 	if (levelSrc < 0) return fill_entry(L, wx, wy, out);
+	if (levelSrc == 0 && chunkOff[(wy + stageY) / 160][(wx + stageX) / 240]) {
+		s32 gx = wx + stageX - gbaL, gy = wy + stageY - gbaT;
+		if (gx < 0 || gy < 0 || gx >= SCREEN_W || gy >= SCREEN_H) {
+			levelSrc = chunkOff[(wy + stageY) / 160][(wx + stageX) / 240] - 2;
+			if (levelSrc < 0) return fill_entry(L, wx, wy, out);
+		}
+	}
+	if (!shown_at(wx + stageX, wy + stageY)) return 0;   /* the GBA camera never shows it */
 	u16 mt = L->chunks[cid * 150 + ((wy % 160) >> 4) * 15 + ((wx % 240) >> 4)];
 	*out = L->tiledata[mt * 4 + ((wy >> 3) & 1) * 2 + ((wx >> 3) & 1)];
 	return 1;
@@ -939,6 +1113,7 @@ static void find_fx(void) {
 /* Finds the stage layers and keeps the ones video memory agrees with. */
 static int tile_empty(u16 e, u32 charBase);
 static int stageBg[4];   /* BGs a stage layer (moving with the camera) is on, matched or not */
+int view_stage_mask;     /* the same, as bits (viewprobe: only these are compared) */
 /* BGs whose stage layer has not matched video memory for a while and whose
    tilemap is a pattern of a few tiles: the game draws something else there
    (mission 3's rain), so its tilemap repeats over
@@ -948,6 +1123,7 @@ static int freeBg[4];
 static void find_layers(void) {
 	memset(layers, 0, sizeof layers);
 	memset(stageBg, 0, sizeof stageBg);
+	view_stage_mask = 0;
 	if ((R16(0, 0) & 7) != 0) return;   /* stages use mode 0 */
 	for (int k = 0; k < 3; k++) {
 		const u8 *s = (const u8 *)(uintptr_t)(STAGE_LAYERS + k * 0x70);
@@ -967,7 +1143,7 @@ static void find_layers(void) {
 		   is not the width the level uses) */
 		L.stride = L.map[0]; L.null = L.map[1]; L.w = L.backdrop ? L.map[2] : L.map[0]; L.h = L.map[3];
 		if (!L.w || !L.h || L.w > L.stride) continue;
-		if (!L.backdrop) stageBg[bg] = 1;
+		if (!L.backdrop) { stageBg[bg] = 1; view_stage_mask |= 1 << bg; }
 		if (!(R16(80, 0) & (0x100 << bg))) continue;
 		/* agrees with video memory? (samples over the GBA screen, mid-frame line) */
 		int match = 0, n = 0;
@@ -1134,13 +1310,14 @@ static int hud_pixel(int x, int y) {
 
 /* row buffers: one set per drawing thread */
 static __thread u16 *bgRow[4];
+static __thread u8 *fillRow[4];   /* the pixel is the gap fill's (view_layers bit 3) */
 static __thread u16 *objColor;
 static __thread u8 *objPrio, *objSemi, *objWin;
 static __thread int rowCap;
 
 static void ensure_buffers(int w) {
 	if (w <= rowCap) return;
-	for (int i = 0; i < 4; i++) bgRow[i] = realloc(bgRow[i], w * 2);
+	for (int i = 0; i < 4; i++) { bgRow[i] = realloc(bgRow[i], w * 2); fillRow[i] = realloc(fillRow[i], w); }
 	objColor = realloc(objColor, w * 2);
 	objPrio = realloc(objPrio, w);
 	objSemi = realloc(objSemi, w);
@@ -1183,17 +1360,19 @@ static void draw_level_row(const struct Layer *L, int line, int vy, int ox, int 
 		wx0 = L->x + wrap_delta(h & 0x1FF, L->x) - ox;
 	}
 	int fy = wy & 7;
+	u8 *fl = fillRow[L->bg & 3];
 	for (int vx = 0; vx < w;) {
 		s32 wx = wx0 + vx;
 		u16 e;
 		int run = 8 - (wx & 7);
+		levelFilled = 0;
 		if (!level_entry(L, wx, wy, &e)) {
-			for (int k = 0; k < run && vx < w; k++) out[vx++] = TRANSPARENT;
+			for (int k = 0; k < run && vx < w; k++) { fl[vx] = 0; out[vx++] = TRANSPARENT; }
 			continue;
 		}
 		int fx = wx & 7;
-		int src = levelSrc, ty = levelFy;
-		for (int k = 0; k < run && vx < w; k++) out[vx++] = tile_pixel_from(src, e, charBase, fx++, ty);
+		int src = levelSrc, ty = levelFy, filled = levelFilled;
+		for (int k = 0; k < run && vx < w; k++) { fl[vx] = filled; out[vx++] = tile_pixel_from(src, e, charBase, fx++, ty); }
 	}
 }
 
@@ -1396,7 +1575,7 @@ static void render_row(int vy) {
 		if (line >= SCREEN_H) line = SCREEN_H - 1;
 		u32 *dst = view_frame + (size_t)vy * w;
 		u16 dispcnt = R16(line, 0);
-		if (dispcnt & 0x80) { for (int x = 0; x < w; x++) dst[x] = 0xFFFFFF; break; }
+		if (dispcnt & 0x80) { for (int x = 0; x < w; x++) { dst[x] = 0xFFFFFF; view_layers[(size_t)vy * w + x] = 0x55; } break; }
 		int bgOn[4];
 		for (int bg = 0; bg < 4; bg++) {
 			bgOn[bg] = (dispcnt & (0x100 << bg)) && (debug.layerMask & (1 << bg));
@@ -1450,6 +1629,7 @@ static void render_row(int vy) {
 				}
 			}
 			dst[x] = to_rgb(c);
+			view_layers[(size_t)vy * w + x] = layer[0] | layer[1] << 4 | (layer[0] < 4 && layers[layer[0]].map && !layers[layer[0]].backdrop && fillRow[layer[0]][x] ? 8 : 0);
 		}
 		} while (0);
 }
@@ -1517,6 +1697,69 @@ static void paste_gba(int w, int h, int ox, int oy) {
 }
 
 void view_gba_origin(int *ox, int *oy) { *ox = lastOx; *oy = lastOy; }
+static s32 lastGbaX, lastGbaY;   /* the GBA screen's top-left in the world (global pixels), last frame drawn */
+void view_gba_global(int *x, int *y) { *x = lastGbaX; *y = lastGbaY; }
+
+/* viewprobe: where the game's camera would settle for a wanted centre (0: it
+   cannot be there, a level-15 chunk) */
+int view_camera_settle(int *x, int *y) {
+	if (level_at(*x, *y) == 15) return 0;
+	s32 cx = *x, cy = *y;
+	camera_edge(&cx, &cy);
+	*x = cx; *y = cy;
+	return 1;
+}
+
+/* viewprobe: can the GBA camera show this global pixel (shown map; 1 when not known) */
+int view_shown_at(int gx, int gy) { return shown_at(gx, gy); }
+
+/* viewchunks: cheap checks of the chunks the last frame's view covers, from
+   what the view worked out (no camera moved). Per chunk with something in a
+   stage layer: drawn from video memory off the GBA screen with sets that are
+   not loaded (a bug), drawn outside the area's rectangle (a bug), not
+   drawable (left to the gap fill / black), drawn from a copy with other sets
+   (normal: off the GBA screen), the part off the GBA screen of a chunk under
+   it with its own sets, and chunks the GBA camera never shows (hidden).
+   Prints the flagged chunks (bugs, then the not drawable ones) and counts. */
+void view_chunk_report(void) {
+	if (!view_active) { fprintf(stderr, "viewchunks: frame %ld: no wide view\n", frameCount); return; }
+	int area = CUR_AREA & 0x7F;
+	s32 vl = lastGbaX - lastOx, vt = lastGbaY - lastOy;
+	int n[7] = { 0 };
+	static const char *what[7] = { "wrong-set", "outside-area", "undrawable", "copy", "off-own", "hidden", "ok" };
+	for (int gy = vt / 160; gy <= (vt + view_h - 1) / 160; gy++)
+		for (int gx = vl / 240; gx <= (vl + view_w - 1) / 240; gx++) {
+			if (gx < 0 || gy < 0 || gx >= 128 || gy >= 128) continue;
+			int content = 0;
+			for (int k = 1; k < 4; k++) {
+				const struct Layer *L = &layers[k];
+				if (!L->map || L->backdrop) continue;
+				int lx = gx - stageX / 240, ly = gy - stageY / 160;
+				if (lx >= 0 && ly >= 0 && lx < L->w && ly < L->h && L->map[4 + ly * L->stride + lx] != L->null) content = 1;
+			}
+			if (!content) continue;
+			int src = chunkOk[gy][gx] ? chunkOk[gy][gx] - 2 : chunk_source(gx, gy);
+			int b = chunk_sets(gx, gy, area), hi = b >> 4 & 15, lo = b & 15;
+			int onGba = gx >= gbaCx0 && gx <= gbaCx1 && gy >= gbaCy0 && gy <= gbaCy1;
+			int shownAny = 0;
+			for (int y = gy * 160; y < gy * 160 + 160 && !shownAny; y += 16)
+				for (int x = gx * 240; x < gx * 240 + 240; x += 16) if (shown_at(x, y)) { shownAny = 1; break; }
+			int c;
+			if (src == 0 && !onGba && b >= 0 && hi < 14 && lo < 14 && !(set_loaded(hi, GFX_SET_A, area) && set_loaded(lo, GFX_SET_B, area))) c = 0;
+			else if (src >= 0 && (gx * 240 < areaLeft || gx * 240 >= areaRight || gy * 160 < areaTop || gy * 160 >= areaBottom)) c = 1;
+			else if (src < 0) c = shownAny ? 2 : 5;
+			else if (!shownAny) c = 5;
+			else if (src > 0) c = 3;
+			else if (onGba && chunkOff[gy][gx] && chunkOff[gy][gx] != 2) c = 4;
+			else c = 6;
+			n[c]++;
+			if (c <= 2) fprintf(stderr, "viewchunks: %s chunk %d,%d (global %d,%d) area byte %02X sets %02X source %d%s%s\n", what[c], gx, gy, gx * 240, gy * 160,
+			                    CHUNK_AREA[gy * 128 + gx], b & 0xFF, src, onGba ? " under the GBA screen" : "", reach[gy][gx] ? "" : " not reached");
+		}
+	fprintf(stderr, "viewchunks: frame %ld area %d loaded %04X %04X: %d wrong-set, %d outside-area, %d undrawable, %d copy, %d off-own, %d hidden, %d ok\n",
+	        frameCount, area, GFX_SET_A, GFX_SET_B, n[0], n[1], n[2], n[3], n[4], n[5], n[6]);
+}
+
 
 int view_render(void) {
 	set_ranges(view_w, view_h);
@@ -1534,6 +1777,7 @@ int view_render(void) {
 	if (GAME_MODE != 3 && GAME_MODE != 4) { shownFrames = 0; return 0; }
 	int w = view_w, h = view_h;
 	view_frame = realloc(view_frame, (size_t)w * h * 4);
+	view_layers = realloc(view_layers, (size_t)w * h);
 	ensure_buffers(w);
 	if (!layers[1].map && !layers[2].map && !layers[3].map) {
 		/* not a stage picture (menus, fades): after a few frames the GBA
@@ -1570,7 +1814,10 @@ int view_render(void) {
 	stageY = (stageY + 80) / 160 * 160;
 	find_area();
 	find_reach((CAMERA_X >> 8) / 240, (CAMERA_Y >> 8) / 160);
+	shown_build();
 	memset(chunkOk, 0, sizeof chunkOk);
+	memset(chunkOff, 0, sizeof chunkOff);
+	gbaL = x0 + stageX; gbaT = y0 + stageY;
 	/* the copies with other graphics sets are kept for a while (rebuilt when
 	   the loaded sets change, and every half second for animated tiles) */
 	{
@@ -1641,6 +1888,7 @@ int view_render(void) {
 	view_ext_left = ox; view_ext_right = w - ox - SCREEN_W;
 	view_ext_up = oy; view_ext_down = h - oy - SCREEN_H;
 	lastOx = ox; lastOy = oy;
+	lastGbaX = x0 + stageX; lastGbaY = y0 + stageY;
 
 	draw_hud(w, h, ox, oy);
 	/* where each chunk the view can show is drawn from (before the threads) */
@@ -1660,6 +1908,7 @@ int view_render(void) {
 				int gx = cx + stageX / 240, gy = cy + stageY / 160;
 				if (cx < 0 || cy < 0 || gx >= 128 || gy >= 128) { fprintf(stderr, " ....."); continue; }
 				fprintf(stderr, " %d:%02X%c", CHUNK_AREA[gy * 128 + gx] & 15, chunk_sets(gx, gy, CUR_AREA & 0x7F) & 0xFF, "x0123456789ab"[chunk_source(gx, gy) + 1]);
+				if (getenv("CHUNKDEBUG")[0] == '2') fprintf(stderr, "/L%X%c%02X", chunk_level(gx, gy, CUR_AREA & 0x7F), reach[gy][gx] ? 'r' : '-', CHUNK_AREA[gy * 128 + gx]);
 			}
 			fprintf(stderr, "\n");
 		}

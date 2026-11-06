@@ -154,6 +154,58 @@ frames); the view is then drawn from the level data throughout. A frame
 where the view pasted the GBA picture (not drawable) says so: it agrees by
 construction. What is outside the GBA screen cannot be checked this way.
 
+**Off-screen checks (wide view).** viewcheck only sees the part of the
+wide view where the GBA screen is; a wrong room or graphics set further out
+(issue #9: a test room under the train's floor) is invisible to it. Three
+tools cover the rest:
+
+* `viewprobe [PREFIX]` (route; headless): ground truth for the whole view
+  is what the GBA itself draws with its camera there. The view is taken
+  once from the level data (and again every 4 frames for a second: pixels
+  that change, animated tiles and lights, are left out), then the game's
+  camera (gCamera, mode 1 at speed 0) is put over the view a GBA screen at a
+  time (overlapping; only where the game's camera rules let it be: not in a
+  level-15 chunk, pulled back from level steps) and after 12 frames (tiles
+  streamed, graphics sets loaded) the GBA picture is compared with what the
+  view drew there. Only stage layers count (backgrounds behind scroll at
+  their own speed), not HUD or sprite pixels on either side, not pixels the
+  GBA changed in its last 6 frames, and not the gap fill (the GBA has
+  nothing there by design). Pixels the camera never shows in play (the
+  shown map below) are counted apart: a difference there is expected.
+  Prints a line per probe (FLAG at `MMZ_PROBE_PCT`, default 0.5 percent)
+  and a total; with PREFIX, PREFIX_N.png for flagged probes (the GBA's
+  picture, the view's part, the differences: red, blue where never shown,
+  green the fill, grey left out) and PREFIX_map.png (the view, red where it
+  differs, blue where it differs but is never shown, dark where not
+  compared). The camera is put back afterwards, but enemies saw it move:
+  end the route after it (or warp).
+* `viewchunks` (route): cheap checks from what the view worked out, per
+  chunk with something in a stage layer: drawn from video memory off the
+  GBA screen with sets that are not loaded (wrong-set), drawn outside the
+  area's rectangle (outside-area), not drawable (undrawable: sets 14/15
+  pointing at nothing, another area's chunk), and counts of the normal
+  cases (copy: drawn from a copy with its own sets; off-own: under the GBA
+  screen, its part off it drawn with its own sets; hidden: never shown).
+  `CHUNKDEBUG=2` (with `VIEWDEBUG=1`) adds each chunk's level, whether the
+  camera's chunk reaches it and its area byte to the chunk dump.
+* `port/tools/viewsweep.py [--jobs N] [--out DIR] [--only m7cp0,base]`
+  runs both at every place a warp reaches (the base, missions 1-17,
+  checkpoints 0-3, `--view x3`) and lists what is flagged.
+
+**What the camera can show (the shown map).** The level data has rooms the
+camera never goes to although the chunk levels let it (the room under the
+train's floor). The camera follows Zero, so view.c floods the area's
+metatiles from where Zero is through the ones the collision lets him
+through (the objects' solid blocks, doors, left out), and marks the GBA
+screen the camera would show for each (16-24 pixels above him, pulled back
+from level steps, not moving in level-15 chunks), plus every screen the
+camera really showed. Stage-layer tiles outside it are not drawn (the gap
+fill or what is behind shows, else black). A chunk under the GBA screen is
+drawn with what is loaded on the screen, but its part off the screen with
+its own graphics sets (never with the wrong ones; not drawable: nothing).
+`MMZ_NOSHOWN=1` turns the shown map off; `SHOWNDEBUG=1` (`L`: from the
+area's left) prints the flood around Zero.
+
 **Testing.** `mmz --skip-intro` fast-forwards through the title, menus and
 cutscenes (pressing Start / A) to the first moment of play.
 

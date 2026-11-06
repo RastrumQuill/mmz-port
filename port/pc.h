@@ -32,10 +32,12 @@ extern int hw_cpu_speed;
 extern int view_ext_left, view_ext_right, view_ext_up, view_ext_down;
 extern int view_w, view_h, view_active, view_hud_edges;
 extern u32 *view_frame;
+extern u8 *view_layers;   /* per view pixel: top | second << 4 (view.c) */
 void view_fit_apply(int *w, int *h);
 void view_record_line(int line);
 int view_render(void);
 void view_gba_origin(int *ox, int *oy);
+void view_gba_global(int *x, int *y);   /* the GBA screen's top-left in the world, last frame drawn */
 extern int view_level_only, view_gba_pasted;   /* viewcheck (main.c) */   /* where the GBA screen is in view_frame */
 
 /* audio.c */

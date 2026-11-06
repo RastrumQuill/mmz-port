@@ -372,7 +372,173 @@ static double view_check(const char *png, int print) {
 	return pct;
 }
 
+/* viewprobe: ground truth for the whole wide view, not only the GBA
+   screen's part. The view is taken once (from the level data, as
+   viewcheck); then the game's own camera (gCamera, put in mode 1 at speed 0:
+   it stays where it is put) is moved over the view, a GBA screen at a time, and
+   after a few frames (the game streams the tiles and loads the graphics
+   sets for the new place) the GBA picture there is compared with what the
+   view drew. Only backgrounds count: pixels whose top two layers include
+   the HUD or a sprite, on either side, are left out. Prints each probe, and
+   with a prefix writes PREFIX_N.png (the GBA's picture, the view's part,
+   the differences, stacked) for probes that differ and PREFIX_map.png (the
+   view: red where it differs, as drawn where the GBA agreed, blue
+   where it differs but the camera never goes there in play (view.c's
+   shown map: the GBA's picture there is not what the game shows), dark
+   where nothing was compared). The camera is put back afterwards, but enemies and
+   the like have seen the camera move: meant for headless routes that end
+   after it (or a later warp). */
+#define GCAMERA 0x02022C44u
+#define CAMERA_MODES 0x0829FF8Cu
+static struct {
+	int on, wait, i, n, w, h, flagged, mask;
+	s32 gx, gy;                 /* the view's top-left, global pixels */
+	u32 *frame; u8 *lay; u8 *seen;   /* seen: 1 agreed, 2 differs, 3 differs where the camera never goes */
+	u8 *shown;                  /* the view's shown map (view.c): the GBA camera can be there in play */
+	u8 *anim;                   /* view pixels that changed over a second of takes (animated tiles, moving lights): left out */
+	int snap;                   /* frames until the second take */
+	u32 gba[SCREEN_W * SCREEN_H];   /* the GBA picture a few frames before the compare (pixels that change: left out) */
+	s32 px[256], py[256];       /* probe camera centres */
+	u8 cam[0x6C];
+	char prefix[256];
+	double thresh;
+} probe;
+
+static void probe_start(const char *prefix) {
+	if (!view_active || !view_frame || !view_layers || view_gba_pasted) { fprintf(stderr, "viewprobe: frame %ld: no wide view drawn from the level data\n", frameCount); return; }
+	int ox, oy;
+	view_gba_origin(&ox, &oy);
+	probe.w = view_w; probe.h = view_h;
+	size_t n = (size_t)view_w * view_h;
+	probe.frame = realloc(probe.frame, n * 4); probe.lay = realloc(probe.lay, n); probe.seen = realloc(probe.seen, n);
+	memcpy(probe.frame, view_frame, n * 4); memcpy(probe.lay, view_layers, n); memset(probe.seen, 0, n);
+	probe.shown = realloc(probe.shown, n);
+	int gx, gy;
+	view_gba_global(&gx, &gy);
+	probe.gx = gx - ox;
+	probe.gy = gy - oy;
+	memcpy(probe.cam, (void *)(uintptr_t)GCAMERA, sizeof probe.cam);
+	{ extern int view_shown_at(int, int);
+	  for (int y = 0; y < view_h; y++) for (int x = 0; x < view_w; x++) probe.shown[(size_t)y * view_w + x] = view_shown_at(probe.gx + x, probe.gy + y); }
+	probe.n = 0;
+	{ extern int view_stage_mask; probe.mask = view_stage_mask; }
+	/* GBA screens over the view, overlapping a little */
+	int skipped = 0;
+	int nx = (view_w - SCREEN_W + 199) / 200 + 1, ny = (view_h - SCREEN_H + 129) / 130 + 1;
+	for (int j = 0; j < ny; j++)
+		for (int i = 0; i < nx && probe.n < 256; i++) {
+			int x = nx > 1 ? i * (view_w - SCREEN_W) / (nx - 1) : (view_w - SCREEN_W) / 2;
+			int y = ny > 1 ? j * (view_h - SCREEN_H) / (ny - 1) : (view_h - SCREEN_H) / 2;
+			int cx = probe.gx + x + 120, cy = probe.gy + y + 80;
+			/* where the game's own camera rules let it be (not in a level-15
+			   chunk, pulled back from level steps): forced further, the GBA
+			   draws what it never shows */
+			extern int view_camera_settle(int *, int *);
+			if (!view_camera_settle(&cx, &cy)) { skipped++; continue; }
+			int dup = 0;
+			for (int k = 0; k < probe.n; k++) dup |= probe.px[k] == cx && probe.py[k] == cy;
+			if (dup) continue;
+			probe.px[probe.n] = cx; probe.py[probe.n] = cy; probe.n++;
+		}
+	snprintf(probe.prefix, sizeof probe.prefix, "%s", prefix ? prefix : "");
+	probe.thresh = getenv("MMZ_PROBE_PCT") ? atof(getenv("MMZ_PROBE_PCT")) : 0.5;
+	probe.anim = realloc(probe.anim, n); memset(probe.anim, 0, n);
+	probe.i = 0; probe.wait = 0; probe.flagged = 0; probe.on = 1; probe.snap = 60;
+	struct Location l; char b[160]; loc_now(&l); loc_format(&l, b, sizeof b);
+	fprintf(stderr, "viewprobe: frame %ld %s view %dx%d at %d,%d: %d probes (%d where the camera cannot be)\n", frameCount, b, view_w, view_h, probe.gx, probe.gy, probe.n, skipped);
+}
+
+static void probe_put(s32 x, s32 y) {
+	u8 *c = (u8 *)(uintptr_t)GCAMERA;
+	c[0x18] = 1;                                    /* mode 1 (forced scroll) at speed 0: stays, and the area follows it (not in mode 0) */
+	*(u32 *)(c + 0x14) = ((const u32 *)(uintptr_t)CAMERA_MODES)[1];
+	c[0x19] = 0;                                    /* CHASE_JUMP */
+	*(s32 *)(c + 0x40) = *(s32 *)(c + 0x44) = 0;
+	*(s32 *)(c + 0x30) = *(s32 *)(c + 0x38) = x << 8;
+	*(s32 *)(c + 0x34) = *(s32 *)(c + 0x3C) = y << 8;
+}
+
+static void probe_compare(void) {
+	int gx, gy;
+	view_gba_global(&gx, &gy);   /* (the view is drawn every frame: where the GBA screen is now) */
+	s32 sx = gx - probe.gx, sy = gy - probe.gy;
+	static u32 out[SCREEN_W * SCREEN_H * 3];
+	long n = 0, bad = 0, hidden = 0, filled = 0;
+	for (int y = 0; y < SCREEN_H; y++)
+		for (int x = 0; x < SCREEN_W; x++) {
+			int vx = x + sx, vy = y + sy, i = y * SCREEN_W + x;
+			int in = vx >= 0 && vy >= 0 && vx < probe.w && vy < probe.h;
+			size_t k = in ? (size_t)vy * probe.w + vx : 0;
+			u32 g = ppu_frame[i], v = in ? probe.frame[k] : 0;
+			int t = ppu_layers[i] & 15, s2 = ppu_layers[i] >> 4;
+			/* only stage layers on top on both sides (backgrounds behind move at
+			   their own speed: they depend on where the camera is) */
+			int skip = !in || t > 3 || !(probe.mask >> t & 1) || s2 == 0 || s2 == 4 || probe.gba[i] != g || (in && probe.anim[k]);
+			out[i] = g; out[i + SCREEN_W * SCREEN_H] = v;
+			if (in && !skip && (probe.lay[k] & 8)) {   /* the gap fill's: the GBA has nothing there, by design (UNSEEN.md) */
+				out[i + 2 * SCREEN_W * SCREEN_H] = 0x206020;
+				filled++;
+				continue;
+			}
+			if (in) { int vt = probe.lay[k] & 7, vs = probe.lay[k] >> 4; if (vt > 3 || !(probe.mask >> vt & 1) || vs == 0 || vs == 4) skip = 1; }
+			out[i + 2 * SCREEN_W * SCREEN_H] = skip ? 0x404040 : g != v ? 0xFF0000 : (g >> 2) & 0x3F3F3F;
+			if (skip) continue;
+			if (!probe.shown[k]) {   /* the camera never shows it in play: the GBA's picture there is not what the game shows */
+				out[i + 2 * SCREEN_W * SCREEN_H] = g != v ? 0x0060FF : 0x202060;
+				hidden++;
+				if (g != v && probe.seen[k] != 2) probe.seen[k] = 3;
+				continue;
+			}
+			n++;
+			if (g != v) { bad++; probe.seen[k] = 2; }
+			else if (!probe.seen[k]) probe.seen[k] = 1;
+		}
+	double pct = n ? 100.0 * bad / n : 0;
+	int flag = pct >= probe.thresh;
+	probe.flagged += flag;
+	fprintf(stderr, "viewprobe: probe %d camera %d,%d (view %d,%d) differ %.2f%% (%ld of %ld; %ld never shown in play, %ld gap fill)%s\n", probe.i, *(s32 *)0x02005200 >> 8, *(s32 *)0x02005204 >> 8,
+	        sx, sy, pct, bad, n, hidden, filled, flag ? " FLAG" : "");
+	if (flag && probe.prefix[0]) { char p[300]; snprintf(p, sizeof p, "%s_%d.png", probe.prefix, probe.i); write_image(p, out, SCREEN_W, SCREEN_H * 3); }
+}
+
+static void probe_step(void) {
+	if (!probe.on) return;
+	if (probe.snap > 0) {   /* more takes of the view, every 4 frames for a second, the camera not moved yet */
+		probe.snap--;
+		if (probe.snap % 4) return;
+		int gx, gy, ox, oy;
+		view_gba_global(&gx, &gy); view_gba_origin(&ox, &oy);
+		if (view_active && view_frame && view_w == probe.w && view_h == probe.h && gx - ox == probe.gx && gy - oy == probe.gy)
+			for (size_t k = 0; k < (size_t)probe.w * probe.h; k++) probe.anim[k] |= view_frame[k] != probe.frame[k];
+		else if (!probe.snap) fprintf(stderr, "viewprobe: the view moved between its takes: animated pixels not all known\n");
+		if (probe.snap) return;
+	}
+	if (probe.wait > 0) {
+		probe.wait--;
+		probe_put(probe.px[probe.i], probe.py[probe.i]);
+		if (probe.wait == 6) memcpy(probe.gba, ppu_frame, sizeof probe.gba);
+		if (probe.wait == 0) { probe_compare(); probe.i++; }
+		return;
+	}
+	if (probe.i < probe.n) { probe_put(probe.px[probe.i], probe.py[probe.i]); probe.wait = 12; return; }
+	memcpy((void *)(uintptr_t)GCAMERA, probe.cam, sizeof probe.cam);
+	probe.on = 0;
+	view_level_only = getenv("MMZ_VIEWCHECK") != NULL;
+	long agree = 0, differ = 0, unseen = 0, hid = 0;
+	size_t N = (size_t)probe.w * probe.h;
+	for (size_t k = 0; k < N; k++) { agree += probe.seen[k] == 1; differ += probe.seen[k] == 2; hid += probe.seen[k] == 3; unseen += !probe.seen[k]; }
+	fprintf(stderr, "viewprobe: done: %d of %d probes flagged; view pixels: %ld agree, %ld differ, %ld differ where the camera never goes (not drawn: right), %ld not compared\n", probe.flagged, probe.n, agree, differ, hid, unseen);
+	if (probe.prefix[0]) {
+		u32 *m = malloc(N * 4);
+		for (size_t k = 0; k < N; k++) { u32 c = probe.frame[k]; m[k] = probe.seen[k] == 2 ? 0xFF0000 : probe.seen[k] == 3 ? 0x0060FF : probe.seen[k] == 1 ? c : (c >> 2) & 0x3F3F3F; }
+		char p[300]; snprintf(p, sizeof p, "%s_map.png", probe.prefix); write_image(p, m, probe.w, probe.h);
+		free(m);
+	}
+}
+
 static char viewCheckPng[256];
+static int probeIn;   /* frames until the route's viewprobe starts */
+static char probePrefix[256];
 static int viewCheckIn;   /* frames until the route's viewcheck */
 
 static void route_step(void) {
@@ -405,6 +571,12 @@ static void route_step(void) {
 			int on = atoi(routeArg2);
 			if (!strcmp(routeArg1, "invincible")) cheat_invincible = on;
 			else if (!strcmp(routeArg1, "noenemies")) cheat_no_enemies = on;
+		}
+		else if (!strcmp(routeCmd, "viewchunks")) { void view_chunk_report(void); view_chunk_report(); }   /* viewchunks: static checks of the view's chunks */
+		else if (!strcmp(routeCmd, "viewprobe")) {   /* viewprobe [PREFIX]: the wide view against the GBA camera moved over it */
+			view_level_only = 1;
+			probeIn = 2;
+			snprintf(probePrefix, sizeof probePrefix, "%s", routeArg1);
 		}
 		else if (!strcmp(routeCmd, "viewcheck")) {   /* viewcheck [DIFF.png]: the wide view against the GBA picture (in 2 frames) */
 			snprintf(viewCheckPng, sizeof viewCheckPng, "%s", routeArg1);
@@ -650,6 +822,8 @@ void frontend_frame(void) {
 		if (route) route_step();   /* testing: scripted input in the window too */
 		frame_log();
 	}
+	if (probeIn && --probeIn == 0) probe_start(probePrefix);
+	else probe_step();
 	if (viewCheckIn && --viewCheckIn == 0) {
 		if (view_check(viewCheckPng, 1) < 0) fprintf(stderr, "viewcheck: frame %ld: no wide view\n", frameCount);
 		view_level_only = getenv("MMZ_VIEWCHECK") != NULL;
