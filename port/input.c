@@ -140,7 +140,8 @@ static Uint16 stick(const struct Dev *d, int thr) {
 
 void input_poll(void) {
 	int thr = threshold();
-	int menu = held(BIND_MENU, thr), fast = held(BIND_FAST, thr);
+	int menu = held(BIND_MENU, thr), fast = held(BIND_FAST, thr), quick = held(BIND_QUICK, thr);
+	static int quickHeld;
 	for (int i = 0; i < devCount; i++)
 		if (devs[i].gc && SDL_GameControllerGetButton(devs[i].gc, SDL_CONTROLLER_BUTTON_BACK) &&
 		    SDL_GameControllerGetButton(devs[i].gc, SDL_CONTROLLER_BUTTON_START))
@@ -148,9 +149,11 @@ void input_poll(void) {
 	if (!ui_rebinding()) {
 		if (menu && !menuHeld) ui_toggle_settings();
 		if (fast != fastHeld) input_fast = fast;
+		if (quick && !quickHeld) ui_quick_report();
 	}
 	menuHeld = menu;
 	fastHeld = fast;
+	quickHeld = quick;
 }
 
 Uint16 input_buttons(void) {

@@ -43,6 +43,7 @@ can be used entirely with a controller.
 | F2 | debug tools |
 | F5 | bookmark this place |
 | F12 | report a problem |
+| F9 | quick report: saves the same zip as F12 with no window or note (rebind in Settings, Controls; controllers can map it too) |
 | F11 | full screen |
 | P / N | pause / one frame while paused |
 | Tab (held) | fast-forward |

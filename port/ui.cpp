@@ -3,6 +3,7 @@
 //   F2   debug tools: status, speed, layers, mission warp, RAM freezes and
 //        search, memory, palette, tiles, sprites, I/O registers
 //   F5   bookmark this place (bookmarks.txt; Debug window: Go warps there)
+//   F9   quick report: the same zip as F12, no window, no note (key_quickreport, pad_quickreport)
 //   F12  report a problem: freezes the game, asks what went wrong, saves a
 //        zip with what is needed to see it again, opens the GitHub issue page
 //   P    pause, N one frame while paused, Tab (held) fast-forward
@@ -168,6 +169,16 @@ static void open_report(int kind) {
 	sShowReport = sReportFocus = true;
 }
 
+// the quick report button: everything F12 saves, without the window or a note
+extern "C" void ui_quick_report(void) {
+	if (sShowReport) return;
+	report_snapshot();
+	const char *z = report_write(REPORT_PROBLEM, "");
+	const char *name = z ? strrchr(z, '/') : NULL;
+	if (z) toast("Quick report saved: %s (Debug window, F2, or F12 to share)", name ? name + 1 : z);
+	else toast("Quick report failed: could not write the reports folder");
+}
+
 extern "C" int ui_rebinding(void) { return sRebindKey >= 0 || sRebindPad >= 0; }
 
 extern "C" void ui_toggle_settings(void) {
@@ -215,6 +226,11 @@ extern "C" int ui_event(const SDL_Event *e) {
 	if (e->type == SDL_CONTROLLERBUTTONDOWN && e->cbutton.button == SDL_CONTROLLER_BUTTON_B && sShowSettings &&
 	    !ImGui::IsAnyItemActive() && !ImGui::IsPopupOpen("", ImGuiPopupFlags_AnyPopupId)) {
 		ui_toggle_settings();
+		return 1;
+	}
+	if (e->type == SDL_KEYDOWN && !e->key.repeat && settings.keys[BIND_QUICK] != SDL_SCANCODE_UNKNOWN &&
+	    e->key.keysym.scancode == settings.keys[BIND_QUICK] && !ImGui::GetIO().WantTextInput) {
+		ui_quick_report();
 		return 1;
 	}
 	if (e->type == SDL_KEYDOWN && !e->key.repeat) {
@@ -369,8 +385,8 @@ static void settings_window() {
 			ImGui::BulletText("%s%s", name, known ? "" : " (no mapping: uses the Joystick column)");
 		}
 		static const char *const labels[BINDS] = { "A", "B", "Select", "Start", "Right", "Left", "Up", "Down", "R", "L",
-		                                           "Open settings", "Fast-forward (held)" };
-		static const int order[BINDS] = { 6, 7, 5, 4, 0, 1, 9, 8, 3, 2, 10, 11 };
+		                                           "Open settings", "Fast-forward (held)", "Quick report (no note)" };
+		static const int order[BINDS] = { 6, 7, 5, 4, 0, 1, 9, 8, 3, 2, 10, 11, 12 };
 		bool joyColumn = input_have_joysticks();
 		char buf[32];
 		if (ImGui::BeginTable("bindings", joyColumn ? 4 : 3, ImGuiTableFlags_BordersInnerH)) {
@@ -386,7 +402,7 @@ static void settings_window() {
 				ImGui::TableNextColumn();
 				ImGui::TextUnformatted(labels[i]);
 				ImGui::TableNextColumn();
-				if (i < 10) {
+				if (i < 10 || i == BIND_QUICK) {
 					const char *kn = sRebindKey == i ? "press a key..." : SDL_GetScancodeName(settings.keys[i]);
 					if (ImGui::Button(kn[0] ? kn : "(none)", ImVec2(130, 0))) { sRebindKey = i; sRebindPad = -1; }
 					if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) settings.keys[i] = SDL_SCANCODE_UNKNOWN;

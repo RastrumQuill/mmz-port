@@ -36,13 +36,13 @@ struct Settings settings;
 
 /* GBA buttons in KEYINPUT bit order */
 const char *const kButtonNames[BINDS] = { "a", "b", "select", "start", "right", "left", "up", "down", "r", "l",
-                                          "menu", "fastforward" };
+                                          "menu", "fastforward", "quickreport" };
 static const char *const kDefaultKeys[10] = { "X", "Z", "Backspace", "Return", "Right", "Left", "Up", "Down", "S", "A" };
 static const char *const kDefaultPad[BINDS] = { "b", "a", "back", "start", "dpright", "dpleft", "dpup", "dpdown",
-                                                "rightshoulder", "leftshoulder", "guide", "righttrigger" };
+                                                "rightshoulder", "leftshoulder", "guide", "righttrigger", "" };
 /* a common layout of generic USB pads */
 static const char *const kDefaultJoy[BINDS] = { "b1", "b0", "b8", "b9", "h0right", "h0left", "h0up", "h0down",
-                                                "b5", "b4", "", "b7" };
+                                                "b5", "b4", "", "b7", "" };
 
 static const char *const kHatNames[4] = { "up", "right", "down", "left" };   /* SDL_HAT_* bits */
 
@@ -139,6 +139,7 @@ void settings_defaults(void) {
 	settings.fillGaps = 1;
 	settings.cpuSpeed = 400;   /* no slowdown where the GBA ran out of time */
 	for (int i = 0; i < 10; i++) settings.keys[i] = SDL_GetScancodeFromName(kDefaultKeys[i]);
+	settings.keys[BIND_QUICK] = SDL_SCANCODE_F9;
 	for (int i = 0; i < BINDS; i++) {
 		settings.pad[i] = bind_parse(kDefaultPad[i], 0);
 		settings.joy[i] = bind_parse(kDefaultJoy[i], 1);
@@ -190,7 +191,8 @@ static void apply(const char *key, const char *value) {
 			if (strcmp(key + 4, kButtonNames[i])) continue;
 			if (key[0] == 'k') {
 				SDL_Scancode sc = SDL_GetScancodeFromName(value);
-				if (sc != SDL_SCANCODE_UNKNOWN && i < 10) settings.keys[i] = sc;
+				if (i < 10 && sc != SDL_SCANCODE_UNKNOWN) settings.keys[i] = sc;
+				else if (i == BIND_QUICK) settings.keys[i] = sc;   /* empty: no key */
 			} else {
 				struct Bind b = bind_parse(value, key[0] == 'j');
 				if (b.type != BIND_NONE || !*value) (key[0] == 'j' ? settings.joy : settings.pad)[i] = b;
@@ -242,6 +244,8 @@ void settings_save(void) {
 	           "report_email = %s\nreport_discord = %s\n", settings.reportEmail, settings.reportDiscord);
 	fprintf(f, "\n# keyboard (SDL key names)\n");
 	for (int i = 0; i < 10; i++) fprintf(f, "key_%s = %s\n", kButtonNames[i], SDL_GetScancodeName(settings.keys[i]));
+	fprintf(f, "# one press: saves a report (screenshot, memory, inputs, save) with no note\nkey_quickreport = %s\n",
+	        SDL_GetScancodeName(settings.keys[BIND_QUICK]));
 	char buf[32];
 	fprintf(f, "\n# controllers: SDL button names by position (a = bottom face button), or axes\n"
 	           "# (lefttrigger, righttrigger, leftx+, lefty-...); empty for none\n");

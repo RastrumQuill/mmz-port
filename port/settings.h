@@ -10,7 +10,7 @@ struct Bind {
 	signed char dir;         /* axis: +1 / -1; hat: SDL_HAT_* bit */
 };
 /* bindings: the 10 GBA buttons (KEYINPUT order), then the controller hotkeys */
-enum { BIND_MENU = 10, BIND_FAST, BINDS };
+enum { BIND_MENU = 10, BIND_FAST, BIND_QUICK, BINDS };   /* BIND_QUICK: one-press report, no note */
 
 struct Settings {
 	char rom[512];
@@ -31,7 +31,7 @@ struct Settings {
 	int fillGaps;            /* empty parts of non-rectangular areas: filled from the area's own tiles */
 	int cpuSpeed;
 	int log;                 /* write mmz.log (stalls, the game's progress) */            /* percent of the GBA's CPU per frame (100: its slowdown as it was) */            /* the HUD at the view's edges (else over the GBA area) */
-	SDL_Scancode keys[10];   /* per GBA button, KEYINPUT order */
+	SDL_Scancode keys[BINDS];   /* per GBA button, KEYINPUT order; keys[BIND_QUICK] the quick report key */
 	struct Bind pad[BINDS];  /* recognised controllers: GBA buttons, then hotkeys */
 	struct Bind joy[BINDS];  /* other joysticks (no SDL mapping) */
 	int stickMoves;          /* the left stick (first axes) works as the D-pad */

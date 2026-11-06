@@ -31,6 +31,7 @@ int ui_wants_input(void);
 int ui_rebinding(void);
 /* opens or closes the settings (controller hotkey) */
 void ui_toggle_settings(void);
+void ui_quick_report(void);   /* the quick report button: a report with no note, no window */
 /* once a frame, from the game: freezes, mission override, statistics */
 void ui_game_frame(long frame);
 /* testing: open the menus at set frames, save pictures in DIR, quit */

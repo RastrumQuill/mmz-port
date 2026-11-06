@@ -289,6 +289,7 @@ static void route_step(void) {
 		else if (!strcmp(routeCmd, "end")) { save_flush(); exit(0); }
 		else if (!strcmp(routeCmd, "poke")) *(u8 *)(uintptr_t)strtoul(routeArg1, 0, 0) = strtoul(routeArg2, 0, 0);
 		else if (!strcmp(routeCmd, "ff")) debug.fastForward = atoi(routeArg1);   /* ff 1 / ff 0: Tab held or not */
+		else if (!strcmp(routeCmd, "quickreport")) ui_quick_report();   /* testing: as if F9 */
 		else if (!strcmp(routeCmd, "report")) { report_snapshot(); const char *z = report_write(REPORT_PROBLEM, routeArg1); fprintf(stderr, "report: %s\n", z ? z : "(failed)"); if (getenv("MMZ_PRINT_URL")) for (int t = 0; t < 4; t++) { char h[300]; report_share(t, REPORT_PROBLEM, routeArg1, z, h, sizeof h); } }   /* testing: as if F12 */
 		else if (!strcmp(routeCmd, "warp")) {   /* warp mmz:... (a bookmark): from the title to there */
 			struct Location l;
