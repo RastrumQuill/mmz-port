@@ -13,7 +13,7 @@
  *   save_at_start.sav  the save as it was when the game started
  *   screenshot.bmp   the picture when the report was opened
  *   state/*.bin      EWRAM, IWRAM, I/O, palette, VRAM, OAM at that moment
- *   mmz.ini, mmz.log the settings and the log, if there is one
+ *   mmz.ini, mmz.log the settings and the log, with paths cut to file names and personal ini lines left out
  * Then the GitHub "new issue" page opens with the details filled in; the zip
  * is attached by dragging it in (GitHub cannot take files through the link).
  *
@@ -23,6 +23,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include <stdarg.h>
 #include <time.h>
 #include <signal.h>
@@ -166,6 +167,57 @@ static void zip_add(const char *name, const void *data, size_t size) {
 	nEntries++;
 }
 
+/* Reports must not carry personal data: paths become relative (just the file name)
+ * and mmz.ini lines that name people or places on disk are left out. */
+static int path_char(char c) { return c && c != ' ' && c != '\t' && c != '\n' && c != '\r' && c != '"' && c != '\''; }
+static char *scrub_paths(const char *in, size_t n, size_t *outN) {
+	char *o = malloc(n + 1);
+	size_t j = 0;
+	for (size_t i = 0; i < n;) {
+		int unixAbs = in[i] == '/' && (i == 0 || !path_char(in[i - 1]) || in[i - 1] == '=' || in[i - 1] == ':');
+		int winAbs = i + 2 < n && ((in[i] | 32) >= 'a' && (in[i] | 32) <= 'z') && in[i + 1] == ':' &&
+		             (in[i + 2] == '\\' || in[i + 2] == '/') && (i == 0 || !path_char(in[i - 1]) || in[i - 1] == '=');
+		if (unixAbs || winAbs) {
+			size_t e = i, last = i;
+			while (e < n && path_char(in[e])) { if (in[e] == '/' || in[e] == '\\') last = e + 1; e++; }
+			memcpy(o + j, in + last, e - last);
+			j += e - last;
+			i = e;
+		} else o[j++] = in[i++];
+	}
+	*outN = j;
+	return o;
+}
+static void zip_add_scrubbed(const char *name, const void *data, size_t size) {
+	size_t m;
+	char *c = scrub_paths(data, size, &m);
+	zip_add(name, c, m);
+	free(c);
+}
+static int private_ini_key(const char *line, size_t len) {
+	static const char *const bad[] = {"email", "discord", "drive", "path", "dir", "rom", "user", "name"};
+	size_t k = 0;
+	while (k < len && line[k] != '=') k++;
+	if (k == len) return 0;
+	for (size_t b = 0; b < sizeof bad / sizeof *bad; b++)
+		for (size_t s = 0; s + strlen(bad[b]) <= k; s++)
+			if (!strncasecmp(line + s, bad[b], strlen(bad[b]))) return 1;
+	return 0;
+}
+static void zip_add_ini(const char *data, size_t n) {
+	char *o = malloc(n + 1);
+	size_t j = 0;
+	for (size_t i = 0; i < n;) {
+		size_t e = i;
+		while (e < n && data[e] != '\n') e++;
+		if (e < n) e++;
+		if (!private_ini_key(data + i, e - i)) { memcpy(o + j, data + i, e - i); j += e - i; }
+		i = e;
+	}
+	zip_add_scrubbed("mmz.ini", o, j);
+	free(o);
+}
+
 static void zip_finish(void) {
 	u32 dir = (u32)ftell(zf);
 	for (int i = 0; i < nEntries; i++) {
@@ -292,7 +344,7 @@ const char *report_write(int kind, const char *message) {
 	tprintf("\nto replay: mmz --route inputs.route --save save_at_start.sav (with this mmz.ini)\n");
 	tprintf("\nrecent log:\n");
 	for (int i = 0; i < noteCount; i++) tprintf("  %s\n", notes[(noteHead - noteCount + i + NOTES) % NOTES]);
-	zip_add("report.txt", tb, tbLen);
+	zip_add_scrubbed("report.txt", tb, tbLen);
 	tbLen = 0;
 	tprintf("%s\n", snap.bookmark);
 	zip_add("bookmark.txt", tb, tbLen);
@@ -318,12 +370,12 @@ const char *report_write(int kind, const char *message) {
 	zip_add("state/oam.bin", snap.oam, sizeof snap.oam);
 	size_t n;
 	void *p = read_file(settings_path(), &n);
-	if (p) { zip_add("mmz.ini", p, n); free(p); }
+	if (p) { zip_add_ini(p, n); free(p); }
 	char lp[700], *base = SDL_GetBasePath();
 	snprintf(lp, sizeof lp, "%smmz.log", base ? base : "");
 	SDL_free(base);
 	p = read_file(lp, &n);
-	if (p) { zip_add("mmz.log", p, n); free(p); }
+	if (p) { zip_add_scrubbed("mmz.log", p, n); free(p); }
 	zip_finish();
 	snap.taken = 0;
 	return lastZip;
