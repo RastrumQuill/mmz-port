@@ -4,7 +4,7 @@
  *   mmz [--rom FILE] [--save FILE] [--scale N]
  *   mmz --headless --route FILE      play a tools/emu route without a
  *       [--wav FILE]                 window, writing its screenshots (as
- *                                    .ppm) for comparison with mGBA, and
+ *                                    .ppm) for comparison (or .png) with mGBA, and
  *                                    the sound
  *
  * The ROM is read for the data the code uses (graphics, sound, levels);
@@ -169,6 +169,16 @@ static const char *find_rom(void) {
 	snprintf(p, sizeof p, "%s%s", base ? base : "", settings.rom);
 	SDL_free(base);
 	if (is_game_rom(p)) return p;
+	/* also: MMZ_ROM, and baserom.gba in the folders above the game (a build in the source tree) */
+	if (getenv("MMZ_ROM") && is_game_rom(getenv("MMZ_ROM"))) return getenv("MMZ_ROM");
+	base = SDL_GetBasePath();
+	for (int up = 1; up <= 3 && base; up++) {
+		char dots[16] = "";
+		for (int k = 0; k < up; k++) strcat(dots, "../");
+		snprintf(p, sizeof p, "%s%sbaserom.gba", base, dots);
+		if (is_game_rom(p)) { SDL_free(base); return p; }
+	}
+	SDL_free(base);
 	if (headless) return settings.rom;
 #ifdef _WIN32
 	SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_INFORMATION, "Mega Man Zero",
@@ -242,30 +252,82 @@ static int keymask(const char *s) {
 	return m;
 }
 
+/* a picture file: PNG when the name ends in .png, else PPM */
+static u32 crc_table[256];
+static u32 png_crc(u32 c, const unsigned char *b, size_t n) {
+	if (!crc_table[1])
+		for (u32 i = 0; i < 256; i++) {
+			u32 x = i;
+			for (int k = 0; k < 8; k++) x = x & 1 ? 0xEDB88320u ^ (x >> 1) : x >> 1;
+			crc_table[i] = x;
+		}
+	for (size_t i = 0; i < n; i++) c = crc_table[(c ^ b[i]) & 0xFF] ^ (c >> 8);
+	return c;
+}
+static void png_chunk(FILE *f, const char *type, const unsigned char *d, size_t n) {
+	unsigned char h[8] = { n >> 24, n >> 16, n >> 8, n, type[0], type[1], type[2], type[3] };
+	fwrite(h, 1, 8, f);
+	if (n) fwrite(d, 1, n, f);
+	u32 c = ~png_crc(png_crc(0xFFFFFFFFu, h + 4, 4), d, n);
+	unsigned char t[4] = { c >> 24, c >> 16, c >> 8, c };
+	fwrite(t, 1, 4, f);
+}
+static void write_image(const char *path, const u32 *src, int w, int h) {
+	FILE *f = fopen(path, "wb");
+	if (!f) { fprintf(stderr, "cannot write %s\n", path); return; }
+	const char *dot = strrchr(path, '.');
+	if (!dot || strcmp(dot, ".png")) {
+		fprintf(f, "P6\n%d %d\n255\n", w, h);
+		for (int i = 0; i < w * h; i++) { u32 c = src[i]; fputc(c >> 16, f); fputc(c >> 8, f); fputc(c, f); }
+		fclose(f);
+		return;
+	}
+	/* uncompressed deflate (stored blocks): no zlib needed */
+	size_t raw = (size_t)h * (1 + 3 * w), blocks = (raw + 65534) / 65535;
+	size_t zn = 2 + raw + 5 * blocks + 4;
+	unsigned char *z = malloc(zn), *r = malloc(raw), *q = z;
+	for (int y = 0; y < h; y++) {
+		unsigned char *row = r + (size_t)y * (1 + 3 * w);
+		row[0] = 0;
+		for (int x = 0; x < w; x++) { u32 c = src[y * w + x]; row[1 + 3 * x] = c >> 16; row[2 + 3 * x] = c >> 8; row[3 + 3 * x] = c; }
+	}
+	*q++ = 0x78; *q++ = 0x01;
+	u32 a = 1, b = 0;
+	for (size_t off = 0; off < raw;) {
+		size_t n = raw - off > 65535 ? 65535 : raw - off;
+		*q++ = off + n == raw;
+		*q++ = n; *q++ = n >> 8; *q++ = ~n; *q++ = ~n >> 8;
+		memcpy(q, r + off, n);
+		for (size_t i = 0; i < n; i++) { a = (a + r[off + i]) % 65521; b = (b + a) % 65521; }
+		q += n; off += n;
+	}
+	u32 ad = b << 16 | a;
+	*q++ = ad >> 24; *q++ = ad >> 16; *q++ = ad >> 8; *q++ = ad;
+	static const unsigned char sig[8] = { 0x89, 'P', 'N', 'G', '\r', '\n', 0x1A, '\n' };
+	fwrite(sig, 1, 8, f);
+	unsigned char ih[13] = { w >> 24, w >> 16, w >> 8, w, h >> 24, h >> 16, h >> 8, h, 8, 2, 0, 0, 0 };
+	png_chunk(f, "IHDR", ih, 13);
+	png_chunk(f, "IDAT", z, q - z);
+	png_chunk(f, "IEND", NULL, 0);
+	fclose(f);
+	free(z);
+	free(r);
+}
+
 static void write_ppm(const char *path) {
 	/* the zoomed-out view when there is one, else the GBA picture */
 	const u32 *src = view_active ? view_frame : ppu_frame;
 	int w = view_active ? view_w : SCREEN_W, h = view_active ? view_h : SCREEN_H;
+	write_image(path, src, w, h);
+	/* MMZ_SHOT_GBA: the GBA picture too, as NAME.gba.EXT (to compare) */
 	char p[300];
 	snprintf(p, sizeof p, "%s", path);
 	char *dot = strrchr(p, '.');
-	if (dot && !strcmp(dot, ".png")) strcpy(dot, ".ppm");
-	FILE *f = fopen(p, "wb");
-	if (!f) { fprintf(stderr, "cannot write %s\n", p); return; }
-	fprintf(f, "P6\n%d %d\n255\n", w, h);
-	for (int i = 0; i < w * h; i++) {
-		u32 c = src[i];
-		fputc(c >> 16, f); fputc(c >> 8, f); fputc(c, f);
-	}
-	fclose(f);
-	/* MMZ_SHOT_GBA: the GBA picture too, as NAME.gba.ppm (to compare) */
 	if (view_active && getenv("MMZ_SHOT_GBA") && dot) {
-		strcpy(dot, ".gba.ppm");
-		f = fopen(p, "wb");
-		if (!f) return;
-		fprintf(f, "P6\n%d %d\n255\n", SCREEN_W, SCREEN_H);
-		for (int i = 0; i < SCREEN_W * SCREEN_H; i++) { u32 c = ppu_frame[i]; fputc(c >> 16, f); fputc(c >> 8, f); fputc(c, f); }
-		fclose(f);
+		char ext[16];
+		snprintf(ext, sizeof ext, "%s", dot);
+		snprintf(dot, sizeof p - (dot - p), ".gba%s", ext);
+		write_image(p, ppu_frame, SCREEN_W, SCREEN_H);
 	}
 }
 
