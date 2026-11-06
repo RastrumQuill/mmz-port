@@ -206,6 +206,32 @@ its own graphics sets (never with the wrong ones; not drawable: nothing).
 `MMZ_NOSHOWN=1` turns the shown map off; `SHOWNDEBUG=1` (`L`: from the
 area's left) prints the flood around Zero.
 
+**Gap fill (`fill_gaps`).** Everything the wide view shows that the area
+does not (below, above and beside the level, and cells the shown map hides)
+is synthesized from the area's own shown tiles (view.c, "tile fill"):
+k-coherence patch synthesis with WFC-style ordering. Tokens are (metatile,
+graphics class) of shown cells. The 4-direction adjacency rules are learned
+from the area's real neighbours, and cells are filled most-constrained
+first. Each candidate is a continuation of a neighbour's source position,
+scored on 5x5 overlapping patches. A broken seam against a real cell is
+almost forbidden (-1000), and a pair never seen between synthesized cells
+costs -30. Below the level it prefers tiles from deep in the level, never
+transparent ones. Above and beside it, open space stays open. The seed is
+fixed per area, so the result is deterministic. It takes about 30-190 ms
+per layer, once, and is cached in fills.bin (format MMZFILL5) next to
+mmz.ini, or in `MMZ_FILLS`. Only graphics sets of the cell's own class are
+used, loaded into separate fill VRAM slots so the level's drawability does
+not change. Fill is drawing only: no collision, never seen by the layer
+matching (so GBA-visible pixels are unchanged; viewprobe matches the
+baseline), and each layer keeps its own fill. `fill_gaps = 0` is black,
+`1` the tile fill and `2` the old column repeat. `MMZ_FILLDEBUG=1` prints
+timing and contradictions, and `MMZ_FILLMAP=1` prints an ascii map.
+fills.bin holds ROM-derived metatile indices: it is generated at runtime,
+never committed and never shipped.
+Limits: the fill is plausible texture, not design. Copied structure
+(platforms, pipes, a train) can appear where no room is, and may look
+walkable, but it is not. Black stays outside a layer's bounds.
+
 **Testing.** `mmz --skip-intro` fast-forwards through the title, menus and
 cutscenes (pressing Start / A) to the first moment of play.
 

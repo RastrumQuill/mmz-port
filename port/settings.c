@@ -236,7 +236,7 @@ void settings_save(void) {
 	           "# (the window's shape, view_window_height world pixels high)\n");
 	fprintf(f, "view = %s\nview_width = %d\nview_height = %d\nview_window_height = %d\nhud_edges = %d\n",
 	        kViewNames[settings.viewMode], settings.viewW, settings.viewH, settings.viewHeight, settings.hudEdges);
-	fprintf(f, "# rooms smaller than the view: 1 = the view fits them; empty parts of areas: 1 = filled from the area's tiles\n"
+	fprintf(f, "# rooms smaller than the view: 1 = the view fits them; empty parts of areas (fill_gaps): 0 = black, 1 = tile fill learned from the area, 2 = old column repeat\n"
 	           "fit_small_rooms = %d\nfill_gaps = %d\n", settings.fitRooms, settings.fillGaps);
 	fprintf(f, "\n# CPU time the game gets per frame, percent of the GBA's (100: the GBA's slowdown)\ncpu_speed = %d\n", settings.cpuSpeed);
 	fprintf(f, "\n# 1: write mmz.log next to this file (for reporting problems)\nlog = %d\n", settings.log);

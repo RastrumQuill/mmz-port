@@ -257,9 +257,10 @@ static int chunk_sets(int cx, int cy, int area) {
  */
 #define GFX_SETS 0x086B0000u   /* per area's graphics table: set descriptors of 0x14 bytes */
 #define MAX_COMBOS 8
-static u8 comboVram[MAX_COMBOS][0x10000];
-static u16 comboPal[MAX_COMBOS][256];
-static int comboKey[MAX_COMBOS], nCombos;
+#define MAX_FILL_COMBOS 16   /* (more, only for the tile fill: it draws from every graphics class of the area) */
+static u8 comboVram[MAX_COMBOS + MAX_FILL_COMBOS][0x10000];
+static u16 comboPal[MAX_COMBOS + MAX_FILL_COMBOS][256];
+static int comboKey[MAX_COMBOS + MAX_FILL_COMBOS], nCombos, nFillCombos;
 
 static void lz77(const u8 *src, u8 *dst, u32 cap) {
 	u32 n = src[1] | src[2] << 8 | src[3] << 16, o = 0;
@@ -321,12 +322,27 @@ static const u8 *set_desc(int area, int set) {
 }
 
 /* the copy of video memory with these sets loaded: its index, or -1 */
+static int combo_load(int i, int area, int hi, int lo);
 static int combo(int area, int hi, int lo) {
 	int key = area << 8 | hi << 4 | lo;
 	for (int i = 0; i < nCombos; i++)
 		if (comboKey[i] == key) return i;
 	if (nCombos == MAX_COMBOS) return -1;
-	int i = nCombos++;
+	return combo_load(nCombos++, area, hi, lo);
+}
+/* the same for the tile fill: its own copies (the level's chunks are drawn
+   as without it), sharing the level's ones */
+static int combo_fill(int area, int hi, int lo) {
+	int key = area << 8 | hi << 4 | lo;
+	for (int i = 0; i < nCombos; i++)
+		if (comboKey[i] == key) return i;
+	for (int i = MAX_COMBOS; i < MAX_COMBOS + nFillCombos; i++)
+		if (comboKey[i] == key) return i;
+	if (nFillCombos == MAX_FILL_COMBOS) return -1;
+	return combo_load(MAX_COMBOS + nFillCombos++, area, hi, lo);
+}
+static int combo_load(int i, int area, int hi, int lo) {
+	int key = area << 8 | hi << 4 | lo;
 	comboKey[i] = key;
 	memcpy(comboVram[i], vram, 0x10000);
 	memcpy(comboPal[i], pal, 512);
@@ -543,6 +559,7 @@ static int shown_at(s32 gx, s32 gy) {
 
 static __thread int levelSrc;   /* chunk_source() of the last level_entry() */
 static __thread int levelFilled;  /* the last level_entry() came from the gap fill */
+static int levelMatching;       /* the layers are being matched with video memory: the level as the GBA has it, no fill */
 static __thread int levelFy;    /* the row in the tile it found (backgrounds clamp it) */
 
 /* the stage-coordinate rectangle of the current area's chunks that have
@@ -585,7 +602,9 @@ struct Fill {
 	int on;
 	int cx0, cy0, cw, ch;    /* chunks, layer coordinates */
 	u16 *mt;                 /* [cell row][cell col], cw*15 x ch*10; FILL_NONE: not filled */
-	s16 *donor;              /* per chunk: global chunk of its nearest real chunk (gx | gy << 8), -1 none */
+	s16 *donor;              /* per cell: the real chunk it is drawn like (global, gx | gy << 8), -1 none */
+	int nreps; s16 reps[64]; /* the distinct donors (their sources are worked out before drawing) */
+	int repSrc[64];          /* (tile fill) where each is drawn from this frame: -1 not, 0 video memory, 1 + n copy n */
 };
 static struct Fill fills[4];
 static int fillsBuilt;
@@ -622,7 +641,7 @@ static u16 fill_row(const struct Layer *L, const u16 *src, int W, int H, int x, 
 	return rm[0] | (rh[0] ? 0 : FILL_UP);
 }
 
-static void fill_build(int k, u32 seed) {
+static void fill_build_column(int k) {
 	struct Fill *F = &fills[k];
 	const struct Layer *L = &layers[k];
 	free(F->mt); free(F->donor);
@@ -722,12 +741,17 @@ static void fill_build(int k, u32 seed) {
 	free(src);
 	/* keep only the filled cells */
 	F->mt = malloc((size_t)W * H * 2);
-	if (F->mt) {
+	s16 *dc = malloc((size_t)W * H * 2);
+	if (F->mt && dc) {
 		for (int y = 0; y < H; y++)
-			for (int x = 0; x < W; x++)
+			for (int x = 0; x < W; x++) {
 				F->mt[y * W + x] = REAL(x / 15 + x0, y / 10 + y0) ? FILL_NONE : grid[y * W + x];
+				dc[y * W + x] = F->donor[(y / 10) * cw + x / 15];
+			}
+		free(F->donor); F->donor = dc; dc = NULL;
 		F->cx0 = x0; F->cy0 = y0; F->cw = cw; F->ch = ch; F->on = 1;
 	}
+	free(dc);
 out:
 	free(grid);
 	if (!F->on) { free(F->donor); F->donor = NULL; }
@@ -735,6 +759,335 @@ out:
 	#undef SET
 	#undef HAS
 	#undef PUSH
+}
+
+/* ------------------------------------------------------------ tile fill
+ *
+ * fill_gaps = 1: every cell (16x16 metatile) of the area's box the GBA camera
+ * never shows (empty chunks, parts of the area the camera does not reach,
+ * cells the shown map leaves out, a chunk of margin around the box) is made
+ * up from what the camera does show, per BG layer (each layer from its own
+ * cells: the sky stays sky, the level level), by constraint-based tile
+ * synthesis (wave function collapse's rules, with texture synthesis'
+ * patch copying):
+ *  - tokens: (metatile, graphics class) of the shown cells of chunks whose
+ *    two graphics sets are known; a made-up cell is drawn like a real chunk
+ *    with the same sets, so its tiles, palettes and flips (they are in the
+ *    metatile) are the ones the game shows;
+ *  - rules: which token is right of / below which, from every pair of
+ *    neighbouring cells of the level (inside chunks and across their
+ *    borders; the level's cells the camera does not show teach rules
+ *    between tokens it shows, but are never copied);
+ *  - cells are decided from the seams outwards (the open cell with the most
+ *    decided neighbours first, as WFC's lowest entropy); each one copies a
+ *    shown cell: of the places in the level where its decided neighbours'
+ *    tokens are, the one whose 5x5 surroundings match the decided cells
+ *    around it best (overlapping patterns), keeping on copying from where its
+ *    neighbours were copied from (whole pieces, not single metatiles),
+ *    and first of all keeping to the rules with its 4 decided neighbours
+ *    (so every seam with the real level is a pair the level has);
+ *  - below the level (something solid shown above in the column) fully
+ *    transparent tokens count against (no holes of open sky under the floor);
+ *  - a cell no candidate fits the rules for (a contradiction) takes the best
+ *    match anyway: counted, so seeds and settings can be compared.
+ * Same area, same seed, same result: it is worked out once (fill patch).
+ */
+typedef unsigned long long u64;
+#define FILL_FULL 0x4000   /* (a filled cell's metatile: drawn whole, the tile fill) */
+#define SYN_MAXT 4096
+
+static u32 syn_rng;
+static u32 syn_rand(void) { syn_rng ^= syn_rng << 13; syn_rng ^= syn_rng >> 17; syn_rng ^= syn_rng << 5; return syn_rng; }
+
+/* the two graphics sets a chunk is drawn with (as chunk_source()), hi << 4 | lo, or -1 */
+static int chunk_class(int cx, int cy, int area) {
+	int b = chunk_sets(cx, cy, area);
+	if (b < 0) return -1;
+	int hi = b >> 4, lo = b & 15;
+	if (hi >= 14) { int n = chunk_sets(cx + (hi == 14), cy + (hi == 15), area); hi = n >= 0 ? n >> 4 : -1; }
+	if (lo >= 14) { int n = chunk_sets(cx + (lo == 14), cy + (lo == 15), area); lo = n >= 0 ? n & 15 : -1; }
+	if (hi < 0 || lo < 0 || hi >= 14 || lo >= 14) return -1;
+	return hi << 4 | lo;
+}
+
+/* the rules: pairs (a, b, direction) in a hash set */
+#define SYN_RH (1 << 18)
+static u64 synRules[SYN_RH];
+static u8 *synRuled;   /* [dir * T + t]: t has a rule that way */
+static u64 rule_v(int a, int b, int d) { return ((u64)(a + 1) << 34 | (u64)(b + 1) << 4 | (u64)(d + 1)); }
+static void rule_put(int a, int b, int d) {
+	u64 v = rule_v(a, b, d), h = (v * 0x9E3779B97F4A7C15ull) >> 46;
+	while (synRules[h] && synRules[h] != v) h = (h + 1) & (SYN_RH - 1);
+	synRules[h] = v;
+}
+static int rule_has(int a, int b, int d) {
+	u64 v = rule_v(a, b, d), h = (v * 0x9E3779B97F4A7C15ull) >> 46;
+	while (synRules[h]) { if (synRules[h] == v) return 1; h = (h + 1) & (SYN_RH - 1); }
+	return 0;
+}
+
+static const int sdx[4] = { 1, -1, 0, 0 }, sdy[4] = { 0, 0, 1, -1 };
+
+/* grid: per cell a shown token (>= 0, fixed) or -1 (to make up); sample: the
+   level's token per cell (shown or not, -1 none); out: per cell its token.
+   Returns the contradictions. */
+static int synth(int W, int H, int T, const int *grid, const int *sample, const u8 *clear, const u8 *under, const u8 *depth,
+                 const int *occ, const int *occAt, int *cell, int *src, u32 seed) {
+	size_t n = (size_t)W * H;
+	syn_rng = seed | 1;
+	int fails = 0;
+	u8 *cnt = calloc(n, 1);
+	int *bq[9], bh[9], bt[9];
+	size_t cap = n * 9 + 16;
+	for (int b = 0; b < 9; b++) { bq[b] = malloc(cap / 3 * sizeof(int) + 64); bh[b] = bt[b] = 0; }
+	int ok = cnt != NULL;
+	for (int b = 0; b < 9; b++) if (!bq[b]) ok = 0;
+	if (!ok) { free(cnt); for (int b = 0; b < 9; b++) free(bq[b]); return -1; }
+	int bcap = (int)(cap / 3);
+	#define PUSH(i) do { int b_ = cnt[i]; if (bt[b_] < bcap) bq[b_][bt[b_]++] = (i); } while (0)
+	for (size_t i = 0; i < n; i++) { cell[i] = grid[i]; src[i] = grid[i] >= 0 ? (int)i : -1; }
+	for (size_t i = 0; i < n; i++) {
+		if (cell[i] != -1) continue;
+		int x = i % W, y = i / W;
+		for (int dy = -1; dy <= 1; dy++)
+			for (int dx = -1; dx <= 1; dx++) {
+				int nx = x + dx, ny = y + dy;
+				if ((dx || dy) && nx >= 0 && ny >= 0 && nx < W && ny < H && cell[ny * W + nx] >= 0) cnt[i]++;
+			}
+		if (cnt[i]) PUSH((int)i);
+	}
+	static int cand[256];
+	for (;;) {
+		int i = -1;
+		for (int b = 8; b >= 1 && i < 0; b--)
+			while (bh[b] < bt[b]) {
+				int c = bq[b][bh[b]++];
+				if (cell[c] == -1 && cnt[c] == b) { i = c; break; }
+			}
+		if (i < 0) {   /* (a queue overflowed, or cells no seam reaches) */
+			size_t j = 0;
+			while (j < n && !(cell[j] == -1 && cnt[j])) j++;
+			if (j == n) break;
+			i = (int)j;
+		}
+		int x = i % W, y = i / W, nc = 0;
+		/* candidates: where the neighbours were copied from, and places of
+		   their tokens, at the same offset */
+		for (int dy = -1; dy <= 1; dy++)
+			for (int dx = -1; dx <= 1; dx++) {
+				int nx = x + dx, ny = y + dy;
+				if (!(dx || dy) || nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+				int ni = ny * W + nx, t = cell[ni];
+				if (t < 0) continue;
+				if (src[ni] >= 0) {
+					int sx = src[ni] % W - dx, sy = src[ni] / W - dy;
+					if (sx >= 0 && sy >= 0 && sx < W && sy < H && grid[sy * W + sx] >= 0 && nc < 256) cand[nc++] = sy * W + sx;
+				}
+				int m = occAt[t + 1] - occAt[t];
+				for (int k = 0; k < (m < 6 ? m : 6) && nc < 256; k++) {
+					int o = occ[occAt[t] + (m <= 6 ? k : (int)(syn_rand() % m))];
+					int sx = o % W - dx, sy = o / W - dy;
+					if (sx >= 0 && sy >= 0 && sx < W && sy < H && grid[sy * W + sx] >= 0) cand[nc++] = sy * W + sx;
+				}
+			}
+		int best = -1, bestRules = 0; float bs = -1e30f;
+		for (int c = 0; c < nc; c++) {
+			int s = cand[c], t = grid[s], sx = s % W, sy = s / W, rules = 0, broken = 0, soft = 0;
+			for (int d = 0; d < 4; d++) {   /* the rules with the decided neighbours */
+				int nx = x + sdx[d], ny = y + sdy[d];
+				if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+				int u = cell[ny * W + nx];
+				if (u < 0) continue;
+				if (!synRuled[d * T + t] || rule_has(t, u, d)) rules++;
+				else if (grid[ny * W + nx] >= 0) broken++;   /* (a seam with the real level: must hold) */
+				else soft++;
+			}
+			float sc = -1000.0f * broken - 30.0f * soft;
+			for (int dy = -2; dy <= 2; dy++)   /* the 5x5 patch around it */
+				for (int dx = -2; dx <= 2; dx++) {
+					int nx = x + dx, ny = y + dy, px = sx + dx, py = sy + dy;
+					if (!(dx || dy) || nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+					int u = cell[ny * W + nx];
+					if (u < 0) continue;
+					float w = (dx >= -1 && dx <= 1 && dy >= -1 && dy <= 1) ? 4.0f : 1.0f;
+					if (px < 0 || py < 0 || px >= W || py >= H) continue;
+					if (sample[py * W + px] == u) sc += w;
+					if (src[ny * W + nx] == py * W + px) sc += w;   /* (copied from right there: coherent) */
+				}
+			if (under[i]) sc += clear[t] ? -80.0f : 1.5f * depth[s];   /* (below the level: copied from deep in it, not sky or its top) */
+			else if (clear[t]) sc += 6.0f;   /* (above and beside it: open space stays open) */
+			sc += (syn_rand() & 1023) / 4096.0f;
+			if (sc > bs) { bs = sc; best = s; bestRules = broken + soft == 0; }
+		}
+		if (best < 0) {   /* (no candidate at all: a neighbour's own token) */
+			for (int d = 0; d < 4 && best < 0; d++) {
+				int nx = x + sdx[d], ny = y + sdy[d];
+				if (nx >= 0 && ny >= 0 && nx < W && ny < H && cell[ny * W + nx] >= 0) {
+					int t = cell[ny * W + nx];
+					if (occAt[t + 1] > occAt[t]) best = occ[occAt[t]];
+				}
+			}
+			if (best < 0) { cell[i] = -2; continue; }
+			bestRules = 0;
+		}
+		if (!bestRules) fails++;
+		cell[i] = grid[best];
+		src[i] = best;
+		for (int dy = -1; dy <= 1; dy++)
+			for (int dx = -1; dx <= 1; dx++) {
+				int nx = x + dx, ny = y + dy;
+				if (!(dx || dy) || nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+				int ni = ny * W + nx;
+				if (cell[ni] != -1) continue;
+				cnt[ni]++;
+				PUSH(ni);
+			}
+	}
+	#undef PUSH
+	free(cnt);
+	for (int b = 0; b < 9; b++) free(bq[b]);
+	return fails;
+}
+
+static void fill_build_wfc(int k, u32 seed) {
+	struct Fill *F = &fills[k];
+	const struct Layer *L = &layers[k];
+	free(F->mt); free(F->donor);
+	memset(F, 0, sizeof *F);
+	int area = CUR_AREA & 0x7F, dbg = getenv("MMZ_FILLDEBUG") != NULL;
+	if (!L->map || L->backdrop) { if (dbg) fprintf(stderr, "fill: area %d bg %d: %s\n", area, k, L->map ? "background" : "no layer"); return; }
+	#define REAL(cx, cy) ((cx) >= 0 && (cy) >= 0 && (cx) < L->w && (cy) < L->h && \
+	                      L->map[4 + (cy) * L->stride + (cx)] != L->null && \
+	                      in_area(((cx) * 240 + stageX) / 240, ((cy) * 160 + stageY) / 160))
+	int x0 = 1 << 30, y0 = 1 << 30, x1 = -1, y1 = -1;
+	for (int cy = 0; cy < L->h; cy++)
+		for (int cx = 0; cx < L->w; cx++)
+			if (REAL(cx, cy)) { if (cx < x0) x0 = cx; if (cx > x1) x1 = cx; if (cy < y0) y0 = cy; if (cy > y1) y1 = cy; }
+	if (x1 < 0) { if (dbg) fprintf(stderr, "fill: area %d bg %d: no chunks\n", area, k); return; }
+	/* (two chunks around the box too: a room smaller than the view shows them) */
+	for (int m = 0; m < 2; m++) { if (x0 > 0) x0--; if (y0 > 0) y0--; if (x1 < L->w - 1) x1++; if (y1 < L->h - 1) y1++; }
+	int cw = x1 - x0 + 1, ch = y1 - y0 + 1, W = cw * 15, H = ch * 10;
+	size_t n = (size_t)W * H;
+	Uint64 t0 = SDL_GetPerformanceCounter();
+	/* the tokens: (metatile, graphics class) of the cells the camera shows */
+	static s32 tkey[SYN_MAXT]; static s16 trep[256];
+	static s16 tlook[1 << 16];   /* (token search: key hash -> token + 1) */
+	int T = 0, open = 0, fails = -1;
+	int *grid = malloc(n * sizeof *grid), *sample = malloc(n * sizeof *sample), *keys = malloc(n * sizeof *keys);
+	int *cell = malloc(n * sizeof *cell), *src = malloc(n * sizeof *src), *occ = malloc(n * sizeof *occ), *occAt = NULL;
+	u8 *clear = NULL, *under = calloc(n, 1), *depth = calloc(n, 1);
+	if (!grid || !sample || !keys || !cell || !src || !occ || !under || !depth) goto done;
+	memset(tlook, 0, sizeof tlook);
+	for (int i = 0; i < 256; i++) trep[i] = -1;
+	#define TOKEN(key, add) ({ s32 k_ = (key); u32 h_ = ((u32)k_ * 2654435761u) >> 16; int r_ = -1; \
+		while (tlook[h_] && tkey[tlook[h_] - 1] != k_) h_ = (h_ + 1) & 0xFFFF; \
+		if (tlook[h_]) r_ = tlook[h_] - 1; else if ((add) && T < SYN_MAXT) { tkey[T] = k_; tlook[h_] = ++T; r_ = T - 1; } r_; })
+	for (int cy = 0; cy < ch; cy++)
+		for (int cx = 0; cx < cw; cx++) {
+			int lx = cx + x0, ly = cy + y0, gx = (lx * 240 + stageX) / 240, gy = (ly * 160 + stageY) / 160;
+			int real = REAL(lx, ly), cls = real ? chunk_class(gx, gy, area) : -1;
+			const u16 *C = real ? L->chunks + L->map[4 + ly * L->stride + lx] * 150 : NULL;
+			for (int r = 0; r < 10; r++)
+				for (int c = 0; c < 15; c++) {
+					int i = (cy * 10 + r) * W + cx * 15 + c;
+					keys[i] = cls >= 0 && C[r * 15 + c] < FILL_FULL ? C[r * 15 + c] | cls << 16 : -1;
+					grid[i] = -1;
+					if (keys[i] >= 0 && shown_at(gx * 240 + c * 16, gy * 160 + r * 16)) {
+						grid[i] = TOKEN(keys[i], 1);
+						if (grid[i] >= 0 && trep[cls] < 0) trep[cls] = gx | gy << 8;
+						if (grid[i] < 0) grid[i] = -3;   /* (too many tokens: shown, but not copied) */
+					}
+					if (grid[i] == -1) open++;
+				}
+		}
+	/* the level's cells the camera does not show: tokens it does show teach rules */
+	for (size_t i = 0; i < n; i++) sample[i] = grid[i] >= 0 ? grid[i] : keys[i] >= 0 && grid[i] == -1 ? TOKEN(keys[i], 0) : -1;
+	if (!T || !open) {
+		if (dbg) fprintf(stderr, "fill: area %d bg %d: %d tokens, %d cells to make up%s\n", area, k, T, open, open ? ": the column fill" : "");
+		free(grid); free(sample); free(keys); free(cell); free(src); free(occ); free(under); free(depth);
+		if (open) fill_build_column(k);
+		return;
+	}
+	occAt = calloc(T + 2, sizeof *occAt);
+	clear = calloc(T, 1);
+	synRuled = calloc((size_t)4 * T, 1);
+	if (!occAt || !clear || !synRuled) goto done;
+	memset(synRules, 0, sizeof synRules);
+	for (int y = 0; y < H; y++)
+		for (int x = 0; x < W; x++) {
+			int a = sample[y * W + x];
+			if (a < 0) continue;
+			for (int d = 0; d < 4; d++) {
+				int nx = x + sdx[d], ny = y + sdy[d];
+				if (nx < 0 || ny < 0 || nx >= W || ny >= H || sample[ny * W + nx] < 0) continue;
+				rule_put(a, sample[ny * W + nx], d);
+				synRuled[d * T + a] = 1;
+			}
+		}
+	for (size_t i = 0; i < n; i++) if (grid[i] >= 0) occAt[grid[i] + 2]++;
+	for (int t = 0; t < T; t++) occAt[t + 2] += occAt[t + 1];
+	for (size_t i = 0; i < n; i++) if (grid[i] >= 0) occ[occAt[grid[i] + 1]++] = (int)i;
+	{
+		u32 cb = ((R16(80, 0x08 + L->bg * 2) >> 2) & 3) * 0x4000;
+		for (int t = 0; t < T; t++) {
+			int m = tkey[t] & 0xFFFF, e = 1;
+			for (int j = 0; j < 4; j++) if (!tile_empty(L->tiledata[m * 4 + j], cb)) e = 0;
+			clear[t] = e;
+		}
+		for (int x = 0; x < W; x++)
+			for (int y = 0, seen = 0; y < H; y++) {
+				int g = grid[y * W + x];
+				if (g >= 0 && !clear[g]) seen = 1;
+				under[y * W + x] = seen;
+			}
+		/* how deep in the level each shown cell is: solid shown cells above it (up to 8) */
+		for (int x = 0; x < W; x++)
+			for (int y = 0, run = 0; y < H; y++) {
+				int g = grid[y * W + x];
+				run = g >= 0 && !clear[g] ? run + 1 : 0;
+				depth[y * W + x] = run > 8 ? 8 : run;
+			}
+	}
+	for (size_t i = 0; i < n; i++) if (grid[i] == -3) grid[i] = -2;
+	fails = synth(W, H, T, grid, sample, clear, under, depth, occ, occAt, cell, src, seed);
+	if (fails < 0) goto done;
+	F->mt = malloc(n * 2);
+	F->donor = malloc(n * 2);
+	if (!F->mt || !F->donor) { free(F->mt); free(F->donor); F->mt = NULL; F->donor = NULL; goto done; }
+	for (size_t i = 0; i < n; i++) {
+		int t = grid[i] == -1 ? cell[i] : -1;
+		F->mt[i] = t >= 0 ? (u16)(tkey[t] & 0xFFFF) | FILL_FULL : FILL_NONE;
+		F->donor[i] = t >= 0 ? trep[tkey[t] >> 16] : -1;
+	}
+	F->cx0 = x0; F->cy0 = y0; F->cw = cw; F->ch = ch; F->on = 1;
+	if (getenv("MMZ_FILLMAP"))   /* (debug: per cell '#' shown, 'o' made up, 'c' made up transparent, '.' nothing; every 2nd column) */
+		for (int y = 0; y < H; y++) {
+			for (int x = 0; x < W; x += 2) { int i = y * W + x; fputc(grid[i] >= 0 ? '#' : grid[i] == -1 ? (cell[i] < 0 ? '?' : clear[cell[i]] ? 'c' : 'o') : '.', stderr); }
+			fputc('\n', stderr);
+		}
+done:
+	if (dbg)
+		fprintf(stderr, "fill: area %d bg %d chunks %d,%d %dx%d: %d tokens, %d cells made up, %d contradictions, %.1f ms\n", area, k, x0, y0, cw, ch, T, open, fails,
+		        (SDL_GetPerformanceCounter() - t0) * 1000.0 / SDL_GetPerformanceFrequency());
+	free(grid); free(sample); free(keys); free(cell); free(src); free(occ); free(under); free(depth); free(occAt); free(clear); free(synRuled); synRuled = NULL;
+	#undef TOKEN
+	#undef REAL
+}
+
+static void fill_reps(struct Fill *F) {   /* the distinct donors */
+	F->nreps = 0;
+	if (F->on)
+		for (size_t i = 0; i < (size_t)F->cw * F->ch * 150; i++) {
+			int d = F->donor[i], j;
+			if (d < 0) continue;
+			for (j = 0; j < F->nreps && F->reps[j] != d; j++) ;
+			if (j == F->nreps && j < 64) F->reps[F->nreps++] = d;
+		}
+}
+
+static void fill_build(int k, u32 seed) {
+	if (settings.fillGaps == 2) fill_build_column(k);
+	else fill_build_wfc(k, seed);
 }
 
 /* ------------------------------------------------------------ fill patch
@@ -748,7 +1101,7 @@ out:
  */
 struct FillRec { u32 key; s32 sx, sy; s32 bg, cx0, cy0, cw, ch; u16 *mt; s16 *donor; };
 static struct FillRec *patch;
-static int npatch, patchLoaded;
+static int npatch, patchLoaded, patchStale;   /* stale: the file is of an older format (written anew) */
 static char patchPath[600];
 
 static const char *patch_path(void) {
@@ -777,12 +1130,12 @@ static void patch_load(void) {
 	FILE *f = fopen(patch_path(), "rb");
 	if (!f) return;
 	char magic[8];
-	if (fread(magic, 1, 8, f) != 8 || memcmp(magic, "MMZFILL4", 8)) { fclose(f); return; }
+	if (fread(magic, 1, 8, f) != 8 || memcmp(magic, "MMZFILL5", 8)) { fclose(f); patchStale = 1; return; }
 	struct FillRec r;
 	s32 h[7];
 	while (fread(h, 4, 7, f) == 7) {
 		r.key = h[0]; r.sx = h[1]; r.sy = h[2]; r.bg = h[3]; r.cx0 = h[4]; r.cy0 = h[5]; r.cw = h[6] & 0xFFFF; r.ch = (u32)h[6] >> 16;
-		size_t cells = (size_t)r.cw * r.ch * 150, ck = (size_t)r.cw * r.ch;
+		size_t cells = (size_t)r.cw * r.ch * 150, ck = cells;
 		r.mt = cells ? malloc(cells * 2) : NULL;
 		r.donor = ck ? malloc(ck * 2) : NULL;
 		if ((cells && (!r.mt || fread(r.mt, 2, cells, f) != cells)) || (ck && (!r.donor || fread(r.donor, 2, ck, f) != ck))) {
@@ -796,14 +1149,15 @@ static void patch_load(void) {
 static void patch_append(const struct FillRec *r) {
 	const char *p = patch_path();
 	FILE *f = fopen(p, "rb");
-	int fresh = !f;
+	int fresh = !f || patchStale;
 	if (f) fclose(f);
-	f = fopen(p, "ab");
+	f = fopen(p, fresh ? "wb" : "ab");
+	patchStale = 0;
 	if (!f) return;
-	if (fresh) fwrite("MMZFILL4", 1, 8, f);
+	if (fresh) fwrite("MMZFILL5", 1, 8, f);
 	s32 h[7] = { (s32)r->key, r->sx, r->sy, r->bg, r->cx0, r->cy0, r->cw | r->ch << 16 };
 	fwrite(h, 4, 7, f);
-	size_t cells = (size_t)r->cw * r->ch * 150, ck = (size_t)r->cw * r->ch;
+	size_t cells = (size_t)r->cw * r->ch * 150, ck = cells;
 	if (cells) fwrite(r->mt, 2, cells, f);
 	if (ck) fwrite(r->donor, 2, ck, f);
 	fclose(f);
@@ -822,17 +1176,19 @@ static void fill_get(int k, u32 key) {
 		free(F->mt); free(F->donor);
 		memset(F, 0, sizeof *F);
 		if (!r->cw) return;
-		size_t cells = (size_t)r->cw * r->ch * 150, ck = (size_t)r->cw * r->ch;
+		size_t cells = (size_t)r->cw * r->ch * 150, ck = cells;
 		F->mt = malloc(cells * 2); F->donor = malloc(ck * 2);
 		if (!F->mt || !F->donor) { free(F->mt); free(F->donor); F->mt = NULL; F->donor = NULL; return; }
 		memcpy(F->mt, r->mt, cells * 2); memcpy(F->donor, r->donor, ck * 2);
 		F->cx0 = r->cx0; F->cy0 = r->cy0; F->cw = r->cw; F->ch = r->ch; F->on = 1;
+		fill_reps(F);
 		return;
 	}
 	fill_build(k, key * 2654435761u + 1);
+	fill_reps(F);
 	struct FillRec r = { key, stageX, stageY, k, 0, 0, 0, 0, NULL, NULL };
 	if (F->on) {
-		size_t cells = (size_t)F->cw * F->ch * 150, ck = (size_t)F->cw * F->ch;
+		size_t cells = (size_t)F->cw * F->ch * 150, ck = cells;
 		r.mt = malloc(cells * 2); r.donor = malloc(ck * 2);
 		if (!r.mt || !r.donor) { free(r.mt); free(r.donor); return; }
 		memcpy(r.mt, F->mt, cells * 2); memcpy(r.donor, F->donor, ck * 2);
@@ -848,13 +1204,23 @@ static int fill_entry(const struct Layer *L, s32 wx, s32 wy, u16 *out) {
 	const struct Fill *F = &fills[L->bg];   /* (layers[] is by BG; L may be a copy) */
 	static int hide = -1;   /* testing (MMZ_FILLHIDE): work the fill out but do not draw it */
 	if (hide < 0) hide = getenv("MMZ_FILLHIDE") != NULL;
-	if (hide) return 0;
+	if (hide || levelMatching) return 0;
 	if (!F->on || wx < 0 || wy < 0) return 0;
 	int cx = wx / 240 - F->cx0, cy = wy / 160 - F->cy0;
 	if (cx < 0 || cy < 0 || cx >= F->cw || cy >= F->ch) return 0;
 	u16 m = F->mt[((cy * 10) + (wy % 160) / 16) * F->cw * 15 + cx * 15 + (wx % 240) / 16];
-	int d = F->donor[cy * F->cw + cx];
+	int d = F->donor[((cy * 10) + (wy % 160) / 16) * F->cw * 15 + cx * 15 + (wx % 240) / 16];
 	if (m == FILL_NONE || d < 0) return 0;
+	if (m & FILL_FULL) {   /* the tile fill: the whole metatile, with its donor's own sets */
+		int j = 0;
+		while (j < F->nreps && F->reps[j] != d) j++;
+		if (j == F->nreps || F->repSrc[j] < 0) return 0;
+		levelSrc = F->repSrc[j];
+		levelFilled = 1;
+		levelFy = wy & 7;
+		*out = L->tiledata[(m & ~FILL_FULL) * 4 + ((wy >> 3) & 1) * 2 + ((wx >> 3) & 1)];
+		return 1;
+	}
 	levelSrc = chunk_source(d & 0xFF, d >> 8);
 	if (levelSrc < 0) return 0;
 	levelFilled = 1;
@@ -965,7 +1331,7 @@ static int level_entry(const struct Layer *L, s32 wx, s32 wy, u16 *out) {
 			if (levelSrc < 0) return fill_entry(L, wx, wy, out);
 		}
 	}
-	if (!shown_at(wx + stageX, wy + stageY)) return 0;   /* the GBA camera never shows it */
+	if (!shown_at(wx + stageX, wy + stageY)) return fill_entry(L, wx, wy, out);   /* the GBA camera never shows it: the fill, if any */
 	u16 mt = L->chunks[cid * 150 + ((wy % 160) >> 4) * 15 + ((wx % 240) >> 4)];
 	*out = L->tiledata[mt * 4 + ((wy >> 3) & 1) * 2 + ((wx >> 3) & 1)];
 	return 1;
@@ -1153,7 +1519,9 @@ static void find_layers(void) {
 				int line = sy;
 				u16 want = 0;
 				s32 wx = line_world_x(&L, line) + sx, wy = line_world_y(&L, line) + sy;
+				levelMatching = 1;
 				int have = level_entry(&L, wx, wy, &want);
+				levelMatching = 0;
 				u16 got = vram_entry(bg, line, (R16(line, 0x10 + bg * 4) & 0x1FF) + sx, (R16(line, 0x12 + bg * 4) & 0x1FF) + sy);
 				n++;
 				/* (where the level has nothing, video memory must have nothing either) */
@@ -1823,7 +2191,7 @@ int view_render(void) {
 	{
 		static u32 lastKey; static int age;
 		u32 key = (u32)GFX_SET_A << 16 | GFX_SET_B;
-		if (key != lastKey || ++age >= 30) { nCombos = 0; age = 0; lastKey = key; }
+		if (key != lastKey || ++age >= 30) { nCombos = 0; nFillCombos = 0; age = 0; lastKey = key; }
 	}
 	gbaCx0 = (x0 + stageX) / 240; gbaCx1 = (x0 + stageX + SCREEN_W - 1) / 240;
 	gbaCy0 = (y0 + stageY) / 160; gbaCy1 = (y0 + stageY + SCREEN_H - 1) / 160;
@@ -1851,7 +2219,7 @@ int view_render(void) {
 	{
 		/* (the same while the area and its sets are) */
 		static s32 bL, bT, bR, bB; static u32 bKey = ~0u; static s32 bStageX, bStageY;
-		u32 key = ((u32)CUR_AREA << 24 ^ (u32)GFX_SET_A << 12 ^ GFX_SET_B) + reachKey * 2654435761u;
+		u32 key = ((u32)CUR_AREA << 24 ^ (u32)GFX_SET_A << 12 ^ GFX_SET_B) + reachKey * 2654435761u + (u32)settings.fillGaps * 0x51ED27u;
 		static int bFill = -1;
 		if (key != bKey || stageX != bStageX || stageY != bStageY || bFill != settings.fillGaps) {
 			content_bounds(&bL, &bT, &bR, &bB);
@@ -1899,6 +2267,17 @@ int view_render(void) {
 		for (s32 cy = (ty - 320) / 160 - 1; cy <= (ty + h + 320) / 160 + 1; cy++)
 			for (s32 cx = (lx - 512) / 240 - 1; cx <= (lx + w + 512) / 240 + 1; cx++)
 				if (cx >= 0 && cy >= 0) chunk_source(cx + stageX / 240, cy + stageY / 160);
+		for (int i = 0; i < fills[k].nreps; i++) {
+			int gx = fills[k].reps[i] & 0xFF, gy = fills[k].reps[i] >> 8;
+			if (settings.fillGaps == 2) { chunk_source(gx, gy); continue; }   /* (the column fill: as the level) */
+			/* the tile fill: with the donor's own sets, from the loaded ones or a copy */
+			int area = CUR_AREA & 0x7F, cls = chunk_class(gx, gy, area), src = -1;
+			if (cls >= 0) {
+				if (set_loaded(cls >> 4, GFX_SET_A, area) && set_loaded(cls & 15, GFX_SET_B, area)) src = 0;
+				else { int c = combo_fill(area, cls >> 4, cls & 15); src = c >= 0 ? 1 + c : -1; }
+			}
+			fills[k].repSrc[i] = src;
+		}
 	}
 	if (getenv("CHUNKDEBUG") && dbg) {
 		s32 lx = x0 - ox, ty = y0 - oy;
