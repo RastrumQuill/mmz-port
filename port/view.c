@@ -2690,6 +2690,7 @@ static const u8 sObjSize[3][4][2] = {
 	{ { 8, 16 }, { 8, 32 }, { 16, 32 }, { 32, 64 } },
 };
 
+static s32 lastGbaX, lastGbaY;   /* (below) */
 /* the sprites on a view row; OAM positions are relative to the GBA screen */
 static void draw_sprite_row(int line, int vy, int ox, int oy, int w) {
 	u16 dispcnt = R16(line, 0);
@@ -2733,6 +2734,10 @@ static void draw_sprite_row(int line, int vy, int ox, int oy, int w) {
 		for (int bx = 0; bx < bw; bx++) {
 			int px = sx + bx + ox;
 			if (px < 0 || px >= w) continue;
+			/* off the GBA screen, not where the GBA camera never goes (the
+			   level is not drawn there either: objects in other rooms) */
+			if ((px - ox < 0 || px - ox >= SCREEN_W || ry < 0 || ry >= SCREEN_H) &&
+			    !shown_at(lastGbaX + px - ox, lastGbaY + ry)) continue;
 			int tx, ty;
 			if (affine) {
 				int dx = bx - bw / 2, dy = iy - bh / 2;
