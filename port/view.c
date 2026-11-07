@@ -1021,10 +1021,11 @@ static void fill_build_wfc(int k, u32 seed) {
 			prior[i] = -1; dist[i] = 0xFFFF;
 			if (tok[i] != -1) continue;
 			int x = i % W, y = i / W, du = 0, dd = 0, dl = 0, dr = 0;
-			while (y - du - 1 >= 0 && tok[(y - du - 1) * W + x] == -1) du++;
-			while (y + dd + 1 < H && tok[(y + dd + 1) * W + x] == -1) dd++;
-			while (x - dl - 1 >= 0 && tok[y * W + x - dl - 1] == -1) dl++;
-			while (x + dr + 1 < W && tok[y * W + x + dr + 1] == -1) dr++;
+	#define GAP(t) ((t) == -1 || (t) == -3)   /* (sky marked this pass is still gap) */
+		while (y - du - 1 >= 0 && GAP(tok[(y - du - 1) * W + x])) du++;
+			while (y + dd + 1 < H && GAP(tok[(y + dd + 1) * W + x])) dd++;
+			while (x - dl - 1 >= 0 && GAP(tok[y * W + x - dl - 1])) dl++;
+			while (x + dr + 1 < W && GAP(tok[y * W + x + dr + 1])) dr++;
 			/* (distance to the nearest shown cell that way, 0: none) */
 			du = y - du - 1 >= 0 && tok[(y - du - 1) * W + x] >= 0 ? du + 1 : 0;
 			dd = y + dd + 1 < H && tok[(y + dd + 1) * W + x] >= 0 ? dd + 1 : 0;
@@ -1267,6 +1268,596 @@ done:
 	#undef ENTROPY
 }
 
+/* ------------------------------------------------------------ overlapping tile fill
+ *
+ * fill_gaps = 1: the cells the GBA camera never shows are made up per BG layer
+ * by the overlapping model of wave function collapse (Gumin) over 8x8 tile
+ * tokens (tilemap entry with flips and palette, plus graphics class; blank
+ * tiles are one token):
+ *  - patterns: every NxN window of the area's shown cells on this layer (no
+ *    rotations or invented flips: a flipped entry only where the level has
+ *    one), weighted by how often each occurs. Each gap cell takes its token
+ *    from the pattern placed over it, and neighbouring placements must agree
+ *    where they overlap (N-1 cells), so texture of N cells carries over,
+ *    where single-pair rules can only carry one cell's neighbours;
+ *  - compatibility: a pattern's right / left / lower / upper N x (N-1) block
+ *    is a signature; two placements side by side agree when the one's right
+ *    block is the other's left one. Domains are bitsets over the patterns;
+ *  - seeds: a placement over shown cells may only use patterns that match
+ *    them, so the level's edge carries into the gap;
+ *  - regions: below the level a placement draws from the patterns of the
+ *    level's bottom band (each column's lowest shown cells), above it from the
+ *    top band, beside it from the left / right band; open space above an
+ *    outdoor layer, and cells a layer behind this one shows, stay empty;
+ *    blank windows get extra weight above and beside the level;
+ *  - solve: lowest weighted entropy first, propagation to a fixpoint; a
+ *    contradiction re-solves the square around it with a new seed (twice),
+ *    then a wider square (twice), and only then copies the nearest shown NxN
+ *    block there. N = 5 is tried first; a layer where the 5x5 windows cannot
+ *    meet the seams is done again with N = 3.
+ * The seed is fixed per area: the same result every time (fill patch).
+ */
+static u64 ow_hash(const int *v, int m) {
+	u64 h = 1469598103934665603ull;
+	for (int i = 0; i < m; i++) { h ^= (u32)v[i]; h *= 1099511628211ull; h ^= h >> 29; }
+	return h;
+}
+/* an id table of int vectors of length m */
+struct OwTab { int m, n, cap, hcap; int *v; int *slot; };
+static int ow_id(struct OwTab *t, const int *v, int add) {
+	if (add && t->n * 2 >= t->hcap) {
+		int nh = t->hcap ? t->hcap * 2 : 4096, *ns = malloc(nh * sizeof *ns);
+		if (!ns) return -1;
+		for (int i = 0; i < nh; i++) ns[i] = -1;
+		for (int i = 0; i < t->n; i++) { u64 h = ow_hash(t->v + (size_t)i * t->m, t->m) & (nh - 1); while (ns[h] >= 0) h = (h + 1) & (nh - 1); ns[h] = i; }
+		free(t->slot); t->slot = ns; t->hcap = nh;
+	}
+	if (!t->hcap) return -1;
+	u64 h = ow_hash(v, t->m) & (t->hcap - 1);
+	while (t->slot[h] >= 0) {
+		if (!memcmp(t->v + (size_t)t->slot[h] * t->m, v, t->m * sizeof *v)) return t->slot[h];
+		h = (h + 1) & (t->hcap - 1);
+	}
+	if (!add) return -1;
+	if (t->n == t->cap) { int nc = t->cap ? t->cap * 2 : 1024; int *nv = realloc(t->v, (size_t)nc * t->m * sizeof *nv); if (!nv) return -1; t->v = nv; t->cap = nc; }
+	memcpy(t->v + (size_t)t->n * t->m, v, t->m * sizeof *v);
+	t->slot[h] = t->n;
+	return t->n++;
+}
+static void ow_free(struct OwTab *t) { free(t->v); free(t->slot); memset(t, 0, sizeof *t); }
+
+struct OwStats { int per[2]; int N, P, active, unmatched, copied; long collapsed, contra, resets; double ms; };
+
+/* tok: W x H (-1 to make up, -2 any (shown, no token), -3 stays blank, >= 0
+   shown); reg: per cell its region (0 top 1 bottom 2 left 3 right 4 inside);
+   out: per -1 cell its token. Returns 0 if it could not run at this N */
+static int owfc_solve(const int *tok, const u8 *reg, int W, int H, int N, u32 seed, int *out, struct OwStats *st) {
+	Uint64 t0 = SDL_GetPerformanceCounter();
+	memset(st, 0, sizeof *st); st->N = N;
+	if (W < N || H < N) return 0;
+	int PW = W - N + 1, PH = H - N + 1, NN = N * N, ok = 0;
+	size_t np = (size_t)PW * PH, n = (size_t)W * H;
+	struct OwTab pt = { NN }, sh = { N * (N - 1) }, sv = { N * (N - 1) };
+	int *win = malloc(NN * sizeof *win), *sg = malloc(NN * sizeof *sg);
+	int *pid = malloc(np * sizeof *pid), *aidx = malloc(np * sizeof *aidx), *apos = NULL;
+	float *freq = NULL, *wl = NULL, *ent = NULL, *wlw = NULL; u64 *pool = NULL, *dom = NULL, *gL = NULL, *gR = NULL, *gU = NULL, *gD = NULL, *tmp = NULL;
+	int *sR = NULL, *sL = NULL, *sD = NULL, *sU = NULL, *work = NULL, *bad = NULL, *mark = NULL, *copy = NULL, *sel = NULL;
+	int *vt = NULL, *depth = NULL; u8 *vr = NULL;
+	u8 *band = calloc(n, 1), *areg = NULL, *state = NULL, *tries = NULL, *inWork = NULL;
+	if (!win || !sg || !pid || !aidx || !band) goto out_;
+	/* bands: the B shown cells nearest each end of every column / row */
+	int B = N * 2 > 8 ? N * 2 : 8;
+	for (int x = 0; x < W; x++) {
+		for (int y = 0, c = 0; y < H && c < B; y++) if (tok[y * W + x] >= 0) { band[y * W + x] |= 1; c++; }
+		for (int y = H - 1, c = 0; y >= 0 && c < B; y--) if (tok[y * W + x] >= 0) { band[y * W + x] |= 2; c++; }
+	}
+	for (int y = 0; y < H; y++) {
+		for (int x = 0, c = 0; x < W && c < B; x++) if (tok[y * W + x] >= 0) { band[y * W + x] |= 4; c++; }
+		for (int x = W - 1, c = 0; x >= 0 && c < B; x--) if (tok[y * W + x] >= 0) { band[y * W + x] |= 8; c++; }
+	}
+	/* periodic input at the level's edges (as Gumin's periodicInput, one way):
+	   past each edge the sample goes on N-1 cells with that edge's period
+	   (per layer and way, 1-12 cells, the one the nonblank edges repeat
+	   best), so the floor's texture has windows that carry it on down, a
+	   wall's sideways. vt: the sample with them, vr: their way + 1 */
+	vt = malloc(n * sizeof *vt); vr = calloc(n, 1);
+	int *vpid = malloc(np * sizeof *vpid), nact = 0, P = 0, Wd = 0;
+	if (!vt || !vr || !vpid) { free(vpid); goto out_; }
+	/* the edges' periods: per way the best one, and the best of 4 or more (texture, not a stripe) */
+	int per[4][2];
+	for (int d = 0; d < 4; d++) {
+		int ex = d == 2 ? -1 : d == 3 ? 1 : 0, ey = d == 0 ? 1 : d == 1 ? -1 : 0;
+		double bs[2] = { 2, 2 }; per[d][0] = per[d][1] = 0;
+		for (int pp = 1; pp <= 12; pp++) {
+			long same = 0, all = 0;
+			for (size_t i = 0; i < n; i++) {
+				int x = i % W, y = i / W, gx_ = x + ex, gy_ = y + ey;
+				if (tok[i] <= 0 || gx_ < 0 || gy_ < 0 || gx_ >= W || gy_ >= H || tok[gy_ * W + gx_] != -1) continue;
+				for (int j = 0; j < pp; j++) {
+					int ax = x - ex * j, ay = y - ey * j, bx = ax - ex * pp, by = ay - ey * pp;
+					if (bx < 0 || by < 0 || bx >= W || by >= H) break;
+					int a_ = tok[ay * W + ax], b_ = tok[by * W + bx];
+					if (a_ < 0 || b_ < 0) break;
+					all++; same += a_ == b_;
+				}
+			}
+			double sc = all ? 1.0 - (double)same / all + pp * 0.004 : 2;
+			if (sc < bs[0]) { bs[0] = sc; per[d][0] = pp; }
+			if (pp >= 4 && sc < bs[1]) { bs[1] = sc; per[d][1] = pp; }
+		}
+		if (per[d][1] == per[d][0]) per[d][1] = 0;
+	}
+	st->per[0] = per[0][0]; st->per[1] = per[0][1];
+	/* passes: the best periods sideways first then up and down (the corners
+	   beside and below the level are the rows' continuation going on down),
+	   the same down first, and the texture periods (4 or more) */
+	static const int order[3][4] = { { 3, 2, 0, 1 }, { 0, 1, 3, 2 }, { 3, 2, 0, 1 } };
+	for (size_t p = 0; p < np; p++) vpid[p] = -1;
+	float *vw = NULL; int nvw = 0, cvw = 0;   /* (the edges' windows: pattern | way << 24, counted after) */
+	for (int pass = 0; pass < 3; pass++) {
+		memcpy(vt, tok, n * sizeof *vt); memset(vr, 0, n);
+		for (int o = 0; o < 4; o++) {   /* (way 0 down past bottom edges, 1 up, 2 left, 3 right) */
+			int d = order[pass][o];
+			int ex = d == 2 ? -1 : d == 3 ? 1 : 0, ey = d == 0 ? 1 : d == 1 ? -1 : 0, bestP = per[d][pass == 2];
+			if (!bestP) bestP = per[d][0];
+			if (!bestP) continue;
+			for (size_t i = 0; i < n; i++) {
+				int x = i % W, y = i / W;
+				if (vt[i] < 0 || x + ex < 0 || y + ey < 0 || x + ex >= W || y + ey >= H || vt[(y + ey) * W + x + ex] != -1) continue;
+				for (int j = 1; j < N; j++) {
+					int cx = x + ex * j, cy = y + ey * j;
+					if (cx < 0 || cy < 0 || cx >= W || cy >= H || tok[cy * W + cx] != -1) break;
+					int k_ = j, sx = cx, sy = cy;
+					while (k_ > 0) { sx -= ex * bestP; sy -= ey * bestP; k_ -= bestP; }
+					if (sx < 0 || sy < 0 || sx >= W || sy >= H) break;
+					int sv_ = vt[sy * W + sx];
+					if (sv_ < 0) break;
+					if (vt[cy * W + cx] == -1) { vt[cy * W + cx] = sv_; vr[cy * W + cx] = d + 1; }
+				}
+			}
+		}
+		for (int y = 0; y < PH; y++)
+			for (int x = 0; x < PW; x++) {
+				int real = 1, virt = 1, open = 0, way = 0;
+				for (int j = 0; j < N; j++) for (int i = 0; i < N; i++) {
+					int c = (y + j) * W + x + i, t = tok[c];
+					win[j * N + i] = vt[c];
+					if (t < 0) real = 0;
+					if (vt[c] < 0) virt = 0;
+					if (vr[c] && !way) way = vr[c];
+					if (t == -1) open = 1;
+				}
+				if (!pass) { pid[y * PW + x] = real ? ow_id(&pt, win, 1) : -1; aidx[y * PW + x] = open ? nact++ : -1; }
+				if (!real && virt) {
+					int q = ow_id(&pt, win, 1);
+					if (q < 0) continue;
+					if (nvw == cvw) { cvw = cvw ? cvw * 2 : 4096; float *nv = realloc(vw, cvw * sizeof *vw); if (!nv) { free(vw); free(vpid); goto out_; } vw = nv; }
+					((int *)vw)[nvw++] = q | way << 24;
+				}
+			}
+	}
+	P = pt.n; Wd = (P + 63) / 64;
+	st->P = P; st->active = nact;
+	if (!P || !nact) { ok = P > 0; free(vw); free(vpid); goto out_; }
+	freq = calloc((size_t)5 * P, sizeof *freq);
+	sR = malloc(P * 4); sL = malloc(P * 4); sD = malloc(P * 4); sU = malloc(P * 4);
+	if (!freq || !sR || !sL || !sD || !sU) { free(vw); free(vpid); goto out_; }
+	static const int wayReg[5] = { 4, 1, 0, 2, 3 };   /* (past the bottom: the region below, ...) */
+	for (int v = 0; v < nvw; v++) { int e = ((int *)vw)[v], q = e & 0xFFFFFF; freq[4 * P + q] += 0.3f; freq[wayReg[e >> 24] * P + q] += 0.6f; }
+	free(vw);
+	for (size_t p = 0; p < np; p++) {
+		int q = pid[p];
+		if (q < 0) continue;
+		int cx = p % PW + N / 2, cy = p / PW + N / 2, b = band[cy * W + cx];
+		freq[4 * P + q]++;
+		for (int r = 0; r < 4; r++) if (b >> r & 1) freq[r * P + q]++;
+	}
+	free(vpid);
+	for (int p = 0; p < P; p++) {
+		const int *v = pt.v + (size_t)p * NN;
+		for (int j = 0; j < N; j++) for (int i = 0; i < N - 1; i++) sg[j * (N - 1) + i] = v[j * N + i + 1];
+		sR[p] = ow_id(&sh, sg, 1);
+		for (int j = 0; j < N; j++) for (int i = 0; i < N - 1; i++) sg[j * (N - 1) + i] = v[j * N + i];
+		sL[p] = ow_id(&sh, sg, 1);
+		for (int j = 0; j < N - 1; j++) for (int i = 0; i < N; i++) sg[j * N + i] = v[(j + 1) * N + i];
+		sD[p] = ow_id(&sv, sg, 1);
+		for (int j = 0; j < N - 1; j++) for (int i = 0; i < N; i++) sg[j * N + i] = v[j * N + i];
+		sU[p] = ow_id(&sv, sg, 1);
+		if (sR[p] < 0 || sL[p] < 0 || sD[p] < 0 || sU[p] < 0) goto out_;
+	}
+	int SH = sh.n, SV = sv.n, SM = SH > SV ? SH : SV;
+	/* groups: the patterns with a given left (right, upper, lower) block */
+	gL = calloc((size_t)SH * Wd, 8); gR = calloc((size_t)SH * Wd, 8); gU = calloc((size_t)SV * Wd, 8); gD = calloc((size_t)SV * Wd, 8);
+	mark = calloc(SM, sizeof *mark); tmp = malloc(Wd * 8);
+	if (!gL || !gR || !gU || !gD || !mark || !tmp) goto out_;
+	for (int p = 0; p < P; p++) {
+		u64 b = 1ull << (p & 63); int w = p >> 6;
+		gL[(size_t)sL[p] * Wd + w] |= b; gR[(size_t)sR[p] * Wd + w] |= b; gU[(size_t)sU[p] * Wd + w] |= b; gD[(size_t)sD[p] * Wd + w] |= b;
+	}
+	/* region pools, pruned to the patterns that have a partner in the pool every way */
+	pool = calloc((size_t)5 * Wd, 8); wl = calloc((size_t)5 * P, sizeof *wl); wlw = calloc((size_t)5 * P, sizeof *wlw);
+	if (!pool || !wl || !wlw) goto out_;
+	int blankP = -1;
+	{ for (int i = 0; i < NN; i++) win[i] = 0; blankP = ow_id(&pt, win, 0); }
+	for (int r = 0; r < 5; r++) {
+		u64 *pl = pool + (size_t)r * Wd;
+		int cnt = 0;
+		for (int p = 0; p < P; p++) if (freq[r * P + p] > 0) cnt++;
+		/* (one pool for every region, so placements in two regions side by side can always meet; the region weighs) */
+		for (int p = 0; p < P; p++) pl[p >> 6] |= 1ull << (p & 63);
+		if (cnt < 16) { memset(pl, 0, Wd * 8); for (int p = 0; p < P; p++) pl[p >> 6] |= 1ull << (p & 63); for (int p = 0; p < P; p++) freq[r * P + p] = freq[4 * P + p]; }
+		/* prune */
+		int *hasL = calloc(SM, 4), *hasR = calloc(SM, 4), *hasU = calloc(SM, 4), *hasD = calloc(SM, 4);
+		u64 *keep = malloc(Wd * 8);
+		if (!hasL || !hasR || !hasU || !hasD || !keep) { free(hasL); free(hasR); free(hasU); free(hasD); free(keep); goto out_; }
+		memcpy(keep, pl, Wd * 8);
+		for (int changed = 1, it = 0; changed && it < 64; it++) {
+			changed = 0;
+			memset(hasL, 0, SM * 4); memset(hasR, 0, SM * 4); memset(hasU, 0, SM * 4); memset(hasD, 0, SM * 4);
+			for (int p = 0; p < P; p++) if (keep[p >> 6] >> (p & 63) & 1) { hasL[sL[p]]++; hasR[sR[p]]++; hasU[sU[p]]++; hasD[sD[p]]++; }
+			int left = 0;
+			for (int p = 0; p < P; p++)
+				if (keep[p >> 6] >> (p & 63) & 1) {
+					if (!hasL[sR[p]] || !hasR[sL[p]] || !hasU[sD[p]] || !hasD[sU[p]]) { keep[p >> 6] &= ~(1ull << (p & 63)); changed = 1; }
+					else left++;
+				}
+			if (!left) break;
+		}
+		if (popc(keep, Wd) && !getenv("MMZ_NOPRUNE")) memcpy(pl, keep, Wd * 8);
+		free(hasL); free(hasR); free(hasU); free(hasD); free(keep);
+		for (int p = 0; p < P; p++) {
+			float w = freq[r * P + p] + 0.02f * freq[4 * P + p] + 0.05f;
+			if (p == blankP && r != 1) w *= 3.0f;   /* (open space stays open above and beside the level) */
+			wl[r * P + p] = w; wlw[r * P + p] = w * logf(w);
+		}
+	}
+	/* placements */
+	apos = malloc(nact * sizeof *apos); areg = malloc(nact); state = calloc(nact, 1); tries = calloc(nact, 1); inWork = calloc(nact, 1);
+	dom = malloc((size_t)nact * Wd * 8); work = malloc((size_t)nact * 2 * sizeof *work); bad = malloc(nact * sizeof *bad);
+	copy = malloc(nact * sizeof *copy); sel = malloc(nact * sizeof *sel); ent = malloc(nact * sizeof *ent); depth = malloc(nact * sizeof *depth);
+	if (!ent || !depth || !apos || !areg || !state || !tries || !inWork || !dom || !work || !bad || !copy || !sel) goto out_;
+	for (size_t p = 0; p < np; p++) if (aidx[p] >= 0) apos[aidx[p]] = (int)p;
+	for (int a = 0; a < nact; a++) {
+		int x = apos[a] % PW, y = apos[a] / PW, c = (y + N / 2) * W + x + N / 2, r = 4;
+		if (tok[c] == -1) r = reg[c];
+		else for (int j = 0; j < NN; j++) { int cc = (y + j / N) * W + x + j % N; if (tok[cc] == -1) { r = reg[cc]; break; } }
+		areg[a] = r; copy[a] = -1; sel[a] = -1;
+	}
+	#define ODOM(a) (dom + (size_t)(a) * Wd)
+	#define HAS(d_, p_) ((d_)[(p_) >> 6] >> ((p_) & 63) & 1)
+	/* a placement's starting domain: its region's pool, matching the shown cells under it */
+	#define OINIT(a) ({ int a_ = (a), x_ = apos[a_] % PW, y_ = apos[a_] / PW, fixed_ = 0, nf_ = 0; u64 *d_ = ODOM(a_); \
+		memcpy(d_, pool + (size_t)areg[a_] * Wd, Wd * 8); \
+		for (int j_ = 0; j_ < NN; j_++) if (tok[(y_ + j_ / N) * W + x_ + j_ % N] >= 0) { win[nf_] = j_; sg[nf_++] = tok[(y_ + j_ / N) * W + x_ + j_ % N]; } \
+		for (int pass_ = 0; nf_ && pass_ < 2; pass_++) { \
+			if (pass_) for (int w_ = 0; w_ < Wd; w_++) d_[w_] = ~0ull >> (w_ == Wd - 1 && (P & 63) ? 64 - (P & 63) : 0); \
+			for (int w_ = 0; w_ < Wd; w_++) for (u64 b_ = d_[w_]; b_; b_ &= b_ - 1) { int p_ = w_ * 64 + __builtin_ctzll(b_); const int *v_ = pt.v + (size_t)p_ * NN; \
+				for (int f_ = 0; f_ < nf_; f_++) if (v_[win[f_]] != sg[f_]) { d_[w_] &= ~(1ull << (p_ & 63)); break; } } \
+			if (popc(d_, Wd)) break; } \
+		if (!popc(d_, Wd)) { memcpy(d_, pool + (size_t)areg[a_] * Wd, Wd * 8); fixed_ = 1; } fixed_; })
+	/* weighted entropy (lower first), a little noise for ties */
+	#define OENTC(a) ({ const u64 *d_ = ODOM(a); const float *w_ = wl + (size_t)areg[a] * P, *l_ = wlw + (size_t)areg[a] * P; float s_ = 0, sl_ = 0; \
+		for (int ww_ = 0; ww_ < Wd; ww_++) for (u64 b_ = d_[ww_]; b_; b_ &= b_ - 1) { int p_ = ww_ * 64 + __builtin_ctzll(b_); s_ += w_[p_]; sl_ += l_[p_]; } \
+		ent[a] = s_ > 0 ? logf(s_) - sl_ / s_ : 0; })
+	#define OENT(a) (ent[a] + (syn_rand() & 1023) * 1e-6f)
+	for (int a = 0; a < nact; a++) st->unmatched += OINIT(a);
+	{   /* (the pools' entropy once; placements over shown cells their own) */
+		float pe[5];
+		for (int r = 0; r < 5; r++) { float s_ = 0, sl_ = 0; const u64 *d_ = pool + (size_t)r * Wd; for (int p = 0; p < P; p++) if (d_[p >> 6] >> (p & 63) & 1) { s_ += wl[r * P + p]; sl_ += wlw[r * P + p]; } pe[r] = s_ > 0 ? logf(s_) - sl_ / s_ : 0; }
+		for (int a = 0; a < nact; a++) ent[a] = pe[areg[a]];
+	}
+	syn_rng = seed | 1;
+	whN = 0;
+	int nw = 0, nbad = 0, stamp = 0;
+	/* (propagation goes PDEPTH placements from a change, further only through nearly decided ones) */
+	static int PDEPTH = -1; if (PDEPTH < 0) PDEPTH = getenv("MMZ_PDEPTH") ? atoi(getenv("MMZ_PDEPTH")) : 3 * N;
+	#define OPUSHD(a, dd) do { int d__ = (dd); if (!inWork[a]) { inWork[a] = 1; work[nw++] = (a); depth[a] = d__; } else if (d__ < depth[a]) depth[a] = d__; } while (0)
+	#define OPUSH(a) OPUSHD(a, 0)
+	/* the seams: placements over shown cells */
+	for (int a = 0; a < nact; a++) {
+		int x = apos[a] % PW, y = apos[a] / PW, any = 0;
+		for (int j = 0; j < NN && !any; j++) any = tok[(y + j / N) * W + x + j % N] >= 0;
+		if (any) { OENTC(a); OPUSH(a); wh_push(OENT(a), a); }
+	}
+	static const int odx[4] = { 1, -1, 0, 0 }, ody[4] = { 0, 0, 1, -1 };
+	long budget = (long)nact / 2 + 20000, nEdge = 0, nBits = 0, nChg = 0;
+	Uint64 tP = 0, tR = 0, tC = 0, tI = SDL_GetPerformanceCounter() - t0, q0;
+	for (;;) {
+		q0 = SDL_GetPerformanceCounter();
+		while (nw) {
+			int c = work[--nw];
+			inWork[c] = 0;
+			if (state[c] == 3) continue;
+			const u64 *dc = ODOM(c);
+			int dep = depth[c];
+			int pc_ = popc(dc, Wd);
+			if (dep > PDEPTH && pc_ > 2) continue;
+			int x = apos[c] % PW, y = apos[c] / PW;
+			for (int d = 0; d < 4; d++) {
+				int nx = x + odx[d], ny = y + ody[d];
+				if (nx < 0 || ny < 0 || nx >= PW || ny >= PH) continue;
+				int ni = aidx[ny * PW + nx];
+				if (ni < 0 || state[ni]) continue;
+				/* the blocks c's patterns show that way, and the patterns of the neighbour that have one of them */
+				const int *mine = d == 0 ? sR : d == 1 ? sL : d == 2 ? sD : sU;
+				const int *theirs = d == 0 ? sL : d == 1 ? sR : d == 2 ? sU : sD;
+				const u64 *grp = d == 0 ? gL : d == 1 ? gR : d == 2 ? gU : gD;
+				int ns = 0;
+				if (++stamp == 0x7FFFFFFF) { memset(mark, 0, SM * sizeof *mark); stamp = 1; }
+				for (int w = 0; w < Wd; w++) for (u64 b = dc[w]; b; b &= b - 1) { int s = mine[w * 64 + __builtin_ctzll(b)]; if (mark[s] != stamp) { mark[s] = stamp; ns++; } }
+				u64 *dn = ODOM(ni);
+				int changed = 0, any = 0, cn = popc(dn, Wd);
+				nEdge++; nBits += cn;
+				if ((long)ns * Wd < cn) {
+					memset(tmp, 0, Wd * 8);
+					for (int w = 0; w < Wd; w++) for (u64 b = dc[w]; b; b &= b - 1) { int s = mine[w * 64 + __builtin_ctzll(b)]; if (mark[s] == stamp) { mark[s] = -stamp; const u64 *g = grp + (size_t)s * Wd; for (int v = 0; v < Wd; v++) tmp[v] |= g[v]; } }
+					for (int v = 0; v < Wd; v++) { u64 nb = dn[v] & tmp[v]; if (nb != dn[v]) changed = 1; any |= nb != 0; tmp[v] = nb; }
+				} else {
+					for (int v = 0; v < Wd; v++) {
+						u64 nb = dn[v];
+						for (u64 b = dn[v]; b; b &= b - 1) { int p = v * 64 + __builtin_ctzll(b); if (abs(mark[theirs[p]]) != stamp) nb &= ~(1ull << (p & 63)); }
+						tmp[v] = nb; if (nb != dn[v]) changed = 1; any |= nb != 0;
+					}
+				}
+				if (!changed) continue;
+				if (!any) { if (nbad < nact) bad[nbad++] = ni; continue; }
+				memcpy(dn, tmp, Wd * 8);
+				nChg++;
+				OENTC(ni);
+				OPUSHD(ni, dep + 1);
+				wh_push(OENT(ni), ni);
+			}
+		}
+		tP += SDL_GetPerformanceCounter() - q0; q0 = SDL_GetPerformanceCounter();
+		if (nbad) {
+			for (int b = 0; b < nbad; b++) {
+				int c = bad[b];
+				if (state[c]) continue;
+				st->contra++;
+				int x = apos[c] % PW, y = apos[c] / PW;
+				if (tries[c] >= 4 || st->resets > budget) {
+					/* last resort: the nearest shown NxN block of this layer */
+					long bd = -1; int bp = -1;
+					for (size_t p = 0; p < np; p++) {
+						if (pid[p] < 0) continue;
+						long dx = (long)(p % PW) - x, dy = (long)(p / PW) - y, dd = dx * dx + dy * dy;
+						if (bd < 0 || dd < bd) { bd = dd; bp = pid[p]; }
+					}
+					u64 *dc = ODOM(c);
+					memset(dc, 0, Wd * 8);
+					if (bp >= 0) dc[bp >> 6] = 1ull << (bp & 63);
+					copy[c] = bp; state[c] = 3; st->copied++;
+					continue;
+				}
+				/* re-solve the square around it: a new seed twice, then wider */
+				int t = tries[c]++, rr = N + (t >= 2 ? (t - 1) * N * 2 : 0);
+				syn_rng = (seed ^ (u32)c * 2654435761u ^ (u32)(t + 1) * 0x9E3779B9u) | 1;
+				st->resets++;
+				for (int yy = y - rr - 1; yy <= y + rr + 1; yy++)
+					for (int xx = x - rr - 1; xx <= x + rr + 1; xx++) {
+						if (xx < 0 || yy < 0 || xx >= PW || yy >= PH) continue;
+						int j = aidx[yy * PW + xx];
+						if (j < 0) continue;
+						int edge = yy < y - rr || yy > y + rr || xx < x - rr || xx > x + rr;
+						if (!edge && state[j] != 3) { if (state[j] == 1) st->collapsed--; state[j] = 0; OINIT(j); OENTC(j); }
+					}
+				for (int yy = y - rr - 1; yy <= y + rr + 1; yy++)
+					for (int xx = x - rr - 1; xx <= x + rr + 1; xx++) {
+						if (xx < 0 || yy < 0 || xx >= PW || yy >= PH) continue;
+						int j = aidx[yy * PW + xx];
+						if (j < 0) continue;
+						int edge = yy < y - rr || yy > y + rr || xx < x - rr || xx > x + rr;
+						if (edge && state[j] != 3) OPUSH(j);
+						if (!edge) { int any = 0; for (int q = 0; q < NN && !any; q++) any = tok[(yy + q / N) * W + xx + q % N] >= 0; if (any) OPUSH(j); }
+						if (!state[j]) wh_push(OENT(j), j);
+					}
+			}
+			nbad = 0;
+			tR += SDL_GetPerformanceCounter() - q0;
+			continue;
+		}
+		int c = -1;
+		while (whN) { struct WHeap e = wh_pop(); if (!state[e.cell]) { c = e.cell; break; } }
+		tC += SDL_GetPerformanceCounter() - q0;
+		if (c < 0) { for (int a = 0; a < nact; a++) if (!state[a]) { c = a; break; } if (c < 0) break; }
+		u64 *dc = ODOM(c);
+		const float *w = wl + (size_t)areg[c] * P;
+		float sum = 0;
+		for (int v = 0; v < Wd; v++) for (u64 b = dc[v]; b; b &= b - 1) sum += w[v * 64 + __builtin_ctzll(b)];
+		float pick = (syn_rand() & 0xFFFFFF) / (float)0x1000000 * sum;
+		int t = -1;
+		for (int v = 0; v < Wd && t < 0; v++) for (u64 b = dc[v]; b; b &= b - 1) { int u = v * 64 + __builtin_ctzll(b); t = u; pick -= w[u]; if (pick <= 0) break; }
+		if (t < 0) { if (nbad < nact) bad[nbad++] = c; continue; }
+		memset(dc, 0, Wd * 8); dc[t >> 6] = 1ull << (t & 63);
+		state[c] = 1; st->collapsed++;
+		OPUSH(c);
+		int x = apos[c] % PW, y = apos[c] / PW;
+		for (int d = 0; d < 4; d++) {   /* (the front moves on even where nothing narrowed) */
+			int nx = x + odx[d], ny = y + ody[d];
+			if (nx < 0 || ny < 0 || nx >= PW || ny >= PH) continue;
+			int ni = aidx[ny * PW + nx];
+			if (ni >= 0 && !state[ni]) wh_push(OENT(ni), ni);
+		}
+	}
+	/* the result: each cell from the placement over it (clamped at the far edges), copied blocks on top */
+	for (size_t i = 0; i < n; i++) {
+		if (tok[i] != -1) continue;
+		int x = i % W, y = i / W, px = x < PW ? x : PW - 1, py = y < PH ? y : PH - 1, a = aidx[py * PW + px];
+		out[i] = 0;
+		if (a < 0) continue;
+		const u64 *d = ODOM(a);
+		for (int v = 0; v < Wd; v++) if (d[v]) { int p = v * 64 + __builtin_ctzll(d[v]); out[i] = pt.v[(size_t)p * NN + (y - py) * N + (x - px)]; break; }
+	}
+	for (int a = 0; a < nact; a++)
+		if (copy[a] >= 0) {
+			int x = apos[a] % PW, y = apos[a] / PW;
+			for (int j = 0; j < NN; j++) { int cc = (y + j / N) * W + x + j % N; if (tok[cc] == -1) out[cc] = pt.v[(size_t)copy[a] * NN + j]; }
+		}
+	if (getenv("MMZ_OWMAP")) for (int y = 0; y < PH; y += 2) { for (int x = 0; x < PW; x += 2) { int a = aidx[y * PW + x]; fputc(a < 0 ? (pid[y * PW + x] >= 0 ? '#' : ' ') : state[a] == 3 ? 'o' : tries[a] ? 't' : '.', stderr); } fputc('\n', stderr); }
+	if (getenv("MMZ_FILLDEBUG")) { double f_ = 1000.0 / SDL_GetPerformanceFrequency(); fprintf(stderr, "fill: N=%d init %.0f prop %.0f reset %.0f pick %.0f ms, %ld edges avg %ld bits, %ld changes, heap %d\n", N, tI * f_, tP * f_, tR * f_, tC * f_, nEdge, nEdge ? nBits / nEdge : 0, nChg, whCap); }
+	if (getenv("MMZ_FILLDEBUG")) { long nb = 0, no = 0; for (size_t i = 0; i < n; i++) if (tok[i] == -1) { no++; nb += out[i] == 0; } fprintf(stderr, "fill: N=%d blank %ld of %ld\n", N, nb, no); }
+	ok = 1;
+	#undef ODOM
+	#undef HAS
+	#undef OINIT
+	#undef OENT
+	#undef OENTC
+	#undef OPUSH
+	#undef OPUSHD
+out_:
+	st->ms = (SDL_GetPerformanceCounter() - t0) * 1000.0 / SDL_GetPerformanceFrequency();
+	ow_free(&pt); ow_free(&sh); ow_free(&sv);
+	free(win); free(sg); free(pid); free(aidx); free(apos); free(freq); free(wl); free(pool); free(dom);
+	free(gL); free(gR); free(gU); free(gD); free(tmp); free(sR); free(sL); free(sD); free(sU); free(work); free(bad);
+	free(vt); free(vr); free(ent); free(depth); free(wlw);
+	free(mark); free(copy); free(sel); free(band); free(areg); free(state); free(tries); free(inWork);
+	return ok;
+}
+
+static void fill_build_owfc(int k, u32 seed) {
+	struct Fill *F = &fills[k];
+	const struct Layer *L = &layers[k];
+	free(F->mt); free(F->donor);
+	memset(F, 0, sizeof *F);
+	int area = CUR_AREA & 0x7F, dbg = getenv("MMZ_FILLDEBUG") != NULL;
+	if (!L->map || L->backdrop) { if (dbg) fprintf(stderr, "fill: area %d bg %d: %s\n", area, k, L->map ? "background (repeats)" : "no layer"); return; }
+	#define REAL(cx, cy) ((cx) >= 0 && (cy) >= 0 && (cx) < L->w && (cy) < L->h && \
+	                      L->map[4 + (cy) * L->stride + (cx)] != L->null && \
+	                      in_area(((cx) * 240 + stageX) / 240, ((cy) * 160 + stageY) / 160))
+	int x0 = 1 << 30, y0 = 1 << 30, x1 = -1, y1 = -1;
+	for (int cy = 0; cy < L->h; cy++)
+		for (int cx = 0; cx < L->w; cx++)
+			if (REAL(cx, cy)) { if (cx < x0) x0 = cx; if (cx > x1) x1 = cx; if (cy < y0) y0 = cy; if (cy > y1) y1 = cy; }
+	if (x1 < 0) { if (dbg) fprintf(stderr, "fill: area %d bg %d: no chunks\n", area, k); return; }
+	for (int m = 0; m < 2; m++) { if (x0 > 0) x0--; if (y0 > 0) y0--; if (x1 < L->w - 1) x1++; if (y1 < L->h - 1) y1++; }
+	int cw = x1 - x0 + 1, ch = y1 - y0 + 1, W = cw * 30, H = ch * 20;
+	size_t n = (size_t)W * H;
+	u32 cb = ((R16(80, 0x08 + L->bg * 2) >> 2) & 3) * 0x4000;
+	static s32 tkey[WT_MAX]; static s16 trep[256];
+	static s32 tlook[1 << 16];
+	int T = 0, open = 0;
+	int *tok = malloc(n * sizeof *tok), *out = malloc(n * sizeof *out);
+	u8 *reg = malloc(n);
+	struct OwStats st5 = { 0 }, st3 = { 0 }, *st = NULL;
+	if (!tok || !out || !reg) goto done;
+	memset(tlook, 0, sizeof tlook);
+	for (int i = 0; i < 256; i++) trep[i] = -1;
+	#define TOKEN(key) ({ s32 k_ = (key); u32 h_ = ((u32)k_ * 2654435761u) >> 16; int r_; \
+		while (tlook[h_] && tkey[tlook[h_] - 1] != k_) h_ = (h_ + 1) & 0xFFFF; \
+		if (tlook[h_]) r_ = tlook[h_] - 1; else if (T < WT_MAX) { tkey[T] = k_; tlook[h_] = ++T; r_ = T - 1; } else r_ = -2; r_; })
+	TOKEN(WT_EMPTY);   /* (token 0: blank) */
+	for (int cy = 0; cy < ch; cy++)
+		for (int cx = 0; cx < cw; cx++) {
+			int lx = cx + x0, ly = cy + y0, gx = (lx * 240 + stageX) / 240, gy = (ly * 160 + stageY) / 160;
+			int real = REAL(lx, ly), cls = real ? chunk_class(gx, gy, area) : -1;
+			const u16 *C = real ? L->chunks + L->map[4 + ly * L->stride + lx] * 150 : NULL;
+			const u8 *vr = cls >= 0 ? class_vram(area, cls) : NULL;
+			for (int r = 0; r < 20; r++)
+				for (int c = 0; c < 30; c++) {
+					int i = (cy * 20 + r) * W + cx * 30 + c, t = -1;
+					if (real && shown_at(gx * 240 + c * 8, gy * 160 + r * 8)) {
+						if (cls < 0) t = -2;
+						else {
+							u16 e = L->tiledata[C[(r >> 1) * 15 + (c >> 1)] * 4 + (r & 1) * 2 + (c & 1)];
+							t = TOKEN(vr && tile_blank(vr, e, cb) ? WT_EMPTY : e | cls << 16);
+							if (t > 0 && trep[cls] < 0) trep[cls] = gx | gy << 8;
+						}
+					}
+					tok[i] = t;
+					if (t == -1) open++;
+				}
+		}
+	if (T <= 1 || !open) { if (dbg) fprintf(stderr, "fill: area %d bg %d: %d tokens, %d cells to make up\n", area, k, T, open); goto done; }
+	/* outdoor: a background layer (the sky) is behind it, or most columns' topmost shown cell is blank */
+	int outdoor = 0;
+	{
+		int cols = 0, blank = 0;
+		for (int x = 0; x < W; x++)
+			for (int y = 0; y < H; y++) { int t = tok[y * W + x]; if (t >= 0) { cols++; blank += t == 0; break; } }
+		outdoor = blank * 4 > cols;
+		for (int j = 1; j < 4; j++) if (layers[j].map && layers[j].backdrop) outdoor = 1;
+	}
+	/* regions: each gap cell goes on from the level the way it is nearest it (up and down first) */
+	int top = H, bottom = -1, sky = 0, covered = 0;
+	for (size_t i = 0; i < n; i++) if (tok[i] >= 0 || tok[i] == -2) { int y = i / W; if (y < top) top = y; if (y > bottom) bottom = y; }
+	for (size_t i = 0; i < n; i++) {
+		reg[i] = 4;
+		if (tok[i] != -1) continue;
+		int x = i % W, y = i / W, du = 0, dd = 0, dl = 0, dr = 0;
+		while (y - du - 1 >= 0 && GAP(tok[(y - du - 1) * W + x])) du++;
+		while (y + dd + 1 < H && GAP(tok[(y + dd + 1) * W + x])) dd++;
+		while (x - dl - 1 >= 0 && GAP(tok[y * W + x - dl - 1])) dl++;
+		while (x + dr + 1 < W && GAP(tok[y * W + x + dr + 1])) dr++;
+		du = y - du - 1 >= 0 ? du + 1 : 0; dd = y + dd + 1 < H ? dd + 1 : 0;
+		dl = x - dl - 1 >= 0 ? dl + 1 : 0; dr = x + dr + 1 < W ? dr + 1 : 0;
+		int dv = du && dd ? (du < dd ? du : dd) : du ? du : dd, dh = dl && dr ? (dl < dr ? dl : dr) : dl ? dl : dr;
+		int r = y < top ? 0 : y > bottom ? 1 : 4;
+		if (outdoor && !du && dd) { tok[i] = -3; sky++; reg[i] = 0; continue; }   /* (nothing real above it: sky) */
+		if (dv && (!dh || dv <= dh * 2 + 4)) {
+			int up = du && (!dd || du <= dd);
+			r = du && dd ? 4 : up ? 1 : 0;
+			if (!up && outdoor) { tok[i] = -3; sky++; }   /* (open sky above an outdoor level) */
+		} else if (dh) {
+			if (r == 4) r = dl && (!dr || dl <= dr) ? 3 : 2;
+		}
+		reg[i] = r;
+	}
+	/* where another stage layer shows something, this one stays open */
+	for (int j = 1; j < 4; j++) {
+		const struct Layer *M = &layers[j];
+		if (j == k || !M->map || M->backdrop) continue;
+		u32 mcb = ((R16(80, 0x08 + M->bg * 2) >> 2) & 3) * 0x4000;
+		for (size_t i = 0; i < n; i++) {
+			if (tok[i] != -1) continue;
+			s32 px = (x0 * 30 + (int)(i % W)) * 8, py = (y0 * 20 + (int)(i / W)) * 8;
+			int mx = px / 240, my = py / 160;
+			if (mx >= M->w || my >= M->h || M->map[4 + my * M->stride + mx] == M->null) continue;
+			int gx = (mx * 240 + stageX) / 240, gy = (my * 160 + stageY) / 160;
+			if (!in_area(gx, gy) || !shown_at(px + stageX, py + stageY)) continue;
+			int cls = chunk_class(gx, gy, area);
+			const u8 *vr = cls >= 0 ? class_vram(area, cls) : NULL;
+			u16 e = M->tiledata[M->chunks[M->map[4 + my * M->stride + mx] * 150 + ((py % 160) >> 4) * 15 + ((px % 240) >> 4)] * 4 + ((py >> 3) & 1) * 2 + ((px >> 3) & 1)];
+			if (vr && !tile_blank(vr, e, mcb)) { tok[i] = -3; covered++; }
+		}
+	}
+	/* N = 5 first (texture of 5 cells), N = 3 where the 5x5 windows cannot meet the seams */
+	static int forceN = -1; if (forceN < 0) forceN = getenv("MMZ_WFCN") ? atoi(getenv("MMZ_WFCN")) : 0;
+	int ran = 0;
+	if (forceN != 3 && owfc_solve(tok, reg, W, H, 5, seed, out, &st5)) {
+		ran = 5; st = &st5;
+		int badn = st5.unmatched + st5.copied;
+		if (forceN != 5 && (st5.P < 64 || badn * 100 > st5.active)) ran = 0;   /* (too few patterns, or too many seams it cannot meet) */
+		if (dbg) fprintf(stderr, "fill: area %d bg %d N=5: %d patterns, %d placements, %d seams unmatched, %ld contradictions, %ld re-solves, %d copied, %.1f ms%s\n",
+		                 area, k, st5.P, st5.active, st5.unmatched, st5.contra, st5.resets, st5.copied, st5.ms, ran ? "" : " -> N=3");
+	}
+	if (!ran && owfc_solve(tok, reg, W, H, 3, seed, out, &st3)) {
+		ran = 3; st = &st3;
+		if (dbg) fprintf(stderr, "fill: area %d bg %d N=3: %d patterns, %d placements, %d seams unmatched, %ld contradictions, %ld re-solves, %d copied, %.1f ms, down periods %d/%d\n",
+		                 area, k, st3.P, st3.active, st3.unmatched, st3.contra, st3.resets, st3.copied, st3.ms, st3.per[0], st3.per[1]);
+	}
+	if (!ran) goto done;
+	F->mt = malloc(n * 2);
+	F->donor = malloc(n * 2);
+	if (!F->mt || !F->donor) { free(F->mt); free(F->donor); F->mt = NULL; F->donor = NULL; goto done; }
+	for (size_t i = 0; i < n; i++) {
+		int t = tok[i] == -1 ? out[i] : -1;
+		F->mt[i] = t > 0 ? (u16)(tkey[t] & 0xFFFF) : 0;
+		F->donor[i] = t > 0 ? trep[(tkey[t] >> 16) & 0xFF] : -1;   /* (blank, shown, sky, covered: nothing drawn) */
+	}
+	F->cx0 = x0; F->cy0 = y0; F->cw = cw; F->ch = ch; F->on = 1; F->fine = 1;
+	if (getenv("MMZ_FILLMAP"))   /* (debug, every 2nd cell: '#' shown (' ' blank), made up 'x' (',' blank), 's' sky, 'c' covered) */
+		for (int y = 0; y < H; y += 2) {
+			for (int x = 0; x < W; x += 2) { int i = y * W + x; fputc(tok[i] >= 0 ? (tok[i] ? '#' : ' ') : tok[i] == -2 ? '?' : tok[i] == -3 ? 's' : out[i] ? 'x' : ',', stderr); }
+			fputc('\n', stderr);
+		}
+done:
+	if (dbg && st) fprintf(stderr, "fill: area %d bg %d chunks %d,%d %dx%d: %d tokens, %d cells made up (%d sky, %d covered), N=%d\n",
+	                       area, k, x0, y0, cw, ch, T, open, sky, covered, st->N);
+	free(tok); free(out); free(reg);
+	#undef TOKEN
+	#undef REAL
+}
+
 static void fill_reps(struct Fill *F) {   /* the distinct donors */
 	F->nreps = 0;
 	if (F->on)
@@ -1280,7 +1871,8 @@ static void fill_reps(struct Fill *F) {   /* the distinct donors */
 
 static void fill_build(int k, u32 seed) {
 	if (settings.fillGaps == 2) fill_build_column(k);
-	else fill_build_wfc(k, seed);
+	else if (settings.fillGaps == 3) fill_build_wfc(k, seed);   /* (the single-pair tile WFC, for comparison) */
+	else fill_build_owfc(k, seed);
 }
 
 /* ------------------------------------------------------------ fill patch
@@ -1292,12 +1884,15 @@ static void fill_build(int k, u32 seed) {
  * area, graphics sets, stage position and BG (a record with nothing to fill
  * is kept too, so it is not worked out again).
  */
+extern u32 romCrc;
 struct FillRec { u32 key; s32 sx, sy; s32 bg, cx0, cy0, cw, ch; u16 *mt; s16 *donor; int fine; };
 static struct FillRec *patch;
 static int npatch, patchLoaded, patchStale;   /* stale: the file is of an older format (written anew) */
 static char patchPath[600];
 
-static const char *patch_path(void) {
+const char *fill_patch_path(void);
+static const char *patch_path(void) { return fill_patch_path(); }
+const char *fill_patch_path(void) {
 	if (!patchPath[0]) {
 		const char *e = getenv("MMZ_FILLS");
 		if (e) snprintf(patchPath, sizeof patchPath, "%s", e);
@@ -1322,8 +1917,12 @@ static void patch_load(void) {
 	patchLoaded = 1;
 	FILE *f = fopen(patch_path(), "rb");
 	if (!f) return;
-	char magic[8];
-	if (fread(magic, 1, 8, f) != 8 || memcmp(magic, "MMZFILL6", 8)) { fclose(f); patchStale = 1; return; }
+	char magic[8]; u32 crc = 0;
+	if (fread(magic, 1, 8, f) != 8 || memcmp(magic, "MMZFILL7", 8) || fread(&crc, 4, 1, f) != 1 || crc != romCrc) {
+		fclose(f); patchStale = 1;
+		fprintf(stderr, "fill: %s is of another format or ROM: not used (mmz --gen-fills makes it anew)\n", patch_path());
+		return;
+	}
 	struct FillRec r;
 	s32 h[7];
 	while (fread(h, 4, 7, f) == 7) {
@@ -1347,7 +1946,7 @@ static void patch_append(const struct FillRec *r) {
 	f = fopen(p, fresh ? "wb" : "ab");
 	patchStale = 0;
 	if (!f) return;
-	if (fresh) fwrite("MMZFILL6", 1, 8, f);
+	if (fresh) { fwrite("MMZFILL7", 1, 8, f); fwrite(&romCrc, 4, 1, f); }
 	s32 h[7] = { (s32)r->key, r->sx, r->sy, r->bg | r->fine << 8, r->cx0, r->cy0, r->cw | r->ch << 16 };
 	fwrite(h, 4, 7, f);
 	size_t cells = fill_cells(r->cw, r->ch, r->fine), ck = cells;
@@ -1375,6 +1974,16 @@ static void fill_get(int k, u32 key) {
 		memcpy(F->mt, r->mt, cells * 2); memcpy(F->donor, r->donor, ck * 2);
 		F->cx0 = r->cx0; F->cy0 = r->cy0; F->cw = r->cw; F->ch = r->ch; F->on = 1; F->fine = r->fine;
 		fill_reps(F);
+		return;
+	}
+	/* not in the file: the game never works a fill out while it plays (the
+	   WFC is an offline step, mmz --gen-fills); only the generator does */
+	static int gen = -1; if (gen < 0) gen = getenv("MMZ_FILLGEN") != NULL;
+	if (!gen && settings.fillGaps != 2) {
+		free(F->mt); free(F->donor); memset(F, 0, sizeof *F);
+		static u32 told[64]; static int ntold;
+		int seen = 0; for (int i = 0; i < ntold; i++) seen |= told[i] == (key ^ (u32)k);
+		if (!seen) { if (ntold < 64) told[ntold++] = key ^ (u32)k; fprintf(stderr, "fill: area %d bg %d is not in %s: black (mmz --gen-fills)\n", CUR_AREA & 0x7F, k, patch_path()); }
 		return;
 	}
 	fill_build(k, key * 2654435761u + 1);

@@ -208,39 +208,54 @@ area's left) prints the flood around Zero.
 
 **Gap fill (`fill_gaps`).** Everything the wide view shows that the area
 does not (below, above and beside the level, and cells the shown map hides)
-is filled by wave function collapse over 8x8 tiles (view.c, "tile fill").
-A token is one 8x8 tilemap entry (tile, flips, palette) plus its graphics
-class. Each gap cell's domain holds only tokens this area's camera actually
-showed. The 4-direction adjacency rules and frequency weights are learned
-from the shown cells, and the real cells next to the gap are the seeds.
-Cells collapse lowest entropy first, with bitset propagation and a
-deterministic seed per area. On a contradiction a growing square around the
-cell is reset (3 tries); after that the cell is forced to its prior.
-Region priors steer it:
-- Each cell continues the nearest real edge: columns downward below the
-  level (posts and pillars extend), rows sideways beside it. This uses a
-  period of 1-4 seen at that edge.
-- A solid edge without a period gets its commonest self-compatible body tile.
-- Open edges, and anything above an outdoor layer, stay empty.
+is filled by overlapping-model wave function collapse over 8x8 tiles
+(view.c, "tile fill"). A token is one 8x8 tilemap entry (tile, flips,
+palette) plus its graphics class; only tokens this area's camera showed are
+used. Patterns are NxN windows of real cells per layer with frequency
+weights (no rotations, no invented flips). Placements must agree on their
+N-1 overlap; real cells next to the gap constrain the placements over them.
+Cells collapse lowest entropy first with bitset propagation and a
+deterministic seed per area. On a contradiction it retries with new derived
+seeds, then re-solves a growing square around the cell, and only last copies
+the nearest real NxN block. N=5 is used where it works; N=3 where there are
+too few 5x5 patterns or over 1% of placements fail. Region rules:
+- The sample is extended periodically at the level's edges, so below the
+  floor continues downward and beside it continues sideways.
+- Nothing real above a cell of an outdoor layer: sky (empty). Open edges
+  stay empty.
 - A front layer never fills over content a back layer shows.
 - The backdrop and level layers are filled separately.
 
-Cost is about 0.1-1 s per layer, once. The result is cached in fills.bin
-(format MMZFILL6, 8x8 cells) next to mmz.ini, or in `MMZ_FILLS`. Only
-graphics sets of the cell's own class are used, loaded into separate fill
-VRAM slots so the level's drawability does not change. Fill is drawing
-only: no collision, and the layer matching never sees it, so GBA-visible
-pixels are unchanged. `fill_gaps = 0` is black, `1` the tile WFC and `2`
-the old column repeat. `MMZ_FILLDEBUG=1` prints timing and contradictions,
-and `MMZ_FILLMAP=1` prints an ascii map.
+**The fill never runs during play.** `mmz --gen-fills [JOBS]` works it out
+offline for every place (headless children, JOBS at a time, about 25 min on
+4 cores) into fills.bin next to mmz.ini (or `MMZ_FILLS`). `make port` does
+this when baserom.gba is present (`make -C port fills`; again only when
+view.c or the ROM changes). A release build has no fills.bin: on first
+launch it runs the generator once with your ROM, showing progress in the
+window title, before play starts. The game then only loads the file. The
+file is stamped with its format (MMZFILL7) and the ROM's CRC; if it is
+missing, stale or lacks an area, that gap is drawn black and a line is
+logged.
 
-fills.bin holds ROM-derived tile entries: it is generated at runtime, never
-committed and never shipped.
+Only graphics sets of the cell's own class are used, loaded into separate
+fill VRAM slots so the level's drawability does not change. Fill is drawing
+only: no collision, and the layer matching never sees it, so GBA-visible
+pixels are unchanged. `fill_gaps = 0` is black, `1` the tile WFC, `2` the old
+column repeat (cheap, made at runtime) and `3` the older pair-adjacency WFC
+(for comparison, with `MMZ_FILLGEN=1`). Debugging: `MMZ_FILLGEN=1` solves
+missing areas while playing (development only), `MMZ_WFCN=3|5` forces N,
+`MMZ_FILLDEBUG=1` prints timing and contradictions, `MMZ_FILLMAP=1` and
+`MMZ_OWMAP=1` print ascii maps.
+
+fills.bin holds ROM-derived tile entries: it is never committed and never
+put in a release zip.
 
 Limits:
-- The fill is plausible texture, not design.
-- Some layers show small patches of misplaced tiles where contradictions
-  forced a cell.
+- The fill is plausible texture, not design. Large uniform layers continue
+  as flat areas; slopes beside a level repeat with their period.
+- Some busy layers (mission 5) need many copied blocks; they show seams.
+- Generating takes about 25 minutes once; layers with many patterns take
+  up to 3 minutes each.
 - Filled ground may look walkable, but it is not.
 - Black stays outside a layer's bounds.
 

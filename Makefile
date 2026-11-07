@@ -110,5 +110,6 @@ ghidra-ref:
 # The PC port (port/, build_port/mmz).
 port:
 	$(MAKE) -C port
+	$(MAKE) -C port fills
 
 .PHONY: lift harness check-lifted ghidra-ref port

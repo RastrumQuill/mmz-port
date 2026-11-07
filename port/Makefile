@@ -70,24 +70,22 @@ $(OUT) $(OUT)/lifted $(OUT)/src $(OUT)/pc $(OUT)/imgui:
 	mkdir -p $@
 
 .PHONY: clean dist fills
-# fills: the gap fill of every area the routes reach, worked out once into
-# fills.bin next to the program (port/view.c). The mission routes need a save
-# with every mission open (SAVE). Areas no route reaches are added on first entry.
-ROUTES ?= $(wildcard $(ROOT)/tools/emu/routes/*.txt $(ROOT)/build_lift/m*.txt)
-SAVE ?= $(ROOT)/build_lift/mmz1.sav
-fills: $(OUT)/$(EXE)
-	rm -f $(OUT)/fills.bin
-	for r in $(ROUTES); do grep -v ' shot ' $$r > $(OUT)/fills_route.txt; \
-	  MMZ_FILLS=$(OUT)/fills.bin $(OUT)/$(EXE) --headless --route $(OUT)/fills_route.txt --view x3 \
-	    --rom $(ROOT)/baserom.gba $(if $(wildcard $(SAVE)),--save $(SAVE)) >/dev/null || exit 1; done
-	rm -f $(OUT)/fills_route.txt
+# fills: the gap fill (port/view.c) of every area, worked out offline into
+# fills.bin next to the program by mmz --gen-fills. It needs the ROM; the
+# result is ROM-derived, so it is never committed or put in a zip (A9).
+# Without a ROM nothing happens: a release build makes it at first launch.
+JOBS ?= 4
+fills: $(if $(wildcard $(ROOT)/baserom.gba),$(OUT)/fills.bin)
+	$(if $(wildcard $(ROOT)/baserom.gba),,@echo "fills: no baserom.gba, skipped")
+# made again only when the solver (view.c) or the ROM changes
+$(OUT)/fills.bin: view.c $(ROOT)/baserom.gba | $(OUT)/$(EXE)
+	cd $(OUT) && ./$(EXE) --gen-fills $(JOBS) --rom $(ROOT)/baserom.gba
 # dist (with WINDOWS=1): a zip to hand out, without debug information
 dist: $(OUT)/$(EXE)
 	rm -rf $(OUT)/dist && mkdir -p $(OUT)/dist/mmz
 	$(if $(filter 1,$(WINDOWS)),x86_64-w64-mingw32-strip,strip) -o $(OUT)/dist/mmz/$(EXE) $(OUT)/$(EXE)
 	$(if $(filter 1,$(WINDOWS)),cp $(OUT)/SDL2.dll $(OUT)/dist/mmz/,)
 	cp README.md $(OUT)/dist/mmz/README.txt
-	$(if $(wildcard $(OUT)/fills.bin),cp $(OUT)/fills.bin $(OUT)/dist/mmz/,)
 	cp third_party/gamecontrollerdb/gamecontrollerdb.txt $(OUT)/dist/mmz/
 	cd $(OUT)/dist && zip -qr ../mmz-$(if $(filter 1,$(WINDOWS)),windows,linux).zip mmz
 

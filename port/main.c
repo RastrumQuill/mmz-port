@@ -22,6 +22,8 @@
 #else
 #include <sys/mman.h>
 #include <unistd.h>
+#include <sys/wait.h>
+#include <fcntl.h>
 #endif
 #ifdef __linux__
 #include <sys/personality.h>
@@ -203,6 +205,8 @@ static const char *find_rom(void) {
 #endif
 }
 
+u32 romCrc;   /* (the gap fill file is for one ROM) */
+static u32 png_crc(u32 c, const unsigned char *b, size_t n);
 static void load_rom(const char *path) {
 	FILE *f = fopen(path, "rb");
 	if (!f) fatal("Cannot open the ROM %s.", path);
@@ -212,6 +216,7 @@ static void load_rom(const char *path) {
 	u8 *rom = map_at(0x08000000, (romSize + 0xFFF) & ~0xFFFu);
 	if (fread(rom, 1, romSize, f) != romSize) fatal("Cannot read the ROM %s.", path);
 	fclose(f);
+	romCrc = ~png_crc(0xFFFFFFFFu, rom, romSize);
 }
 
 /* ---------------------------------------------------------------- saves */
@@ -884,11 +889,121 @@ void frontend_restart_warp(const char *bookmark) {
 	fprintf(stderr, "cannot start again for the warp\n");
 }
 
+
+/* ------------------------------------------------------------ fill generator
+ *
+ * mmz --gen-fills: the wide view's gap fill (view.c) is worked out here,
+ * offline, never while the game plays: every mission's checkpoints and the
+ * base are warped to by headless copies of the program (MMZ_FILLGEN=1, a few
+ * at a time), each adding the areas it enters to its own part file, and the
+ * parts are joined into fills.bin (next to mmz.ini, or MMZ_FILLS). The file
+ * holds tile numbers from the player's ROM, so it is made on the player's
+ * machine (a release build runs this once, at first start) and never shipped.
+ */
+const char *fill_patch_path(void);
+static int fills_ok(void) {
+	FILE *f = fopen(fill_patch_path(), "rb");
+	if (!f) return 0;
+	char m[8]; u32 c = 0;
+	int ok = fread(m, 1, 8, f) == 8 && !memcmp(m, "MMZFILL7", 8) && fread(&c, 4, 1, f) == 1 && c == romCrc;
+	fclose(f);
+	return ok;
+}
+static int gen_fills(const char *romPath, const char *config, int jobs) {
+	char self[1024];
+#ifdef _WIN32
+	GetModuleFileNameA(NULL, self, sizeof self);
+#else
+	ssize_t sl = readlink("/proc/self/exe", self, sizeof self - 1);
+	if (sl > 0) self[sl] = 0; else snprintf(self, sizeof self, "%s", mainArgv[0]);
+#endif
+	static char places[80][48];
+	int np = 0;
+	snprintf(places[np++], 48, "mmz:base");
+	for (int m = 1; m <= 17; m++) for (int c = 0; c < 4; c++) snprintf(places[np++], 48, "mmz:m%d a0 v0 cp%d", m, c);
+	const char *out = fill_patch_path();
+	char tmpl[1100];
+	if (jobs < 1) jobs = 1;
+	fprintf(stderr, "fills: working out the wide view's gap fill for %d places (%d at a time) into %s\n", np, jobs, out);
+	int next = 0, done = 0, running = 0;
+#ifdef _WIN32
+	intptr_t pid[16]; int slot[16];
+#else
+	pid_t pid[16]; int slot[16];
+#endif
+	while (done < np) {
+		while (running < jobs && next < np) {
+			char route[1100], part[1100];
+			snprintf(route, sizeof route, "%s.route%d", out, next);
+			snprintf(part, sizeof part, "%s.part%d", out, next);
+			remove(part);
+			FILE *r = fopen(route, "w");
+			if (!r) { fprintf(stderr, "fills: cannot write %s\n", route); return 1; }
+			fprintf(r, "0 warp %s\n10 cheat invincible 1\n10 cheat noenemies 1\n400 end\n", places[next]);
+			fclose(r);
+			const char *args[16]; int na = 0;
+			args[na++] = self; args[na++] = "--headless"; args[na++] = "--route"; args[na++] = route;
+			args[na++] = "--view"; args[na++] = "x3"; args[na++] = "--rom"; args[na++] = romPath;
+			if (config) { args[na++] = "--config"; args[na++] = config; }
+			args[na] = NULL;
+#ifdef _WIN32
+			char ev[1200]; snprintf(ev, sizeof ev, "MMZ_FILLS=%s", part); _putenv(ev); _putenv("MMZ_FILLGEN=1");
+			static char q[16][1200];   /* (arguments with spaces) */
+			for (int i = 0; i < na; i++) { snprintf(q[i], sizeof q[i], "\"%s\"", args[i]); args[i] = q[i]; }
+			intptr_t h = _spawnv(_P_NOWAIT, self, args);
+			_putenv("MMZ_FILLS="); _putenv("MMZ_FILLGEN=");
+			if (h == -1) { fprintf(stderr, "fills: cannot start %s\n", self); return 1; }
+#else
+			pid_t h = fork();
+			if (h < 0) { perror("fork"); return 1; }
+			if (!h) {
+				setenv("MMZ_FILLS", part, 1); setenv("MMZ_FILLGEN", "1", 1);
+				int dn = open("/dev/null", O_WRONLY); if (dn >= 0) { dup2(dn, 1); dup2(dn, 2); }
+				execv(self, (char *const *)args); _exit(127);
+			}
+#endif
+			pid[running] = h; slot[running] = next; running++; next++;
+		}
+		/* one finished */
+#ifdef _WIN32
+		int st_; _cwait(&st_, pid[0], 0); int w = 0;
+#else
+		int st_; pid_t wp = wait(&st_); int w = 0;
+		while (w < running && pid[w] != wp) w++;
+		if (w == running) continue;
+#endif
+		char route[1100]; snprintf(route, sizeof route, "%s.route%d", out, slot[w]); remove(route);
+		pid[w] = pid[running - 1]; slot[w] = slot[running - 1]; running--; done++;
+		fprintf(stderr, "fills: %d/%d\n", done, np);
+		char title[64]; snprintf(title, sizeof title, "Mega Man Zero: preparing the wide view %d/%d", done, np);
+		if (SDL_WasInit(SDL_INIT_VIDEO) && SDL_GL_GetCurrentWindow()) SDL_SetWindowTitle(SDL_GL_GetCurrentWindow(), title);
+	}
+	/* join the parts */
+	snprintf(tmpl, sizeof tmpl, "%s.new", out);
+	FILE *o = fopen(tmpl, "wb");
+	if (!o) { fprintf(stderr, "fills: cannot write %s\n", tmpl); return 1; }
+	fwrite("MMZFILL7", 1, 8, o); fwrite(&romCrc, 4, 1, o);
+	long recs = 0;
+	for (int i = 0; i < np; i++) {
+		char part[1100]; snprintf(part, sizeof part, "%s.part%d", out, i);
+		FILE *f = fopen(part, "rb");
+		if (!f) continue;
+		char m[12];
+		if (fread(m, 1, 12, f) == 12) { char b[65536]; size_t k; while ((k = fread(b, 1, sizeof b, f)) > 0) fwrite(b, 1, k, o); recs++; }
+		fclose(f); remove(part);
+	}
+	fclose(o);
+	remove(out);
+	if (rename(tmpl, out)) { fprintf(stderr, "fills: cannot write %s\n", out); return 1; }
+	fprintf(stderr, "fills: %s written (%ld places had areas to fill)\n", out, recs);
+	return 0;
+}
+
 int main(int argc, char **argv) {
 	mainArgv = argv;
 	report_install_crash_handler();
 	const char *romArg = NULL, *configArg = NULL, *viewArg = NULL, *warpArg = NULL;
-	int scale = 0, cpuArg = 0;
+	int scale = 0, cpuArg = 0, genFills = 0, genJobs = 0;
 	savePath = NULL;
 	for (int i = 1; i < argc; i++) {
 		if (!strcmp(argv[i], "--rom") && i + 1 < argc) romArg = argv[++i];
@@ -896,6 +1011,7 @@ int main(int argc, char **argv) {
 		else if (!strcmp(argv[i], "--config") && i + 1 < argc) configArg = argv[++i];
 		else if (!strcmp(argv[i], "--scale") && i + 1 < argc) scale = atoi(argv[++i]);
 		else if (!strcmp(argv[i], "--headless")) headless = 1;
+		else if (!strcmp(argv[i], "--gen-fills")) { genFills = 1; if (i + 1 < argc && argv[i + 1][0] >= '1' && argv[i + 1][0] <= '9') genJobs = atoi(argv[++i]); }
 		else if (!strcmp(argv[i], "--skip-intro")) skipIntro = 1;
 		else if (!strcmp(argv[i], "--warp") && i + 1 < argc) warpArg = argv[++i];
 		else if (!strcmp(argv[i], "--pause-at") && i + 1 < argc) debug.pauseAt = atol(argv[++i]);
@@ -915,7 +1031,8 @@ int main(int argc, char **argv) {
 		else {
 			fprintf(stderr, "usage: mmz [--rom FILE] [--save FILE] [--config FILE] [--scale N] [--view MODE] [--cpu-speed PERCENT] [--skip-intro]\n"
 			                "           [--warp \"mmz:m9 a2 cp1 x1234 y567\"] [--pause-at FRAME]\n"
-			                "       mmz --headless --route FILE [--wav FILE] [--rom FILE] [--save FILE]\n");
+			                "       mmz --headless --route FILE [--wav FILE] [--rom FILE] [--save FILE]\n"
+			                "       mmz --gen-fills [JOBS] [--rom FILE] [--config FILE]   (the wide view's gap fill, offline)\n");
 			return 1;
 		}
 	}
@@ -957,6 +1074,12 @@ int main(int argc, char **argv) {
 	map_at(0x07000000, 0x1000);    /* OAM */
 	map_at(0x0E000000, 0x8000);    /* cartridge SRAM */
 	load_rom(romPath);
+	if (genFills) return gen_fills(romPath, configArg, genJobs ? genJobs : 4);
+	/* a release build has no fill file: worked out once with this ROM, before play (never during it) */
+	if (!headless && !route && settings.fillGaps == 1 && !getenv("MMZ_FILLGEN") && !fills_ok()) {
+		fprintf(stderr, "fills: no gap fill for this ROM yet: working it out once (a few minutes)\n");
+		gen_fills(romPath, configArg, 4);
+	}
 	save_load();
 	report_boot_save(SRAM);
 	if (!headless) sdl_init(settings.scale > 0 ? settings.scale : 3);
