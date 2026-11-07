@@ -2164,7 +2164,7 @@ void view_fit_apply(int *w, int *h) {
 	/* the crop: the region the GBA camera can show is shorter / narrower than the view */
 	if (rgOn && view_active && tw > SCREEN_W && th > SCREEN_H) {
 		float s = 1, rw = rgR - rgL, rh = rgB - rgT;
-		if (rw < tw * s) s = rw / tw;
+		(void)rw;   /* the height decides: the view stays the window's shape, so a narrow region still fills it sideways */
 		if (rh < th * s) s = rh / th;
 		float minw = SCREEN_W > SCREEN_H * (float)tw / th ? SCREEN_W : SCREEN_H * (float)tw / th;
 		if (s < 1) {
@@ -2176,7 +2176,7 @@ void view_fit_apply(int *w, int *h) {
 	}
 	if (view_fit_w > 0 && (view_fit_w < tw || view_fit_h < th) && tw > SCREEN_W && th > SCREEN_H) {
 		float ew = tw;
-		if (ew > view_fit_w) ew = view_fit_w;
+		/* fit the room's height; the width follows the window's shape */
 		if (ew > view_fit_h * (float)tw / th) ew = view_fit_h * (float)tw / th;
 		float minw = SCREEN_W > SCREEN_H * (float)tw / th ? SCREEN_W : SCREEN_H * (float)tw / th;
 		/* not down to the GBA's size: then the wide view stops (and with it
