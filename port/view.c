@@ -425,6 +425,8 @@ static void find_area(void) {
  * were empty: the gap fill or what is behind shows). Off: MMZ_NOSHOWN=1.
  */
 static u8 *shownMap;              /* per metatile of the area: 1 the camera can show it */
+static u8 zeroChunk[128][128];       /* chunks with a metatile Zero can reach (shown_build) */
+static u8 *solidMap;              /* [y][x] of the shown map: 1 solid metatile, 2 open and reached, 0 open not reached (kept_build) */
 static int shownW, shownH, shownOn;
 static u32 shownKey = ~0u;
 extern long frameCount;
@@ -561,6 +563,20 @@ static void shown_build(void) {
 					if (!(*o & 3)) *o = metatile_open(areaLeft + x * 16, areaTop + y * 16) ? 1 : 2;
 					if ((*o & 3) == 2) shownMap[y * shownW + x] = 1;
 				}
+		memset(zeroChunk, 0, sizeof zeroChunk);
+		for (size_t i = 0; i < n; i++)
+			if (open[i] & 4) {
+				int gx = (areaLeft + (int)(i % shownW) * 16) / 240, gy = (areaTop + (int)(i / shownW) * 16) / 160;
+				if (gx >= 0 && gy >= 0 && gx < 128 && gy < 128) zeroChunk[gy][gx] = 1;
+			}
+		/* every metatile's collision, for the kept map (kept_build) */
+		free(solidMap);
+		solidMap = malloc(n);
+		if (solidMap)
+			for (size_t i = 0; i < n; i++) {
+				u8 o = open[i] & 3;
+				solidMap[i] = o ? (o == 2 ? 1 : open[i] & 4 ? 2 : 0) : !metatile_open(areaLeft + (int)(i % shownW) * 16, areaTop + (int)(i / shownW) * 16);
+			}
 		*numBlocks = sBlocks;
 		cpu = saved;
 		lift_pc = sPc; lift_tail_lr = sT1; lift_tail_lr2 = sT2; lift_ret = sRet; lift_cycles = sCyc; lift_tail = sTail; lift_void = sVoid;
@@ -598,6 +614,84 @@ static int shown_at(s32 gx, s32 gy) {
 	return shownMap[y * shownW + x];
 }
 
+/* ------------------------------------------------------------ kept
+ *
+ * Where the camera never shows a cell, its art is drawn only where it goes
+ * on from what is shown (a wall or pipes past the screen's reach, a train's
+ * body): a flood from the shown cells through never-shown cells whose chunk
+ * is drawn with its own sets, at most KEEP_DIST metatiles out and through
+ * at most KEEP_SOLID solid metatiles in a row, never from a solid metatile
+ * into open space (a room behind a wall or floor), into open space only
+ * where Zero can get to, and only in chunks
+ * with a metatile Zero can reach. A room sealed in the ground
+ * (the tank room under mission 9's sand) stays black / filled. Each frame,
+ * after chunk_source()'s chunks are known.
+ */
+#define KEEP_DIST 15
+#define KEEP_SOLID 3
+
+static u8 *keptMap;    /* [y][x]: 1 shown or drawn */
+static int chunk_own(int gx, int gy);
+static void kept_build(void) {
+	free(keptMap); keptMap = NULL;
+	if (!shownOn || !shownMap || !solidMap || hideUnshown) return;
+	size_t n = (size_t)shownW * shownH;
+	keptMap = calloc(n, 1);
+	u8 *run = malloc(n), *dist = malloc(n);
+	int *q = malloc(n * 4 * sizeof *q);
+	signed char *own = malloc((size_t)128 * 128);
+	if (!keptMap || !run || !dist || !q || !own) { free(keptMap); keptMap = NULL; free(run); free(dist); free(q); free(own); return; }
+	memset(run, 0xFF, n); memset(own, -1, (size_t)128 * 128);
+
+	size_t h = 0, t = 0, cap = n * 4;
+	for (size_t i = 0; i < n; i++)
+		if (shownMap[i]) {
+			/* (a shown cell of a chunk the camera does not reach, that Zero
+			   cannot be in, e.g. the row past the GBA screen's edge over a
+			   sealed room: as before, not drawn) */
+			int gx = (areaLeft + (int)(i % shownW) * 16) / 240, gy = (areaTop + (int)(i / shownW) * 16) / 160;
+			if (gx >= 0 && gy >= 0 && gx < 128 && gy < 128 && !reach[gy][gx] && !zeroChunk[gy][gx] &&
+			    !(gx >= gbaCx0 && gx <= gbaCx1 && gy >= gbaCy0 && gy <= gbaCy1)) continue;
+			keptMap[i] = 1; run[i] = 0; dist[i] = 0; q[t++] = (int)i;
+		}
+	while (h < t) {
+		int i = q[h++], x = i % shownW, y = i / shownW;
+		if (dist[i] >= KEEP_DIST) continue;
+		static const int dx[4] = { 1, -1, 0, 0 }, dy[4] = { 0, 0, 1, -1 };
+		for (int d = 0; d < 4; d++) {
+			int nx = x + dx[d], ny = y + dy[d];
+			if (nx < 0 || ny < 0 || nx >= shownW || ny >= shownH) continue;
+			int j = ny * shownW + nx;
+			if (shownMap[j]) continue;
+			int gx = (areaLeft + nx * 16) / 240, gy = (areaTop + ny * 16) / 160;
+			if (gx < 0 || gy < 0 || gx >= 128 || gy >= 128) continue;
+			signed char *o = &own[gy * 128 + gx];
+			if (*o < 0) *o = chunk_own(gx, gy);
+			if (!*o) continue;
+			/* (only in a chunk Zero can be in: another chunk the chunk levels
+			   let the camera reach is a room of its own, e.g. sealed under the
+			   ground) */
+			if (!zeroChunk[gy][gx]) continue;
+			/* (open space past a solid metatile is another room: the shown
+			   flood would have got there if it were this one) */
+			if (solidMap[i] == 1 && solidMap[j] != 1) continue;
+			/* (open space Zero cannot get to is not this room either) */
+			if (solidMap[j] == 0) continue;
+			int r = solidMap[j] == 1 ? run[i] + 1 : 0;
+			if (r > KEEP_SOLID || r >= run[j]) continue;
+			run[j] = r; dist[j] = dist[i] + 1; keptMap[j] = 1;
+			if (t < cap) q[t++] = j;
+		}
+	}
+	free(run); free(dist); free(q); free(own);
+}
+static int kept_at(s32 gx, s32 gy) {
+	if (!keptMap) return shown_at(gx, gy);
+	s32 x = (gx - areaLeft) >> 4, y = (gy - areaTop) >> 4;
+	if (x < 0 || y < 0 || x >= shownW || y >= shownH) return 0;
+	return keptMap[y * shownW + x];
+}
+
 /* is the chunk drawn with its own sets (chunk_source(), and off the GBA
    screen chunkOff)? */
 static int chunk_own(int gx, int gy) {
@@ -608,8 +702,8 @@ static int chunk_own(int gx, int gy) {
 /* a metatile of the area in the crop: shown, or drawn with its own art */
 static int cell_kept(int x, int y) {
 	if (shownMap[y * shownW + x]) return 1;
-	if (hideUnshown) return 0;
-	return chunk_own((areaLeft + x * 16) / 240, (areaTop + y * 16) / 160);
+	if (hideUnshown || !keptMap) return 0;
+	return keptMap[y * shownW + x];
 }
 
 /* the part of the shown map around a point, global pixels: the rows
@@ -2289,7 +2383,7 @@ static int level_entry(const struct Layer *L, s32 wx, s32 wy, u16 *out) {
 	/* (where the GBA camera never shows it, the level is drawn all the same:
 	   it is the area's own art, with its own sets; only what cannot be drawn
 	   right, above, is left to the fill / black) */
-	if (hideUnshown && !shown_at(wx + stageX, wy + stageY)) return fill_entry(L, wx, wy, out);
+	if (!(hideUnshown ? shown_at(wx + stageX, wy + stageY) : kept_at(wx + stageX, wy + stageY))) return fill_entry(L, wx, wy, out);
 	u16 mt = L->chunks[cid * 150 + ((wy % 160) >> 4) * 15 + ((wx % 240) >> 4)];
 	*out = L->tiledata[mt * 4 + ((wy >> 3) & 1) * 2 + ((wx >> 3) & 1)];
 	return 1;
@@ -3158,6 +3252,7 @@ int view_render(void) {
 	}
 	gbaCx0 = (x0 + stageX) / 240; gbaCx1 = (x0 + stageX + SCREEN_W - 1) / 240;
 	gbaCy0 = (y0 + stageY) / 160; gbaCy1 = (y0 + stageY + SCREEN_H - 1) / 160;
+	kept_build();
 	static int dbg = -1;
 	if (dbg < 0) dbg = getenv("VIEWDEBUG") != NULL;
 	if (dbg) fprintf(stderr, "F%ld cam %d,%d layer %d,%d stage %d,%d area %d..%d x %d..%d (area %d) x0 %d y0 %d\n",
