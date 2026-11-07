@@ -38,6 +38,13 @@ static Uint32 sRebindTime;                      // when the controller binding s
 static bool sFocusSettings;
 static bool sTabHeld;
 static const char *sTestDir;   // --ui-test
+static bool sTestOpenAll;      // --ui-test: the Debug window's sections open
+static SDL_Rect sGameDst;      // where the game picture is in the window
+static int sGameTexW, sGameTexH;
+static bool sPlaceMode;        // Debug: click the game to put Zero there
+extern "C" char dbg_check_result[400];
+extern "C" void dbg_run_check(int which);
+static bool screen_to_world(float sx, float sy, int *wx, int *wy);
 // the report window (F12, or after a crash on the last run)
 static bool sShowReport, sReportFocus;
 extern "C" int ui_no_startup_dialogs;   // main.c: scripted runs (--route) do not stop for the crash dialog
@@ -254,6 +261,15 @@ extern "C" int ui_event(const SDL_Event *e) {
 		sTabHeld = false;
 		debug.fastForward = 0;
 	}
+	if (sPlaceMode && sShowDebug && e->type == SDL_MOUSEBUTTONDOWN && e->button.button == SDL_BUTTON_LEFT &&
+	    !ImGui::GetIO().WantCaptureMouse) {
+		int x, y;
+		if (screen_to_world((float)e->button.x, (float)e->button.y, &x, &y)) {
+			if (teleport_to(x, y)) toast("Zero moved to %d, %d", x, y);
+			else toast("Cannot put Zero at %d, %d: not open or not reachable", x, y);
+		}
+		return 1;
+	}
 	ImGui_ImplSDL2_ProcessEvent(e);
 	return menus_open() && (ImGui::GetIO().WantCaptureKeyboard || ImGui::GetIO().WantCaptureMouse);
 }
@@ -454,6 +470,151 @@ static const char *const kMissionNames[] = {
 	"10", "11", "12", "13", "14", "15", "16: Neo Arcadia Core", "17",
 };
 
+static void tip(const char *t) {
+	if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) ImGui::SetTooltip("%s", t);
+}
+static bool opt(const char *label, int *v, const char *t, bool view = false) {
+	bool b = *v != 0;
+	bool ch = ImGui::Checkbox(label, &b);
+	if (ch) { *v = b; if (view) dbg_changed(); }
+	tip(t);
+	return ch;
+}
+static bool header(const char *label) {
+	if (sTestOpenAll) ImGui::SetNextItemOpen(true);
+	return ImGui::CollapsingHeader(label);
+}
+
+// the game picture's pixel under a window point -> global (world) pixels
+static bool screen_to_world(float sx, float sy, int *wx, int *wy) {
+	if (sGameDst.w <= 0 || sGameTexW <= 0) return false;
+	float px = (sx - sGameDst.x) * sGameTexW / sGameDst.w, py = (sy - sGameDst.y) * sGameTexH / sGameDst.h;
+	if (px < 0 || py < 0 || px >= sGameTexW || py >= sGameTexH) return false;
+	int gx, gy, ox = 0, oy = 0;
+	if (view_active) { view_gba_global(&gx, &gy); view_gba_origin(&ox, &oy); }
+	else { struct Location l; loc_now(&l); gx = l.camX - 120; gy = l.camY - 80; }
+	*wx = gx + (int)px - ox; *wy = gy + (int)py - oy;
+	return true;
+}
+static void world_to_screen(float wx, float wy, float *sx, float *sy) {
+	int gx, gy, ox = 0, oy = 0;
+	if (view_active) { view_gba_global(&gx, &gy); view_gba_origin(&ox, &oy); }
+	else { struct Location l; loc_now(&l); gx = l.camX - 120; gy = l.camY - 80; }
+	*sx = sGameDst.x + (wx - gx + ox) * sGameDst.w / (float)sGameTexW;
+	*sy = sGameDst.y + (wy - gy + oy) * sGameDst.h / (float)sGameTexH;
+}
+
+static const char *const kCheckpoints[] = { "Checkpoint 0 (start)", "Checkpoint 1", "Checkpoint 2", "Checkpoint 3" };
+
+static void debug_options() {
+	if (header("Cheats")) {
+		opt("Invincible", &cheat_invincible, "Zero cannot be hurt.");
+		ImGui::SameLine();
+		opt("No enemies", &cheat_no_enemies, "Every enemy dies as it appears (as when a boss is beaten).");
+		ImGui::SameLine();
+		opt("Infinite life", &dbgo.infLife, "Zero's life is kept at the most it has been since this went on.");
+	}
+	if (header("Teleport")) {
+		static int mission = 1, cp = 0;
+		ImGui::SetNextItemWidth(260);
+		ImGui::Combo("##tpmission", &mission, kMissionNames, IM_ARRAYSIZE(kMissionNames));
+		tip("The mission to go to (0: the base).");
+		ImGui::SameLine();
+		ImGui::SetNextItemWidth(170);
+		ImGui::Combo("##tpcp", &cp, kCheckpoints, IM_ARRAYSIZE(kCheckpoints));
+		tip("The checkpoint in that mission to start from.");
+		ImGui::SameLine();
+		if (ImGui::Button("Go##tp")) {
+			char b[64];
+			if (mission == 0) snprintf(b, sizeof b, "mmz:base");
+			else snprintf(b, sizeof b, "mmz:m%d cp%d", mission, cp);
+			frontend_restart_warp(b);
+		}
+		tip("Starts the game again and plays to that mission and checkpoint.");
+		ImGui::Checkbox("Click to place Zero", &sPlaceMode);
+		tip("Click the game picture: Zero moves there if the spot is open and reachable (green marker); red: not allowed.");
+		static int tx, ty;
+		ImGui::SameLine();
+		ImGui::SetNextItemWidth(160);
+		ImGui::InputInt2("##tpxy", &tx);
+		tip("A point in world pixels (as the position overlay shows Zero's).");
+		ImGui::SameLine();
+		bool safe = teleport_safe(tx, ty);
+		ImGui::BeginDisabled(!safe);
+		if (ImGui::Button("Move Zero")) teleport_to(tx, ty);
+		ImGui::EndDisabled();
+		tip("Moves Zero to that point; only open, reached cells of the shown map are allowed.");
+		ImGui::SameLine();
+		if (ImGui::SmallButton("Here")) { struct Location l; loc_now(&l); tx = l.x; ty = l.y; }
+		tip("Fills in Zero's position now.");
+		ImGui::SameLine();
+		if (ImGui::SmallButton("Reload bookmarks")) bookmarks_load();
+		tip("Reads bookmarks.txt again (after editing it by hand).");
+	}
+	if (header("Wide view")) {
+		opt("No crop", &dbgo.noCrop, "Draw the whole wide view, also where the camera never goes (MMZ_NOCROP).", true);
+		ImGui::SameLine();
+		bool cu = settings.cropUnreach;
+		if (ImGui::Checkbox("Crop unreachable (setting)", &cu)) { settings.cropUnreach = cu; dbg_changed(); }
+		tip("The setting: black out where the camera never goes.");
+		opt("No shown map", &dbgo.noShown, "Count every cell as one the camera can show (MMZ_NOSHOWN).", true);
+		ImGui::SameLine();
+		opt("Hide never-shown art", &dbgo.hideUnshown, "Draw level art only where the camera can show it (MMZ_HIDEUNSHOWN).", true);
+		static const char *const fills[] = { "Black", "WFC (fills.bin)", "Column", "Tile WFC (compare)" };
+		int fg = settings.fillGaps;
+		ImGui::SetNextItemWidth(160);
+		if (ImGui::Combo("Gap fill", &fg, fills, IM_ARRAYSIZE(fills))) { settings.fillGaps = fg; dbg_changed(); }
+		tip("What goes where the level has no art: black, the worked-out fill, or the column copy.");
+		ImGui::SameLine();
+		opt("Hide fill", &dbgo.fillHide, "Work the gap fill out but do not draw it (MMZ_FILLHIDE).", true);
+		ImGui::SetNextItemWidth(100);
+		if (ImGui::InputInt("Fill only BG (-1 all)", &dbgo.fillOnly)) { if (dbgo.fillOnly < -1) dbgo.fillOnly = -1; if (dbgo.fillOnly > 3) dbgo.fillOnly = 3; dbg_changed(); }
+		tip("Draw only this background's gap fill (MMZ_FILLONLY).");
+		bool fr = settings.fitRooms, he = settings.hudEdges;
+		if (ImGui::Checkbox("Fit small rooms", &fr)) { settings.fitRooms = fr; dbg_changed(); }
+		tip("The setting: zoom the view in to fit rooms smaller than it.");
+		ImGui::SameLine();
+		if (ImGui::Checkbox("HUD at edges", &he)) settings.hudEdges = he;
+		tip("The setting: the HUD at the screen's edges, not the GBA screen's.");
+	}
+	if (header("Overlays")) {
+		opt("Shown map", &dbgo.ovShown, "Tint 16px cells: green shown by the camera, yellow drawn from beyond it, red neither; dots where Zero can reach.");
+		ImGui::SameLine();
+		opt("Gap fill", &dbgo.ovFill, "Magenta over pixels drawn by the gap fill.");
+		ImGui::SameLine();
+		opt("Chunk sources", &dbgo.ovChunk, "Outline each 240x160 chunk with where its art comes from (video memory, a copy, none).");
+		opt("Crop rectangle", &dbgo.ovCrop, "Outline the region left after cropping where the camera never goes.");
+		ImGui::SameLine();
+		opt("Cell grid", &dbgo.ovGrid, "A 16-pixel metatile grid.");
+	}
+	if (header("Logging (stderr / mmz.log)")) {
+		opt("View", &dbgo.logView, "Each frame: camera, layer, stage and area numbers (VIEWDEBUG).");
+		ImGui::SameLine(); opt("Crop", &dbgo.logCrop, "Each frame: the crop region (CROPDEBUG).");
+		ImGui::SameLine(); opt("Chunks", &dbgo.logChunk, "With View: each chunk's source (CHUNKDEBUG).");
+		ImGui::SameLine(); opt("Fit", &dbgo.logFit, "Every 5 s: the fitted view size (FITDEBUG).");
+		opt("Fill", &dbgo.logFill, "Gap fill timings and counts (MMZ_FILLDEBUG).", true);
+		ImGui::SameLine(); opt("Fill map", &dbgo.logFillMap, "Gap fill: a text map of the result (MMZ_FILLMAP).", true);
+		ImGui::SameLine(); opt("Overwrite map", &dbgo.logOwMap, "Gap fill: a text map of the solver's cells (MMZ_OWMAP).", true);
+		opt("Shown map", &dbgo.logShown, "When the shown map is made: a text map around Zero (SHOWNDEBUG).", true);
+		ImGui::SameLine(); opt("Line effects", &dbgo.logFx, "Per-line effects the view replays (FXDEBUG).");
+		ImGui::SameLine(); opt("Sprites", &dbgo.logSprite, "Each sprite draw routine, once (SPRITEDEBUG).");
+		ImGui::SameLine(); opt("Lag", &dbgo.logLag, "Routes: game frames per line (LAGDEBUG).");
+	}
+	if (header("Checks")) {
+		if (ImGui::Button("View check")) dbg_run_check(0);
+		tip("Compare the wide view with the GBA picture here; writes debug/viewcheck_FRAME.png.");
+		ImGui::SameLine();
+		if (ImGui::Button("View probe")) dbg_run_check(1);
+		tip("Move the GBA camera over the whole view and compare; writes debug/viewprobe_*.png. Moves the camera for a while.");
+		ImGui::SameLine();
+		if (ImGui::Button("View chunks")) dbg_run_check(2);
+		tip("Check where each chunk of the view comes from; details in the log.");
+		ImGui::PushTextWrapPos(ImGui::GetFontSize() * 40);
+		ImGui::TextDisabled("%s", dbg_check_result[0] ? dbg_check_result : "(no check run yet)");
+		ImGui::PopTextWrapPos();
+	}
+}
+
 static void debug_window() {
 	ImGui::SetNextWindowPos(ImVec2(10, 10), ImGuiCond_FirstUseEver);
 	if (!ImGui::Begin("Debug (F2)", &sShowDebug, ImGuiWindowFlags_AlwaysAutoResize)) {
@@ -488,12 +649,11 @@ static void debug_window() {
 	bool pa = debug.pauseAt != 0;
 	if (ImGui::Checkbox("Pause at frame", &pa)) debug.pauseAt = pa ? pauseAt : 0;
 	if (pa) debug.pauseAt = pauseAt;
-	bool ov = debug.overlay, inv = cheat_invincible, ne = cheat_no_enemies;
+	bool ov = debug.overlay;
 	if (ImGui::Checkbox("Position overlay", &ov)) debug.overlay = ov;
-	ImGui::SameLine();
-	if (ImGui::Checkbox("Invincible", &inv)) cheat_invincible = inv;
-	ImGui::SameLine();
-	if (ImGui::Checkbox("No enemies", &ne)) cheat_no_enemies = ne;
+	tip("Frame, mission, area, checkpoint and Zero's position drawn at the bottom.");
+
+	debug_options();
 
 	ImGui::SeparatorText("Bookmarks (F5 saves this place)");
 	static char paste[200];
@@ -804,15 +964,23 @@ static void test_step() {
 	if (!sTestDir) return;
 	char path[600];
 	int shot = 0;
+	// (frames from 1200, or, with --warp, from a second after the warp ends)
+	static long base = -1;
+	if (warp_active()) { base = -1; return; }
+	if (base < 0) base = sFrame < 1200 ? 1200 : sFrame + 60;
+	long F = sFrame - base;
 	// (windows that size themselves are hidden on their first frame)
-	if (sFrame == 1203) shot = 1;
-	if (sFrame == 1204) { sShowSettings = false; sShowDebug = sShowFreezes = sShowSearch = sShowMemory = sShowPalette = true; }
-	if (sFrame == 1210) shot = 2;
-	if (sFrame == 1211) { sShowFreezes = sShowSearch = sShowMemory = sShowPalette = false; sShowTiles = sShowSprites = sShowIo = true; }
-	if (sFrame == 1216) shot = 3;
-	if (sFrame == 1217) sShowTiles = sShowSprites = sShowIo = false;
-	if (sFrame == 1222) shot = 4;   // the Debug window alone
-	if (sFrame == 1223) exit(0);
+	if (F == 0) sShowSettings = true;
+	if (F == 3) shot = 1;
+	if (F == 4) { sShowSettings = false; sShowDebug = sShowFreezes = sShowSearch = sShowMemory = sShowPalette = true; }
+	if (F == 10) shot = 2;
+	if (F == 11) { sShowFreezes = sShowSearch = sShowMemory = sShowPalette = false; sShowTiles = sShowSprites = sShowIo = true; }
+	if (F == 16) shot = 3;
+	if (F == 17) sShowTiles = sShowSprites = sShowIo = false;
+	if (F == 22) shot = 4;   // the Debug window alone
+	if (F == 23) { sTestOpenAll = true; dbgo.ovShown = dbgo.ovChunk = dbgo.ovCrop = 1; }
+	if (F == 28) shot = 5;   // the Debug window, every section open, overlays on
+	if (F == 29) exit(0);
 	if (!shot) return;
 	int w, h;
 	SDL_GetRendererOutputSize(sRenderer, &w, &h);
@@ -872,6 +1040,64 @@ static void report_window() {
 
 // over the game: the frame and where Zero is (Debug window, Position
 // overlay), and the F5 message
+static void debug_overlays() {
+	ImDrawList *dl = ImGui::GetBackgroundDrawList();
+	int wx0, wy0, wx1, wy1;
+	if (!screen_to_world(sGameDst.x, sGameDst.y, &wx0, &wy0) ||
+	    !screen_to_world(sGameDst.x + sGameDst.w - 1, sGameDst.y + sGameDst.h - 1, &wx1, &wy1)) return;
+	dl->PushClipRect(ImVec2(sGameDst.x, sGameDst.y), ImVec2(sGameDst.x + sGameDst.w, sGameDst.y + sGameDst.h));
+	float sx, sy, ex, ey;
+	if (dbgo.ovShown || dbgo.ovGrid)
+		for (int y = wy0 & ~15; y <= wy1; y += 16)
+			for (int x = wx0 & ~15; x <= wx1; x += 16) {
+				world_to_screen(x, y, &sx, &sy); world_to_screen(x + 16, y + 16, &ex, &ey);
+				if (dbgo.ovShown) {
+					int c = view_cell(x, y);
+					if (c >= 0) {
+						ImU32 col = c & 1 ? IM_COL32(0, 255, 0, 45) : c & 2 ? IM_COL32(255, 220, 0, 55) : IM_COL32(255, 0, 0, 60);
+						dl->AddRectFilled(ImVec2(sx, sy), ImVec2(ex, ey), col);
+						if (c & 8) dl->AddCircleFilled(ImVec2((sx + ex) / 2, (sy + ey) / 2), 1.5f, IM_COL32(255, 255, 255, 160));
+					}
+				}
+				if (dbgo.ovGrid) dl->AddRect(ImVec2(sx, sy), ImVec2(ex + 1, ey + 1), IM_COL32(255, 255, 255, 40));
+			}
+	if (dbgo.ovFill && view_active && view_layers && sGameTexW == view_w && sGameTexH == view_h) {
+		float kx = sGameDst.w / (float)view_w, ky = sGameDst.h / (float)view_h;
+		for (int y = 0; y < view_h; y += 4)
+			for (int x = 0; x < view_w; x += 4)
+				if (view_layers[(size_t)y * view_w + x] & 8)
+					dl->AddRectFilled(ImVec2(sGameDst.x + x * kx, sGameDst.y + y * ky), ImVec2(sGameDst.x + (x + 4) * kx, sGameDst.y + (y + 4) * ky), IM_COL32(255, 0, 255, 70));
+	}
+	if (dbgo.ovChunk)
+		for (int cy = wy0 / 160; cy <= wy1 / 160; cy++)
+			for (int cx = wx0 / 240; cx <= wx1 / 240; cx++) {
+				int src = view_chunk_src(cx, cy);
+				world_to_screen(cx * 240, cy * 160, &sx, &sy); world_to_screen(cx * 240 + 240, cy * 160 + 160, &ex, &ey);
+				ImU32 col = src == 0 ? IM_COL32(0, 200, 255, 200) : src > 0 ? IM_COL32(255, 160, 0, 200) : IM_COL32(160, 160, 160, 160);
+				dl->AddRect(ImVec2(sx + 1, sy + 1), ImVec2(ex - 1, ey - 1), col, 0, 0, 2);
+				char t[40];
+				snprintf(t, sizeof t, "%d,%d %s", cx, cy, src == 0 ? "vram" : src > 0 ? "copy" : src == -1 ? "none" : "?");
+				if (src > 0) snprintf(t, sizeof t, "%d,%d copy %d", cx, cy, src);
+				dl->AddText(ImVec2(sx + 4, sy + 3), col, t);
+			}
+	float l, t, r, b;
+	if (dbgo.ovCrop && view_crop_rect(&l, &t, &r, &b)) {
+		world_to_screen(l, t, &sx, &sy); world_to_screen(r, b, &ex, &ey);
+		dl->AddRect(ImVec2(sx, sy), ImVec2(ex, ey), IM_COL32(255, 64, 64, 230), 0, 0, 2);
+	}
+	if (sPlaceMode && sShowDebug && !ImGui::GetIO().WantCaptureMouse) {
+		ImVec2 m = ImGui::GetIO().MousePos;
+		int x, y;
+		if (screen_to_world(m.x, m.y, &x, &y)) {
+			bool ok = teleport_safe(x, y);
+			dl->AddCircle(m, 8, ok ? IM_COL32(0, 255, 0, 255) : IM_COL32(255, 0, 0, 255), 0, 2);
+		}
+	}
+	dl->PopClipRect();
+}
+
+static bool overlays_on() { return dbgo.ovShown || dbgo.ovFill || dbgo.ovChunk || dbgo.ovCrop || dbgo.ovGrid || (sPlaceMode && sShowDebug); }
+
 static void overlay(bool toastOn) {
 	ImDrawList *dl = ImGui::GetForegroundDrawList();
 	char line[300];
@@ -907,12 +1133,13 @@ extern "C" void ui_present(SDL_Texture *game) {
 	SDL_SetRenderDrawColor(sRenderer, 0, 0, 0, 255);
 	SDL_RenderClear(sRenderer);
 	SDL_RenderCopy(sRenderer, game, nullptr, &dst);
+	sGameDst = dst; sGameTexW = tw; sGameTexH = th;
 
-	if (sTestDir && sFrame == 1200) sShowSettings = true;
+
 	if (sRebindPad >= 0 && SDL_GetTicks() - sRebindTime > 5000) sRebindPad = -1;   // nothing pressed
 	bool wasOpen = menus_open();
 	bool toastOn = sToast[0] && SDL_GetTicks() < sToastUntil;
-	if (wasOpen || debug.overlay || toastOn) {
+	if (wasOpen || debug.overlay || toastOn || overlays_on()) {
 		// while a controller binding waits, the controller does not move around the menu
 		ImGuiIO &io = ImGui::GetIO();
 		if (sRebindPad >= 0) io.ConfigFlags &= ~ImGuiConfigFlags_NavEnableGamepad;
@@ -921,6 +1148,7 @@ extern "C" void ui_present(SDL_Texture *game) {
 		ImGui_ImplSDL2_NewFrame();
 		ImGui::GetIO().FontGlobalScale = wh >= 1400 ? 2.0f : wh >= 1000 ? 1.5f : 1.0f;
 		ImGui::NewFrame();
+		if (overlays_on()) debug_overlays();
 		if (debug.overlay || toastOn) overlay(toastOn);
 		if (sShowSettings) settings_window();
 		if (sShowReport) report_window();
@@ -936,8 +1164,8 @@ extern "C" void ui_present(SDL_Texture *game) {
 		}
 		ImGui::Render();
 		ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData(), sRenderer);
-		test_step();
 		if (wasOpen && !menus_open()) settings_save();
 	}
+	test_step();
 	SDL_RenderPresent(sRenderer);
 }

@@ -18,6 +18,33 @@ struct DebugState {
 };
 extern struct DebugState debug;
 
+/* debug options (Debug window, F2): each starts from its environment
+   variable (headless runs and routes set them that way) and can be changed
+   live; dbg_changed() makes the view work its maps out again */
+struct DbgOpts {
+	/* wide view */
+	int noCrop;        /* MMZ_NOCROP: no cropping where the camera never goes */
+	int noShown;       /* MMZ_NOSHOWN: no shown map (everything counts as shown) */
+	int hideUnshown;   /* MMZ_HIDEUNSHOWN: level art drawn only where shown */
+	int fillHide;      /* MMZ_FILLHIDE: the gap fill worked out but not drawn */
+	int fillOnly;      /* MMZ_FILLONLY=bg: only that BG's fill (-1 all) */
+	/* overlays (drawn by the menu over the game) */
+	int ovShown, ovFill, ovChunk, ovCrop, ovGrid;
+	/* stderr logs */
+	int logView, logCrop, logChunk, logFit, logFill, logFillMap, logOwMap, logShown, logFx, logSprite, logLag, logSkip;
+	/* cheats */
+	int infLife;
+	int gen;           /* bumped by dbg_changed() */
+};
+extern struct DbgOpts dbgo;
+void dbg_init_env(void);
+void dbg_changed(void);
+int dbg_describe(char *out, int n);   /* the options that are on, one line ("" none) */
+/* view.c, for the overlays and the teleport */
+int view_cell(int gx, int gy);         /* bits: 1 shown, 2 kept, 4 solid, 8 reached; -1 not known */
+int view_chunk_src(int cx, int cy);    /* chunk_source(): -1 none, 0 video memory, 1+ a copy */
+int view_crop_rect(float *l, float *t, float *r, float *b);   /* 1 when cropping */
+
 void ui_init(SDL_Window *window, SDL_Renderer *renderer);
 /* an event for the menus; 1 if they took it (the game does not see it) */
 int ui_event(const SDL_Event *e);

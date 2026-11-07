@@ -361,7 +361,7 @@ static int chunk_source(int cx, int cy) {
 	if (cx < 0 || cy < 0 || cx >= 128 || cy >= 128) return -1;
 	if (chunkOk[cy][cx]) return chunkOk[cy][cx] - 2;
 	if (drawing) return -1;   /* (worked out before the threads start) */
-	if (hideUnshown < 0) hideUnshown = getenv("MMZ_HIDEUNSHOWN") != NULL;
+	hideUnshown = dbgo.hideUnshown;
 	int src = -1, area = CUR_AREA & 0x7F;
 	int onGba = cx >= gbaCx0 && cx <= gbaCx1 && cy >= gbaCy0 && cy <= gbaCy1;
 	/* (a chunk of the area the camera does not reach, a wall between rooms
@@ -482,11 +482,10 @@ static void shown_build(void) {
 	const s32 *lim = (const s32 *)(uintptr_t)0x02022CA0u;
 	s32 limL = lim[0] >> 8, limR = lim[1] >> 8, limT = lim[2] >> 8, limB = lim[3] >> 8;
 	int limOn = limR - limL >= SCREEN_W && limB - limT >= SCREEN_H;
-	u32 key = (u32)area << 24 ^ AREA_STATES * 2654435761u ^ (limOn ? (u32)limT * 7919u ^ (u32)limB * 104729u : 0);
+	u32 key = (u32)area << 24 ^ AREA_STATES * 2654435761u ^ (u32)dbgo.gen * 0x9E3779B1u ^ (limOn ? (u32)limT * 7919u ^ (u32)limB * 104729u : 0);
 	s32 camX = CAMERA_X >> 8, camY = CAMERA_Y >> 8;
-	static int off = -1;
-	if (off < 0) off = getenv("MMZ_NOSHOWN") != NULL;
-	if (hideUnshown < 0) hideUnshown = getenv("MMZ_HIDEUNSHOWN") != NULL;
+	int off = dbgo.noShown;
+	hideUnshown = dbgo.hideUnshown;
 	if (off) { shownOn = 0; return; }
 	if (key != shownKey) {
 		u32 z = *(u32 *)(uintptr_t)0x02022B7Cu;   /* Zero (gStageState.cutscene.slots[0].actor) */
@@ -582,8 +581,8 @@ static void shown_build(void) {
 		lift_pc = sPc; lift_tail_lr = sT1; lift_tail_lr2 = sT2; lift_ret = sRet; lift_cycles = sCyc; lift_tail = sTail; lift_void = sVoid;
 		shownOn = t > 0;
 		shownFrom = frameCount;
-		if (getenv("SHOWNDEBUG")) {   /* the flood and the shown map around Zero: '#' closed, 'o' open not reached, '+' reached; capitals: shown */
-			int tx0 = getenv("SHOWNDEBUG")[0] == 'L' ? 0 : (zx - areaLeft) / 16 - 30, ty0 = (zy - areaTop) / 16 - 12;
+		if (dbgo.logShown) {   /* the flood and the shown map around Zero: '#' closed, 'o' open not reached, '+' reached; capitals: shown */
+			int tx0 = dbgo.logShown == 'L' ? 0 : (zx - areaLeft) / 16 - 30, ty0 = (zy - areaTop) / 16 - 12;
 			for (int y = ty0; y < ty0 + 30; y++) {
 				for (int x = tx0; x < tx0 + 60; x++) {
 					if (x < 0 || y < 0 || x >= shownW || y >= shownH) { fputc(' ', stderr); continue; }
@@ -595,7 +594,7 @@ static void shown_build(void) {
 			}
 		}
 		free(open); free(q); free(diff);
-		if (getenv("VIEWDEBUG")) fprintf(stderr, "shown: area %d %dx%d metatiles, %d reachable from Zero %d,%d\n", area, shownW, shownH, t, zx, zy);
+		if (dbgo.logView) fprintf(stderr, "shown: area %d %dx%d metatiles, %d reachable from Zero %d,%d\n", area, shownW, shownH, t, zx, zy);
 	}
 	/* what the GBA screen shows now is shown */
 	if (shownOn) {
@@ -741,13 +740,12 @@ static u32 rgKey = ~0u;
 static void crop_update(s32 gx, s32 gy, int w, int h, s32 cL, s32 cT, s32 cR, s32 cB) {
 	s32 L, T, R, B;
 	int aw = view_asked_w > 0 ? view_asked_w : w, ah = view_asked_h > 0 ? view_asked_h : h;
-	static int off = -1;
-	if (off < 0) off = getenv("MMZ_NOCROP") != NULL;
+	int off = dbgo.noCrop;
 	/* the bands: the rows the camera can show above / below the GBA screen's
 	   own columns (a drop further along opens as the screen reaches it, eased),
 	   then the columns within half the view's height around it */
 	int bw = SCREEN_W, bh = ah / 2 > SCREEN_H ? ah / 2 : SCREEN_H;
-	if (hideUnshown < 0) hideUnshown = getenv("MMZ_HIDEUNSHOWN") != NULL;
+	hideUnshown = dbgo.hideUnshown;
 	if (off || !settings.cropUnreach || !shown_region(gx + SCREEN_W / 2, gy + SCREEN_H / 2, bw, bh, &L, &T, &R, &B)) { rgOn = 0; rgKey = ~0u; return; }
 	/* (inside what the area has, content_bounds(), global; the GBA screen is in it) */
 	if (L < cL) L = cL; if (T < cT) T = cT; if (R > cR) R = cR; if (B > cB) B = cB;
@@ -761,9 +759,7 @@ static void crop_update(s32 gx, s32 gy, int w, int h, s32 cL, s32 cT, s32 cR, s3
 		if (rgR < gx + SCREEN_W) rgR = gx + SCREEN_W; if (rgB < gy + SCREEN_H) rgB = gy + SCREEN_H;
 	}
 	rgOn = 1;
-	static int dbg = -1;
-	if (dbg < 0) dbg = getenv("CROPDEBUG") != NULL;
-	if (dbg) fprintf(stderr, "crop: frame %ld gba %d,%d region %d..%d x %d..%d eased %.0f..%.0f x %.0f..%.0f\n", frameCount, gx, gy, L, R, T, B, rgL, rgR, rgT, rgB);
+	if (dbgo.logCrop) fprintf(stderr, "crop: frame %ld gba %d,%d region %d..%d x %d..%d eased %.0f..%.0f x %.0f..%.0f\n", frameCount, gx, gy, L, R, T, B, rgL, rgR, rgT, rgB);
 }
 
 static __thread int levelSrc;   /* chunk_source() of the last level_entry() */
@@ -947,7 +943,7 @@ static void fill_build_column(int k) {
 			}
 			cy = c1;
 		}
-	if (getenv("MMZ_FILLDEBUG"))
+	if (dbgo.logFill)
 		fprintf(stderr, "fill: area %d bg %d chunks %d,%d %dx%d stage %d,%d: %d cells\n", CUR_AREA & 0x7F, k, x0, y0, cw, ch, stageX, stageY, filled);
 	free(src);
 	/* keep only the filled cells */
@@ -1098,7 +1094,7 @@ static void fill_build_wfc(int k, u32 seed) {
 	const struct Layer *L = &layers[k];
 	free(F->mt); free(F->donor);
 	memset(F, 0, sizeof *F);
-	int area = CUR_AREA & 0x7F, dbg = getenv("MMZ_FILLDEBUG") != NULL;
+	int area = CUR_AREA & 0x7F, dbg = dbgo.logFill;
 	if (!L->map || L->backdrop) { if (dbg) fprintf(stderr, "fill: area %d bg %d: %s\n", area, k, L->map ? "background (repeats)" : "no layer"); return; }
 	#define REAL(cx, cy) ((cx) >= 0 && (cy) >= 0 && (cx) < L->w && (cy) < L->h && \
 	                      L->map[4 + (cy) * L->stride + (cx)] != L->null && \
@@ -1451,7 +1447,7 @@ static void fill_build_wfc(int k, u32 seed) {
 		F->donor[i] = t > 0 ? trep[(tkey[t] >> 16) & 0xFF] : -1;   /* (blank: nothing drawn) */
 	}
 	F->cx0 = x0; F->cy0 = y0; F->cw = cw; F->ch = ch; F->on = 1; F->fine = 1;
-	if (getenv("MMZ_FILLMAP"))   /* (debug, every 2nd cell: '#' shown (' ' blank), made up: '=' its continuation, ':' its body,
+	if (dbgo.logFillMap)   /* (debug, every 2nd cell: '#' shown (' ' blank), made up: '=' its continuation, ':' its body,
 	                                ',' open as it should be, 'c' covered, 'x' another token, '_' blank against its prior, '!' forced) */
 		for (int y = 0; y < H; y += 2) {
 			for (int x = 0; x < W; x += 2) {
@@ -1912,9 +1908,9 @@ static int owfc_solve(const int *tok, const u8 *reg, int W, int H, int N, u32 se
 			int x = apos[a] % PW, y = apos[a] / PW;
 			for (int j = 0; j < NN; j++) { int cc = (y + j / N) * W + x + j % N; if (tok[cc] == -1) out[cc] = pt.v[(size_t)copy[a] * NN + j]; }
 		}
-	if (getenv("MMZ_OWMAP")) for (int y = 0; y < PH; y += 2) { for (int x = 0; x < PW; x += 2) { int a = aidx[y * PW + x]; fputc(a < 0 ? (pid[y * PW + x] >= 0 ? '#' : ' ') : state[a] == 3 ? 'o' : tries[a] ? 't' : '.', stderr); } fputc('\n', stderr); }
-	if (getenv("MMZ_FILLDEBUG")) { double f_ = 1000.0 / SDL_GetPerformanceFrequency(); fprintf(stderr, "fill: N=%d init %.0f prop %.0f reset %.0f pick %.0f ms, %ld edges avg %ld bits, %ld changes, heap %d\n", N, tI * f_, tP * f_, tR * f_, tC * f_, nEdge, nEdge ? nBits / nEdge : 0, nChg, whCap); }
-	if (getenv("MMZ_FILLDEBUG")) { long nb = 0, no = 0; for (size_t i = 0; i < n; i++) if (tok[i] == -1) { no++; nb += out[i] == 0; } fprintf(stderr, "fill: N=%d blank %ld of %ld\n", N, nb, no); }
+	if (dbgo.logOwMap) for (int y = 0; y < PH; y += 2) { for (int x = 0; x < PW; x += 2) { int a = aidx[y * PW + x]; fputc(a < 0 ? (pid[y * PW + x] >= 0 ? '#' : ' ') : state[a] == 3 ? 'o' : tries[a] ? 't' : '.', stderr); } fputc('\n', stderr); }
+	if (dbgo.logFill) { double f_ = 1000.0 / SDL_GetPerformanceFrequency(); fprintf(stderr, "fill: N=%d init %.0f prop %.0f reset %.0f pick %.0f ms, %ld edges avg %ld bits, %ld changes, heap %d\n", N, tI * f_, tP * f_, tR * f_, tC * f_, nEdge, nEdge ? nBits / nEdge : 0, nChg, whCap); }
+	if (dbgo.logFill) { long nb = 0, no = 0; for (size_t i = 0; i < n; i++) if (tok[i] == -1) { no++; nb += out[i] == 0; } fprintf(stderr, "fill: N=%d blank %ld of %ld\n", N, nb, no); }
 	ok = 1;
 	#undef ODOM
 	#undef HAS
@@ -1938,7 +1934,7 @@ static void fill_build_owfc(int k, u32 seed) {
 	const struct Layer *L = &layers[k];
 	free(F->mt); free(F->donor);
 	memset(F, 0, sizeof *F);
-	int area = CUR_AREA & 0x7F, dbg = getenv("MMZ_FILLDEBUG") != NULL;
+	int area = CUR_AREA & 0x7F, dbg = dbgo.logFill;
 	if (!L->map || L->backdrop) { if (dbg) fprintf(stderr, "fill: area %d bg %d: %s\n", area, k, L->map ? "background (repeats)" : "no layer"); return; }
 	#define REAL(cx, cy) ((cx) >= 0 && (cy) >= 0 && (cx) < L->w && (cy) < L->h && \
 	                      L->map[4 + (cy) * L->stride + (cx)] != L->null && \
@@ -2064,7 +2060,7 @@ static void fill_build_owfc(int k, u32 seed) {
 		F->donor[i] = t > 0 ? trep[(tkey[t] >> 16) & 0xFF] : -1;   /* (blank, shown, sky, covered: nothing drawn) */
 	}
 	F->cx0 = x0; F->cy0 = y0; F->cw = cw; F->ch = ch; F->on = 1; F->fine = 1;
-	if (getenv("MMZ_FILLMAP"))   /* (debug, every 2nd cell: '#' shown (' ' blank), made up 'x' (',' blank), 's' sky, 'c' covered) */
+	if (dbgo.logFillMap)   /* (debug, every 2nd cell: '#' shown (' ' blank), made up 'x' (',' blank), 's' sky, 'c' covered) */
 		for (int y = 0; y < H; y += 2) {
 			for (int x = 0; x < W; x += 2) { int i = y * W + x; fputc(tok[i] >= 0 ? (tok[i] ? '#' : ' ') : tok[i] == -2 ? '?' : tok[i] == -3 ? 's' : out[i] ? 'x' : ',', stderr); }
 			fputc('\n', stderr);
@@ -2223,10 +2219,8 @@ static void fill_get(int k, u32 key) {
 static int fill_entry(const struct Layer *L, s32 wx, s32 wy, u16 *out) {
 	if (L->bg < 0 || L->bg > 3) return 0;
 	const struct Fill *F = &fills[L->bg];   /* (layers[] is by BG; L may be a copy) */
-	static int hide = -1;   /* testing (MMZ_FILLHIDE): work the fill out but do not draw it */
-	if (hide < 0) hide = getenv("MMZ_FILLHIDE") != NULL;
-	static int only = -2;   /* testing (MMZ_FILLONLY=bg): draw only that BG's fill */
-	if (only == -2) only = getenv("MMZ_FILLONLY") ? atoi(getenv("MMZ_FILLONLY")) : -1;
+	int hide = dbgo.fillHide;   /* testing (MMZ_FILLHIDE): work the fill out but do not draw it */
+	int only = dbgo.fillOnly;   /* testing (MMZ_FILLONLY=bg): draw only that BG's fill */
 	if (hide || levelMatching || (only >= 0 && L->bg != only)) return 0;
 	if (!F->on || wx < 0 || wy < 0) return 0;
 	int cx = wx / 240 - F->cx0, cy = wy / 160 - F->cy0;
@@ -2336,7 +2330,7 @@ void view_fit_apply(int *w, int *h) {
 			th = (int)(ew * *h / *w);
 		}
 	}
-	if (getenv("FITDEBUG") && frameCount % 300 == 0)
+	if (dbgo.logFit && frameCount % 300 == 0)
 		fprintf(stderr, "fit: frame %ld asked %dx%d target %dx%d -> %dx%d\n", frameCount, *w, *h, view_fit_w, view_fit_h, tw, th);
 	if (cw <= 0) { cw = tw; ch = th; }
 	cw += (tw - cw) * 0.15f;
@@ -2518,7 +2512,7 @@ static void find_fx(void) {
 			if (fx_matches(&w, 2)) fx[2] = w;
 		}
 	}
-	if (getenv("FXDEBUG")) {
+	if (dbgo.logFx) {
 		static int last[4] = { -1, -1, -1, -1 };
 		for (int bg = 1; bg < 4; bg++)
 			if (fx[bg].kind != last[bg]) {
@@ -3181,8 +3175,10 @@ void view_chunk_report(void) {
 			if (c <= 2) fprintf(stderr, "viewchunks: %s chunk %d,%d (global %d,%d) area byte %02X sets %02X source %d%s%s\n", what[c], gx, gy, gx * 240, gy * 160,
 			                    CHUNK_AREA[gy * 128 + gx], b & 0xFF, src, onGba ? " under the GBA screen" : "", reach[gy][gx] ? "" : " not reached");
 		}
-	fprintf(stderr, "viewchunks: frame %ld area %d loaded %04X %04X: %d wrong-set, %d outside-area, %d undrawable, %d copy, %d off-own, %d hidden, %d ok\n",
+	extern char dbg_check_result[400];
+	snprintf(dbg_check_result, 400, "viewchunks: frame %ld area %d loaded %04X %04X: %d wrong-set, %d outside-area, %d undrawable, %d copy, %d off-own, %d hidden, %d ok",
 	        frameCount, area, GFX_SET_A, GFX_SET_B, n[0], n[1], n[2], n[3], n[4], n[5], n[6]);
+	fprintf(stderr, "%s\n", dbg_check_result);
 }
 
 
@@ -3253,8 +3249,7 @@ int view_render(void) {
 	gbaCx0 = (x0 + stageX) / 240; gbaCx1 = (x0 + stageX + SCREEN_W - 1) / 240;
 	gbaCy0 = (y0 + stageY) / 160; gbaCy1 = (y0 + stageY + SCREEN_H - 1) / 160;
 	kept_build();
-	static int dbg = -1;
-	if (dbg < 0) dbg = getenv("VIEWDEBUG") != NULL;
+	int dbg = dbgo.logView;
 	if (dbg) fprintf(stderr, "F%ld cam %d,%d layer %d,%d stage %d,%d area %d..%d x %d..%d (area %d) x0 %d y0 %d\n",
 	        frameCount, CAMERA_X >> 8, CAMERA_Y >> 8, T->x, T->y, stageX, stageY, areaLeft, areaRight, areaTop, areaBottom, CUR_AREA, x0, y0);
 	/* can the level data draw the GBA screen itself? (not during area changes
@@ -3277,7 +3272,7 @@ int view_render(void) {
 	{
 		/* (the same while the area and its sets are) */
 		static s32 bL, bT, bR, bB; static u32 bKey = ~0u; static s32 bStageX, bStageY;
-		u32 key = ((u32)CUR_AREA << 24 ^ (u32)GFX_SET_A << 12 ^ GFX_SET_B) + reachKey * 2654435761u + (u32)settings.fillGaps * 0x51ED27u;
+		u32 key = ((u32)CUR_AREA << 24 ^ (u32)GFX_SET_A << 12 ^ GFX_SET_B) + reachKey * 2654435761u + (u32)settings.fillGaps * 0x51ED27u + (u32)dbgo.gen * 0x2545F491u;
 		static int bFill = -1;
 		if (key != bKey || stageX != bStageX || stageY != bStageY || bFill != settings.fillGaps) {
 			content_bounds(&bL, &bT, &bR, &bB);
@@ -3345,7 +3340,7 @@ int view_render(void) {
 			fills[k].repSrc[i] = src;
 		}
 	}
-	if (getenv("CHUNKDEBUG") && dbg) {
+	if (dbgo.logChunk && dbg) {
 		s32 lx = x0 - ox, ty = y0 - oy;
 		for (s32 cy = ty / 160 - 1; cy <= (ty + h) / 160; cy++) {
 			fprintf(stderr, "  ");
@@ -3353,7 +3348,7 @@ int view_render(void) {
 				int gx = cx + stageX / 240, gy = cy + stageY / 160;
 				if (cx < 0 || cy < 0 || gx >= 128 || gy >= 128) { fprintf(stderr, " ....."); continue; }
 				fprintf(stderr, " %d:%02X%c", CHUNK_AREA[gy * 128 + gx] & 15, chunk_sets(gx, gy, CUR_AREA & 0x7F) & 0xFF, "x0123456789ab"[chunk_source(gx, gy) + 1]);
-				if (getenv("CHUNKDEBUG")[0] == '2') fprintf(stderr, "/L%X%c%02X", chunk_level(gx, gy, CUR_AREA & 0x7F), reach[gy][gx] ? 'r' : '-', CHUNK_AREA[gy * 128 + gx]);
+				if (dbgo.logChunk == 2) fprintf(stderr, "/L%X%c%02X", chunk_level(gx, gy, CUR_AREA & 0x7F), reach[gy][gx] ? 'r' : '-', CHUNK_AREA[gy * 128 + gx]);
 			}
 			fprintf(stderr, "\n");
 		}
@@ -3363,5 +3358,26 @@ int view_render(void) {
 	if (gbaOver) paste_gba(w, h, ox, oy);
 	view_gba_pasted = gbaOver;
 	view_active = 1;
+	return 1;
+}
+
+/* ------------------------------------------------- the debug overlays (ui.cpp) */
+int view_cell(int gx, int gy) {
+	if (!shownOn || !shownMap) return -1;
+	int x = (gx - areaLeft) >> 4, y = (gy - areaTop) >> 4;
+	if (gx < areaLeft || gy < areaTop || x >= shownW || y >= shownH) return -1;
+	size_t i = (size_t)y * shownW + x;
+	int r = shownMap[i] ? 1 : 0;
+	if (keptMap && keptMap[i]) r |= 2;
+	if (solidMap) r |= solidMap[i] == 1 ? 4 : solidMap[i] == 2 ? 8 : 0;
+	return r;
+}
+int view_chunk_src(int cx, int cy) {
+	if (cx < 0 || cy < 0 || cx >= 128 || cy >= 128 || !chunkOk[cy][cx]) return -2;
+	return chunkOk[cy][cx] - 2;
+}
+int view_crop_rect(float *l, float *t, float *r, float *b) {
+	if (!rgOn) return 0;
+	*l = rgL; *t = rgT; *r = rgR; *b = rgB;
 	return 1;
 }

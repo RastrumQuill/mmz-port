@@ -19,8 +19,10 @@
 #ifdef _WIN32
 #include <windows.h>
 #include <process.h>
+#include <direct.h>
 #else
 #include <sys/mman.h>
+#include <sys/stat.h>
 #include <unistd.h>
 #include <sys/wait.h>
 #include <fcntl.h>
@@ -347,6 +349,7 @@ static long routeDelay;   /* frames a warp took: later lines wait for it */
    with a file name, a PNG of the GBA picture, the view's part and the
    differences (red; grey: left out). Returns the share in percent (-1: no
    wide view). */
+char dbg_check_result[400];   /* the last check's summary (Debug window) */
 static double view_check(const char *png, int print) {
 	if (!view_active || !view_frame) return -1;
 	int ox, oy;
@@ -532,7 +535,8 @@ static void probe_step(void) {
 	long agree = 0, differ = 0, unseen = 0, hid = 0;
 	size_t N = (size_t)probe.w * probe.h;
 	for (size_t k = 0; k < N; k++) { agree += probe.seen[k] == 1; differ += probe.seen[k] == 2; hid += probe.seen[k] == 3; unseen += !probe.seen[k]; }
-	fprintf(stderr, "viewprobe: done: %d of %d probes flagged; view pixels: %ld agree, %ld differ, %ld differ where the camera never goes (not drawn: right), %ld not compared\n", probe.flagged, probe.n, agree, differ, hid, unseen);
+	snprintf(dbg_check_result, sizeof dbg_check_result, "viewprobe: done: %d of %d probes flagged; view pixels: %ld agree, %ld differ, %ld differ where the camera never goes (not drawn: right), %ld not compared", probe.flagged, probe.n, agree, differ, hid, unseen);
+	fprintf(stderr, "%s\n", dbg_check_result);
 	if (probe.prefix[0]) {
 		u32 *m = malloc(N * 4);
 		for (size_t k = 0; k < N; k++) { u32 c = probe.frame[k]; m[k] = probe.seen[k] == 2 ? 0xFF0000 : probe.seen[k] == 3 ? 0x0060FF : probe.seen[k] == 1 ? c : (c >> 2) & 0x3F3F3F; }
@@ -546,13 +550,31 @@ static int probeIn;   /* frames until the route's viewprobe starts */
 static char probePrefix[256];
 static int viewCheckIn;   /* frames until the route's viewcheck */
 
+/* the Debug window's checks: 0 viewcheck, 1 viewprobe, 2 viewchunks; the
+   pictures go to debug/ next to the program */
+void dbg_run_check(int which) {
+	char dir[600];
+	char *base = SDL_GetBasePath();
+	snprintf(dir, sizeof dir, "%sdebug", base ? base : "");
+	SDL_free(base);
+#ifdef _WIN32
+	_mkdir(dir);
+#else
+	mkdir(dir, 0755);
+#endif
+	snprintf(dbg_check_result, sizeof dbg_check_result, "running...");
+	if (which == 0) { snprintf(viewCheckPng, sizeof viewCheckPng, "%s/viewcheck_%ld.png", dir, frameCount); viewCheckIn = 2; view_level_only = 1; }
+	else if (which == 1) { snprintf(probePrefix, sizeof probePrefix, "%s/viewprobe_%ld", dir, frameCount); probeIn = 2; view_level_only = 1; }
+	else { void view_chunk_report(void); view_chunk_report(); }
+}
+
 static void route_step(void) {
 	if (warp_active()) { routeDelay++; return; }
 	for (;;) {
 		if (routeFrame < 0) {
 			char line[512];
 			if (!fgets(line, sizeof line, route)) { save_flush(); exit(0); }
-			if (getenv("LAGDEBUG")) { extern long sprite_commits; fprintf(stderr, "lag: frame %ld game frames %ld\n", frameCount, sprite_commits); }
+			if (dbgo.logLag) { extern long sprite_commits; fprintf(stderr, "lag: frame %ld game frames %ld\n", frameCount, sprite_commits); }
 			routeArg1[0] = routeArg2[0] = routeArg3[0] = 0;
 			snprintf(routeLine, sizeof routeLine, "%s", line);
 			if (line[0] == '#' || sscanf(line, "%ld %63s %255s %63s %255s", &routeFrame, routeCmd, routeArg1, routeArg2, routeArg3) < 2) {
@@ -576,7 +598,9 @@ static void route_step(void) {
 			int on = atoi(routeArg2);
 			if (!strcmp(routeArg1, "invincible")) cheat_invincible = on;
 			else if (!strcmp(routeArg1, "noenemies")) cheat_no_enemies = on;
+			else if (!strcmp(routeArg1, "inflife")) dbgo.infLife = on;
 		}
+		else if (!strcmp(routeCmd, "teleport")) { if (!teleport_to(atoi(routeArg1), atoi(routeArg2))) fprintf(stderr, "teleport: %s,%s is not open and reached\n", routeArg1, routeArg2); }   /* teleport X Y (global pixels) */
 		else if (!strcmp(routeCmd, "viewchunks")) { void view_chunk_report(void); view_chunk_report(); }   /* viewchunks: static checks of the view's chunks */
 		else if (!strcmp(routeCmd, "viewprobe")) {   /* viewprobe [PREFIX]: the wide view against the GBA camera moved over it */
 			view_level_only = 1;
@@ -708,7 +732,7 @@ static int skipIntro;
 static void skip_intro_step(void) {
 	static int stable;
 	stable = view_gameplay ? stable + 1 : 0;
-	if (getenv("SKIPDEBUG") && frameCount % 300 == 0)
+	if (dbgo.logSkip && frameCount % 300 == 0)
 		fprintf(stderr, "skip: frame %ld mode %02X event %04X gameplay %d\n", frameCount, *(u8 *)0x020236E1, *(u16 *)0x02022B6E, view_gameplay);
 	if (stable >= 60) {
 		fprintf(stderr, "skip-intro: playing from frame %ld\n", frameCount);
@@ -838,7 +862,10 @@ void frontend_frame(void) {
 	if (probeIn && --probeIn == 0) probe_start(probePrefix);
 	else probe_step();
 	if (viewCheckIn && --viewCheckIn == 0) {
-		if (view_check(viewCheckPng, 1) < 0) fprintf(stderr, "viewcheck: frame %ld: no wide view\n", frameCount);
+		double pct = view_check(viewCheckPng[0] ? viewCheckPng : NULL, 1);
+		if (pct < 0) snprintf(dbg_check_result, sizeof dbg_check_result, "viewcheck: frame %ld: no wide view", frameCount);
+		else snprintf(dbg_check_result, sizeof dbg_check_result, "viewcheck: frame %ld: %.2f%% of the GBA screen differs%s%s", frameCount, pct, viewCheckPng[0] ? "; " : "", viewCheckPng);
+		if (pct < 0) fprintf(stderr, "%s\n", dbg_check_result);
 		view_level_only = getenv("MMZ_VIEWCHECK") != NULL;
 	}
 	if (getenv("MMZ_VIEWCHECK") && !warp_active()) {
@@ -1009,6 +1036,7 @@ static int gen_fills(const char *romPath, const char *config, int jobs) {
 
 int main(int argc, char **argv) {
 	mainArgv = argv;
+	dbg_init_env();
 	report_install_crash_handler();
 	const char *romArg = NULL, *configArg = NULL, *viewArg = NULL, *warpArg = NULL;
 	int scale = 0, cpuArg = 0, genFills = 0, genJobs = 0;

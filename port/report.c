@@ -32,6 +32,7 @@
 #include "settings.h"
 #include "report.h"
 #include "debug.h"
+#include "ui.h"
 #include <SDL.h>
 #ifdef _WIN32
 #include <windows.h>
@@ -341,6 +342,7 @@ const char *report_write(int kind, const char *message) {
 	        snap.event, nChanges);
 	tprintf("view: %s %dx%d (active %d), cpu %d%%, scale %d, fullscreen %d\n", kViewNames[settings.viewMode], view_w,
 	        view_h, view_active, hw_cpu_speed, settings.scale, settings.fullscreen);
+	{ char d[400]; dbg_describe(d, sizeof d); tprintf("debug options: %s\n", d[0] ? d : "none"); }
 	tprintf("\nto replay: mmz --route inputs.route --save save_at_start.sav (with this mmz.ini)\n");
 	tprintf("\nrecent log:\n");
 	for (int i = 0; i < noteCount; i++) tprintf("  %s\n", notes[(noteHead - noteCount + i + NOTES) % NOTES]);
@@ -414,6 +416,7 @@ void report_open_issue(int kind, const char *message, const char *zip) {
 	         "version %s (commit %s); %s; frame %ld, mode %02X, event %04X; view %s %dx%d (active %d), cpu %d%%, scale %d, fullscreen %d",
 	         MMZ_VERSION, MMZ_COMMIT, system_name(), snap.frame ? snap.frame : frameCount, snap.mode, snap.event,
 	         kViewNames[settings.viewMode], view_w, view_h, view_active, hw_cpu_speed, settings.scale, settings.fullscreen);
+	{ char d[400]; dbg_describe(d, sizeof d); if (d[0]) { size_t k = strlen(details); snprintf(details + k, sizeof details - k, "; debug options: %s", d); } }
 	snprintf(url, sizeof url, "https://github.com/" REPO "/issues/new?template=%s.yml&title=",
 	         kind == REPORT_CRASH ? "crash" : "bug");
 	url_append(url, sizeof url, title);
@@ -455,6 +458,7 @@ void report_share(int target, int kind, const char *message, const char *zip, ch
 	         kind_name(kind), message && *message ? message : "(no message)", snap.bookmark, l->mission, l->stage,
 	         l->area, l->variant, l->checkpoint, l->x, l->y, l->camX, l->camY, MMZ_VERSION, MMZ_COMMIT, system_name(),
 	         snap.frame, snap.mode, snap.event, kViewNames[settings.viewMode], view_w, view_h, hw_cpu_speed, name);
+	{ char d[400]; dbg_describe(d, sizeof d); if (d[0]) { size_t k = strlen(text); snprintf(text + k, sizeof text - k, "debug options: %s\n", d); } }
 	int test = getenv("MMZ_PRINT_URL") != NULL;
 	if (!test) SDL_SetClipboardText(text);
 	if (target == SHARE_GITHUB) {

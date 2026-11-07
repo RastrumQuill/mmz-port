@@ -26,6 +26,8 @@ extern char warp_origin[160];   /* the last warp's bookmark ("" if none) */
 extern int cheat_invincible, cheat_no_enemies;
 void cheats_frame(void);
 int zero_hp(void);
+int teleport_safe(int x, int y);   /* global pixels: open and reached in the shown map */
+int teleport_to(int x, int y);     /* 1 if Zero was moved there */
 
 /* main.c: start the game again with --warp BOOKMARK (the Debug window's Go) */
 void frontend_restart_warp(const char *bookmark);

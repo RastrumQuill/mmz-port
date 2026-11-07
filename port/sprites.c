@@ -22,6 +22,7 @@
 #include <string.h>
 #include "lift.h"
 #include "pc.h"
+#include "ui.h"
 
 #define OAM_BUF 0x03001BB0u    /* the game's OAM buffer (128 entries) */
 #define OAM_PTR 0x03001FB0u    /* its write pointer */
@@ -100,7 +101,7 @@ static void run_gba_pass(u32 r, u32 pivot) {
 	for (int i = 0; i < 4; i++)
 		for (u32 node = lift_read32(r + i * 4); node; node = lift_read32(node)) {
 			u32 from = peek32(OAM_PTR);
-			if (getenv("SPRITEDEBUG")) {   /* testing: each draw callback the game uses, once */
+			if (dbgo.logSprite) {   /* testing: each draw callback the game uses, once */
 				static u32 seen[256]; static int ns;
 				u32 fn = peek32(node + 4); int k;
 				for (k = 0; k < ns && seen[k] != fn; k++) ;

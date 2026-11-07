@@ -199,6 +199,78 @@ void cheats_frame(void) {
 	if (cheat_invincible) { if (!(RD8(ADDR_HITBOXES) & 1)) setFlag = 1; RD8(ADDR_HITBOXES) |= 1; }
 	else if (setFlag) { RD8(ADDR_HITBOXES) &= ~1; setFlag = 0; }
 	if (cheat_no_enemies && view_gameplay) RD8(ADDR_HITBOXES + 1) |= 2;
+	/* infinite life: Zero's life kept at the most it has been since the
+	   cheat went on (a pickup that raises it raises the mark) */
+	static int top = -1;
+	u32 z = zero_addr();
+	if (!dbgo.infLife || !z || !view_gameplay) { if (!dbgo.infLife) top = -1; return; }
+	s16 *hp = (s16 *)(uintptr_t)(z + ZERO_HP);
+	if (*hp > top) top = *hp;
+	if (top > 0 && *hp < top) *hp = (s16)top;
+}
+
+/* ------------------------------------------------------- teleport */
+
+/* moves Zero to global pixels x, y if he can be there: the view's shown
+   map says the cell is open and reached from where he stands (and the one
+   above, his head), as the warp needs; 0 if not */
+int teleport_safe(int x, int y) {
+	int c = view_cell(x, y), up = view_cell(x, y - 16);
+	return c >= 0 && (c & 8) && !(c & 4) && up >= 0 && !(up & 4);
+}
+int teleport_to(int x, int y) {
+	u32 z = zero_addr();
+	if (!z || !view_gameplay || !teleport_safe(x, y)) return 0;
+	RD32(z + ZERO_X) = x << 8;
+	RD32(z + ZERO_X + 4) = y << 8;
+	RD32(z + ZERO_X + 8) = 0;   /* vx, vy */
+	RD32(z + ZERO_X + 12) = 0;
+	return 1;
+}
+
+/* ---------------------------------------------------- debug options */
+
+struct DbgOpts dbgo = { .fillOnly = -1 };
+
+static int env_on(const char *n) { return getenv(n) != NULL; }
+void dbg_init_env(void) {
+	const char *e;
+	dbgo.noCrop = env_on("MMZ_NOCROP");
+	dbgo.noShown = env_on("MMZ_NOSHOWN");
+	dbgo.hideUnshown = env_on("MMZ_HIDEUNSHOWN");
+	dbgo.fillHide = env_on("MMZ_FILLHIDE");
+	dbgo.fillOnly = (e = getenv("MMZ_FILLONLY")) ? atoi(e) : -1;
+	dbgo.logView = env_on("VIEWDEBUG");
+	dbgo.logCrop = env_on("CROPDEBUG");
+	dbgo.logChunk = (e = getenv("CHUNKDEBUG")) ? (e[0] == '2' ? 2 : 1) : 0;
+	dbgo.logFit = env_on("FITDEBUG");
+	dbgo.logFill = env_on("MMZ_FILLDEBUG");
+	dbgo.logFillMap = env_on("MMZ_FILLMAP");
+	dbgo.logOwMap = env_on("MMZ_OWMAP");
+	dbgo.logShown = (e = getenv("SHOWNDEBUG")) ? (e[0] == 'L' ? 'L' : 1) : 0;
+	dbgo.logFx = env_on("FXDEBUG");
+	dbgo.logSprite = env_on("SPRITEDEBUG");
+	dbgo.logLag = env_on("LAGDEBUG");
+	dbgo.logSkip = env_on("SKIPDEBUG");
+}
+void dbg_changed(void) { dbgo.gen++; }
+
+int dbg_describe(char *out, int n) {
+	struct { const char *name; int on; } t[] = {
+		{ "no-crop", dbgo.noCrop }, { "no-shown-map", dbgo.noShown }, { "hide-unshown", dbgo.hideUnshown },
+		{ "fill-hidden", dbgo.fillHide }, { "fill-only-bg", dbgo.fillOnly >= 0 },
+		{ "ov-shown", dbgo.ovShown }, { "ov-fill", dbgo.ovFill }, { "ov-chunks", dbgo.ovChunk }, { "ov-crop", dbgo.ovCrop }, { "ov-grid", dbgo.ovGrid },
+		{ "log-view", dbgo.logView }, { "log-crop", dbgo.logCrop }, { "log-chunks", dbgo.logChunk }, { "log-fit", dbgo.logFit },
+		{ "log-fill", dbgo.logFill }, { "log-fillmap", dbgo.logFillMap }, { "log-owmap", dbgo.logOwMap }, { "log-shown", dbgo.logShown },
+		{ "log-fx", dbgo.logFx }, { "log-sprites", dbgo.logSprite }, { "log-lag", dbgo.logLag }, { "log-skip", dbgo.logSkip },
+		{ "invincible", cheat_invincible }, { "no-enemies", cheat_no_enemies }, { "infinite-life", dbgo.infLife },
+	};
+	int k = 0;
+	out[0] = 0;
+	for (size_t i = 0; i < sizeof t / sizeof t[0] && k < n - 1; i++)
+		if (t[i].on) k += snprintf(out + k, n - k, "%s%s", k ? " " : "", t[i].name);
+	if (dbgo.fillOnly >= 0 && k < n - 1) k += snprintf(out + k, n - k, " (bg %d)", dbgo.fillOnly);
+	return k < n ? k : n - 1;
 }
 
 int zero_hp(void) {

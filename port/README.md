@@ -74,6 +74,18 @@ game finished no frames, with the game's state.
 * Status: frame, speed, scanline, game mode, mission, area, checkpoint,
   Zero's and the camera's position, Zero's life, and this place's bookmark
   (Copy puts it on the clipboard).
+* Debug options (collapsible sections, each with a tooltip; all off by
+  default, and the environment variables below still set them at start):
+  Cheats (invincible, no enemies, infinite life; route `cheat
+  invincible|noenemies|inflife 1`); Teleport (mission + checkpoint list,
+  click the game to place Zero or type a point, allowed only on open
+  cells Zero can reach in the shown map; route `teleport X Y`; reload
+  bookmarks.txt); Wide view (no crop, no shown map, hide never-shown art,
+  gap fill mode, hide fill / fill only one BG, fit rooms, HUD at edges:
+  live, no restart); Overlays (shown map, gap fill, chunk sources, crop
+  rectangle, 16px grid); Logging (the `*DEBUG` stderr logs); Checks (view
+  check / probe / chunks on the spot: summary shown, pictures in `debug/`
+  next to the program). Reports (F12 / F9) list the options that are on.
 * Bookmarks: F5 saves the place you are at to `bookmarks.txt` (next to
   `mmz.ini`, one `name<TAB>mmz:...` per line; also copied to the
   clipboard). The list has Go / Copy / delete and an editable name; the
