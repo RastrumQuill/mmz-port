@@ -104,6 +104,7 @@ static s32 areaLeft, areaTop, areaRight, areaBottom;   /* the current area, glob
 static u8 chunkOk[128][128];    /* 0 unknown, else chunk_source() + 2 */
 static u8 chunkOff[128][128];   /* chunks under the GBA screen: the source of their part off it, + 2 */
 static s32 gbaL, gbaT;          /* the GBA screen's top-left this frame, global pixels */
+static int hideUnshown = -1;     /* MMZ_HIDEUNSHOWN=1: the old way, the level drawn only where shown (and reached) */
 static int drawing;             /* rows are being drawn by several threads: chunk_source() only reads */
 static int gbaCx0, gbaCx1, gbaCy0, gbaCy1 = -1;   /* chunks under the GBA screen */
 
@@ -360,9 +361,14 @@ static int chunk_source(int cx, int cy) {
 	if (cx < 0 || cy < 0 || cx >= 128 || cy >= 128) return -1;
 	if (chunkOk[cy][cx]) return chunkOk[cy][cx] - 2;
 	if (drawing) return -1;   /* (worked out before the threads start) */
+	if (hideUnshown < 0) hideUnshown = getenv("MMZ_HIDEUNSHOWN") != NULL;
 	int src = -1, area = CUR_AREA & 0x7F;
 	int onGba = cx >= gbaCx0 && cx <= gbaCx1 && cy >= gbaCy0 && cy <= gbaCy1;
-	if ((CHUNK_AREA[cy * 128 + cx] & 15) == area && (reach[cy][cx] || onGba)) {
+	/* (a chunk of the area the camera does not reach, a wall between rooms
+	   or a room it never goes to, is drawn too, with its own sets: it is
+	   the area's own art; MMZ_HIDEUNSHOWN=1: not) */
+	u8 ca = CHUNK_AREA[cy * 128 + cx];
+	if ((ca & 15) == area && (reach[cy][cx] || onGba || (!hideUnshown && ca < 0xF0))) {
 		int b = chunk_sets(cx, cy, area);
 		if (b >= 0) {
 			int hi = b >> 4, lo = b & 15;
@@ -450,8 +456,12 @@ static void camera_edge(s32 *x, s32 *y) {
 /* can Zero be in this metatile (global pixels of its top-left)? */
 static int metatile_open(s32 x, s32 y) {
 	static const int pt[4][2] = { { 4, 4 }, { 12, 4 }, { 4, 12 }, { 12, 12 } };
-	for (int k = 0; k < 4; k++)
-		if (!(u8)LIFT_CALL(sub_080079CC, (x + pt[k][0]) << 8, (y + pt[k][1]) << 8, 0, 0)) return 1;
+	/* (bit 7: climbable, a ladder and its top, which he stands on but also
+	   climbs through: open, so a ladder shaft leads on up / down) */
+	for (int k = 0; k < 4; k++) {
+		u8 a = (u8)LIFT_CALL(sub_080079CC, (x + pt[k][0]) << 8, (y + pt[k][1]) << 8, 0, 0);
+		if (!a || (a & 0x80 && a != 0xFF)) return 1;
+	}
 	return 0;
 }
 
@@ -474,6 +484,7 @@ static void shown_build(void) {
 	s32 camX = CAMERA_X >> 8, camY = CAMERA_Y >> 8;
 	static int off = -1;
 	if (off < 0) off = getenv("MMZ_NOSHOWN") != NULL;
+	if (hideUnshown < 0) hideUnshown = getenv("MMZ_HIDEUNSHOWN") != NULL;
 	if (off) { shownOn = 0; return; }
 	if (key != shownKey) {
 		u32 z = *(u32 *)(uintptr_t)0x02022B7Cu;   /* Zero (gStageState.cutscene.slots[0].actor) */
@@ -587,6 +598,20 @@ static int shown_at(s32 gx, s32 gy) {
 	return shownMap[y * shownW + x];
 }
 
+/* is the chunk drawn with its own sets (chunk_source(), and off the GBA
+   screen chunkOff)? */
+static int chunk_own(int gx, int gy) {
+	int src = chunk_source(gx, gy);
+	if (src < 0) return 0;
+	return src > 0 || !chunkOff[gy][gx] || chunkOff[gy][gx] >= 2;
+}
+/* a metatile of the area in the crop: shown, or drawn with its own art */
+static int cell_kept(int x, int y) {
+	if (shownMap[y * shownW + x]) return 1;
+	if (hideUnshown) return 0;
+	return chunk_own((areaLeft + x * 16) / 240, (areaTop + y * 16) / 160);
+}
+
 /* the part of the shown map around a point, global pixels: the rows
    (contiguous with the point's row) that have a shown metatile in the
    columns cx - bw/2 .. cx + bw/2, then the columns (contiguous) with one in
@@ -596,8 +621,8 @@ static int shown_region(s32 cx, s32 cy, s32 bw, s32 bh, s32 *L, s32 *T, s32 *R, 
 	int c0 = (cx - bw / 2 - areaLeft) >> 4, c1 = (cx + bw / 2 - areaLeft) >> 4, mx = (cx - areaLeft) >> 4, my = (cy - areaTop) >> 4;
 	if (c0 < 0) c0 = 0; if (c1 >= shownW) c1 = shownW - 1;
 	if (mx < 0 || my < 0 || mx >= shownW || my >= shownH || c0 > c1) return 0;
-#define ROW_ANY(r, a, b) ({ int f_ = 0; for (int x_ = (a); x_ <= (b) && !f_; x_++) f_ = shownMap[(r) * shownW + x_]; f_; })
-#define COL_ANY(c, a, b) ({ int f_ = 0; for (int y_ = (a); y_ <= (b) && !f_; y_++) f_ = shownMap[y_ * shownW + (c)]; f_; })
+#define ROW_ANY(r, a, b) ({ int f_ = 0; for (int x_ = (a); x_ <= (b) && !f_; x_++) f_ = cell_kept(x_, (r)); f_; })
+#define COL_ANY(c, a, b) ({ int f_ = 0; for (int y_ = (a); y_ <= (b) && !f_; y_++) f_ = cell_kept((c), y_); f_; })
 	int r0 = my, r1 = my;
 	while (r0 > 0 && ROW_ANY(r0 - 1, c0, c1)) r0--;
 	while (r1 < shownH - 1 && ROW_ANY(r1 + 1, c0, c1)) r1++;
@@ -628,6 +653,7 @@ static void crop_update(s32 gx, s32 gy, int w, int h, s32 cL, s32 cT, s32 cR, s3
 	   own columns (a drop further along opens as the screen reaches it, eased),
 	   then the columns within half the view's height around it */
 	int bw = SCREEN_W, bh = ah / 2 > SCREEN_H ? ah / 2 : SCREEN_H;
+	if (hideUnshown < 0) hideUnshown = getenv("MMZ_HIDEUNSHOWN") != NULL;
 	if (off || !settings.cropUnreach || !shown_region(gx + SCREEN_W / 2, gy + SCREEN_H / 2, bw, bh, &L, &T, &R, &B)) { rgOn = 0; rgKey = ~0u; return; }
 	/* (inside what the area has, content_bounds(), global; the GBA screen is in it) */
 	if (L < cL) L = cL; if (T < cT) T = cT; if (R > cR) R = cR; if (B > cB) B = cB;
@@ -2260,7 +2286,10 @@ static int level_entry(const struct Layer *L, s32 wx, s32 wy, u16 *out) {
 			if (levelSrc < 0) return fill_entry(L, wx, wy, out);
 		}
 	}
-	if (!shown_at(wx + stageX, wy + stageY)) return fill_entry(L, wx, wy, out);   /* the GBA camera never shows it: the fill, if any */
+	/* (where the GBA camera never shows it, the level is drawn all the same:
+	   it is the area's own art, with its own sets; only what cannot be drawn
+	   right, above, is left to the fill / black) */
+	if (hideUnshown && !shown_at(wx + stageX, wy + stageY)) return fill_entry(L, wx, wy, out);
 	u16 mt = L->chunks[cid * 150 + ((wy % 160) >> 4) * 15 + ((wx % 240) >> 4)];
 	*out = L->tiledata[mt * 4 + ((wy >> 3) & 1) * 2 + ((wx >> 3) & 1)];
 	return 1;
