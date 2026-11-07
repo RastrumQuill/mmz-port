@@ -465,7 +465,12 @@ static void shown_mark(s32 cx, s32 cy, s32 *diff) {   /* a GBA screen centred th
 
 static void shown_build(void) {
 	int area = CUR_AREA & 0x7F;
-	u32 key = (u32)area << 24 ^ AREA_STATES * 2654435761u;
+	/* the camera's limits (gCamera left, right, top, bottom: the screen's
+	   edges), while it has them (a stage's rooms set them; 0: none) */
+	const s32 *lim = (const s32 *)(uintptr_t)0x02022CA0u;
+	s32 limL = lim[0] >> 8, limR = lim[1] >> 8, limT = lim[2] >> 8, limB = lim[3] >> 8;
+	int limOn = limR - limL >= SCREEN_W && limB - limT >= SCREEN_H;
+	u32 key = (u32)area << 24 ^ AREA_STATES * 2654435761u ^ (limOn ? (u32)limT * 7919u ^ (u32)limB * 104729u : 0);
 	s32 camX = CAMERA_X >> 8, camY = CAMERA_Y >> 8;
 	static int off = -1;
 	if (off < 0) off = getenv("MMZ_NOSHOWN") != NULL;
@@ -501,7 +506,19 @@ static void shown_build(void) {
 		while (h < t) {
 			int i = q[h++], tx = i % shownW, ty = i / shownW;
 			s32 fx = areaLeft + tx * 16 + 8, fy = areaTop + ty * 16 + 15;   /* Zero's feet in it */
-			if (level_at(fx, fy) != 15) { s32 cx = fx, cy = fy - 20; camera_edge(&cx, &cy); shown_mark(cx, cy, diff); }
+			if (level_at(fx, fy) != 15) {
+				s32 cx = fx, cy = fy - 20; camera_edge(&cx, &cy);
+				/* (inside the camera's limits: a place Zero can be but the
+				   screen cannot follow him to, e.g. the roof of a train in a
+				   station, shows the screen the camera stops at) */
+				if (limOn) {   /* (up and down only: the left / right ones lock a room's
+				                  sides behind a checkpoint or a shutter, and the wide
+				                  view shows what is beyond as the level goes on there) */
+					if (cy > limB - SCREEN_H / 2) cy = limB - SCREEN_H / 2;
+					if (cy < limT + SCREEN_H / 2) cy = limT + SCREEN_H / 2;
+				}
+				shown_mark(cx, cy, diff);
+			}
 			static const int dx[4] = { 1, -1, 0, 0 }, dy[4] = { 0, 0, 1, -1 };
 			for (int d = 0; d < 4; d++) {
 				int nx = tx + dx[d], ny = ty + dy[d];
@@ -513,9 +530,6 @@ static void shown_build(void) {
 				*o |= 4; q[t++] = ny * shownW + nx;
 			}
 		}
-		*numBlocks = sBlocks;
-		cpu = saved;
-		lift_pc = sPc; lift_tail_lr = sT1; lift_tail_lr2 = sT2; lift_ret = sRet; lift_cycles = sCyc; lift_tail = sTail; lift_void = sVoid;
 		int W = shownW + 1;
 		for (int y = 0; y < shownH; y++)
 			for (int x = 0; x < shownW; x++) {
@@ -523,6 +537,22 @@ static void shown_build(void) {
 				diff[y * W + x] = v;
 				shownMap[y * shownW + x] = v > 0;
 			}
+		/* a solid mass the screen shows a part of goes on sideways, to open
+		   space (a train's body under its roof, seen from its front) */
+		for (int y = 0; y < shownH; y++)
+			for (int dir = -1; dir <= 1; dir += 2)
+				for (int x0 = 0; x0 < shownW; x0++) {
+					int x = dir > 0 ? x0 : shownW - 1 - x0, px = x - dir;
+					if (px < 0 || px >= shownW || shownMap[y * shownW + x] || shownMap[y * shownW + px] != 1) continue;
+					u8 *o = &open[y * shownW + x], *po = &open[y * shownW + px];
+					if (!(*po & 3)) *po = metatile_open(areaLeft + px * 16, areaTop + y * 16) ? 1 : 2;
+					if ((*po & 3) != 2) continue;
+					if (!(*o & 3)) *o = metatile_open(areaLeft + x * 16, areaTop + y * 16) ? 1 : 2;
+					if ((*o & 3) == 2) shownMap[y * shownW + x] = 1;
+				}
+		*numBlocks = sBlocks;
+		cpu = saved;
+		lift_pc = sPc; lift_tail_lr = sT1; lift_tail_lr2 = sT2; lift_ret = sRet; lift_cycles = sCyc; lift_tail = sTail; lift_void = sVoid;
 		shownOn = t > 0;
 		shownFrom = frameCount;
 		if (getenv("SHOWNDEBUG")) {   /* the flood and the shown map around Zero: '#' closed, 'o' open not reached, '+' reached; capitals: shown */
