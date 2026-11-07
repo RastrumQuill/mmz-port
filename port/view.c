@@ -594,10 +594,10 @@ static void crop_update(s32 gx, s32 gy, int w, int h, s32 cL, s32 cT, s32 cR, s3
 	int aw = view_asked_w > 0 ? view_asked_w : w, ah = view_asked_h > 0 ? view_asked_h : h;
 	static int off = -1;
 	if (off < 0) off = getenv("MMZ_NOCROP") != NULL;
-	/* the bands: half the view around the GBA screen (at least the GBA
-	   screen), so a drop further along does not open the whole view below
-	   here; it opens as Zero gets near it */
-	int bw = aw / 2 > SCREEN_W ? aw / 2 : SCREEN_W, bh = ah / 2 > SCREEN_H ? ah / 2 : SCREEN_H;
+	/* the bands: the rows the camera can show above / below the GBA screen's
+	   own columns (a drop further along opens as the screen reaches it, eased),
+	   then the columns within half the view's height around it */
+	int bw = SCREEN_W, bh = ah / 2 > SCREEN_H ? ah / 2 : SCREEN_H;
 	if (off || !settings.cropUnreach || !shown_region(gx + SCREEN_W / 2, gy + SCREEN_H / 2, bw, bh, &L, &T, &R, &B)) { rgOn = 0; rgKey = ~0u; return; }
 	/* (inside what the area has, content_bounds(), global; the GBA screen is in it) */
 	if (L < cL) L = cL; if (T < cT) T = cT; if (R > cR) R = cR; if (B > cB) B = cB;

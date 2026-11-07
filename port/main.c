@@ -913,7 +913,7 @@ static int fills_ok(void) {
 	FILE *f = fopen(fill_patch_path(), "rb");
 	if (!f) return 0;
 	char m[8]; u32 c = 0;
-	int ok = fread(m, 1, 8, f) == 8 && !memcmp(m, "MMZFILL7", 8) && fread(&c, 4, 1, f) == 1 && c == romCrc;
+	int ok = fread(m, 1, 8, f) == 8 && !memcmp(m, "MMZFILL8", 8) && fread(&c, 4, 1, f) == 1 && c == romCrc;
 	fclose(f);
 	return ok;
 }
@@ -990,7 +990,7 @@ static int gen_fills(const char *romPath, const char *config, int jobs) {
 	snprintf(tmpl, sizeof tmpl, "%s.new", out);
 	FILE *o = fopen(tmpl, "wb");
 	if (!o) { fprintf(stderr, "fills: cannot write %s\n", tmpl); return 1; }
-	fwrite("MMZFILL7", 1, 8, o); fwrite(&romCrc, 4, 1, o);
+	fwrite("MMZFILL8", 1, 8, o); fwrite(&romCrc, 4, 1, o);
 	long recs = 0;
 	for (int i = 0; i < np; i++) {
 		char part[1100]; snprintf(part, sizeof part, "%s.part%d", out, i);
