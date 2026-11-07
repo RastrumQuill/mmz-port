@@ -821,7 +821,15 @@ void frontend_frame(void) {
 			write_ppm(p);
 		}
 	}
-	if (headless) route_step();
+	if (headless) {
+		route_step();
+		if (getenv("MMZ_HEADLESS_FIT")) {   /* testing: the fit / crop sizes as in the window (after the shots: they use this frame's size) */
+			static int aw, ah;
+			if (!aw) { aw = view_w; ah = view_h; }
+			view_w = aw; view_h = ah;
+			view_fit_apply(&view_w, &view_h);
+		}
+	}
 	else {
 		sdl_frame();
 		if (route) route_step();   /* testing: scripted input in the window too */

@@ -363,6 +363,9 @@ static void settings_window() {
 		bool fr = settings.fitRooms; int fg = settings.fillGaps;
 		if (ImGui::Checkbox("Fit small rooms to the screen", &fr)) settings.fitRooms = fr;
 		if (ImGui::IsItemHovered()) ImGui::SetTooltip("A rectangular room smaller than the view: the view zooms in to fill the screen with it\n(smoothly, when you enter it) instead of showing black around it.");
+		bool cu = settings.cropUnreach;
+		if (ImGui::Checkbox("Crop where the camera never goes", &cu)) settings.cropUnreach = cu;
+		if (ImGui::IsItemHovered()) ImGui::SetTooltip("The wide view does not show past what the GBA camera can show around Zero (worked out\nfrom the level's collision): where that is shorter or narrower than the view, the view\nzooms in (smoothly) to fill the window instead of showing filler below or beside the level.");
 		if (ImGui::Combo("Fill empty parts of areas", &fg, "Off (black)\0Tile fill (learned from the area)\0Column repeat (old)\0\0")) settings.fillGaps = fg;
 		if (ImGui::IsItemHovered()) ImGui::SetTooltip("Parts of an area the GBA camera never showed (empty in the level data) are filled\nwith the area's own tiles, arranged so every seam is one the area itself uses (deterministic per area).\nCached in fills.bin (generated, ROM-derived: not shipped); off shows the GBA's level data as it is.");
 		bool is = settings.integerScale, sm = settings.smooth;

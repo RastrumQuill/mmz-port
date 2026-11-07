@@ -206,6 +206,26 @@ its own graphics sets (never with the wrong ones; not drawable: nothing).
 `MMZ_NOSHOWN=1` turns the shown map off; `SHOWNDEBUG=1` (`L`: from the
 area's left) prints the flood around Zero.
 
+**Crop to what the camera can show (`crop_unreachable`, default 1).** Where
+the shown map around the GBA screen is shorter (or narrower) than the view
+(mission 1's start: one screen high; the dark band under mission 9's sand),
+the view is not filled there but cut: view.c takes the rows of the shown
+map, contiguous with the GBA screen's, that have a shown metatile within
+half the view's width around it (at least the GBA screen's width, so a drop
+further along opens only as Zero gets near), then the contiguous columns
+within half its height, inside the area's content. The view is kept inside
+that region, and when the region is smaller the view shrinks to it at the
+window's shape (main.c then scales it up to the window like the cutscenes;
+the other side is cropped), never below the GBA screen. The region is eased
+(12% a frame) and the size again by the fit (15% a frame), so it grows and
+shrinks smoothly as Zero walks. Only the view's position and size change:
+the game, its camera and the GBA-visible pixels do not. It is a rectangle:
+where one side of the view reaches lower than the other (mission 1 past the
+purple door), the unreachable part beside it still shows the fill / black.
+`MMZ_NOCROP=1` turns it off, `CROPDEBUG=1` prints the region per frame;
+headless routes apply the fit / crop sizes only with `MMZ_HEADLESS_FIT=1`
+(shots then have the shrunk size).
+
 **Gap fill (`fill_gaps`).** Everything the wide view shows that the area
 does not (below, above and beside the level, and cells the shown map hides)
 is filled by overlapping-model wave function collapse over 8x8 tiles
@@ -233,7 +253,7 @@ this when baserom.gba is present (`make -C port fills`; again only when
 view.c or the ROM changes). A release build has no fills.bin: on first
 launch it runs the generator once with your ROM, showing progress in the
 window title, before play starts. The game then only loads the file. The
-file is stamped with its format (MMZFILL7) and the ROM's CRC; if it is
+file is stamped with its format (MMZFILL8) and the ROM's CRC; if it is
 missing, stale or lacks an area, that gap is drawn black and a line is
 logged.
 

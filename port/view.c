@@ -557,6 +557,65 @@ static int shown_at(s32 gx, s32 gy) {
 	return shownMap[y * shownW + x];
 }
 
+/* the part of the shown map around a point, global pixels: the rows
+   (contiguous with the point's row) that have a shown metatile in the
+   columns cx - bw/2 .. cx + bw/2, then the columns (contiguous) with one in
+   those rows within cy - bh/2 .. cy + bh/2. 0: no shown map. */
+static int shown_region(s32 cx, s32 cy, s32 bw, s32 bh, s32 *L, s32 *T, s32 *R, s32 *B) {
+	if (!shownOn || !shownMap) return 0;
+	int c0 = (cx - bw / 2 - areaLeft) >> 4, c1 = (cx + bw / 2 - areaLeft) >> 4, mx = (cx - areaLeft) >> 4, my = (cy - areaTop) >> 4;
+	if (c0 < 0) c0 = 0; if (c1 >= shownW) c1 = shownW - 1;
+	if (mx < 0 || my < 0 || mx >= shownW || my >= shownH || c0 > c1) return 0;
+#define ROW_ANY(r, a, b) ({ int f_ = 0; for (int x_ = (a); x_ <= (b) && !f_; x_++) f_ = shownMap[(r) * shownW + x_]; f_; })
+#define COL_ANY(c, a, b) ({ int f_ = 0; for (int y_ = (a); y_ <= (b) && !f_; y_++) f_ = shownMap[y_ * shownW + (c)]; f_; })
+	int r0 = my, r1 = my;
+	while (r0 > 0 && ROW_ANY(r0 - 1, c0, c1)) r0--;
+	while (r1 < shownH - 1 && ROW_ANY(r1 + 1, c0, c1)) r1++;
+	int q0 = (cy - bh / 2 - areaTop) >> 4, q1 = (cy + bh / 2 - areaTop) >> 4;
+	if (q0 < r0) q0 = r0; if (q1 > r1) q1 = r1;
+	int k0 = mx, k1 = mx;
+	while (k0 > 0 && COL_ANY(k0 - 1, q0, q1)) k0--;
+	while (k1 < shownW - 1 && COL_ANY(k1 + 1, q0, q1)) k1++;
+#undef ROW_ANY
+#undef COL_ANY
+	*L = areaLeft + k0 * 16; *R = areaLeft + (k1 + 1) * 16;
+	*T = areaTop + r0 * 16; *B = areaTop + (r1 + 1) * 16;
+	return 1;
+}
+
+/* the crop (settings.cropUnreach): the shown region around the GBA screen,
+   eased (global pixels); the view is kept inside it and shrinks to it */
+int view_asked_w, view_asked_h;   /* the view size before the fit / crop (main.c) */
+static float rgL, rgT, rgR, rgB;
+static int rgOn;
+static u32 rgKey = ~0u;
+static void crop_update(s32 gx, s32 gy, int w, int h, s32 cL, s32 cT, s32 cR, s32 cB) {
+	s32 L, T, R, B;
+	int aw = view_asked_w > 0 ? view_asked_w : w, ah = view_asked_h > 0 ? view_asked_h : h;
+	static int off = -1;
+	if (off < 0) off = getenv("MMZ_NOCROP") != NULL;
+	/* the bands: half the view around the GBA screen (at least the GBA
+	   screen), so a drop further along does not open the whole view below
+	   here; it opens as Zero gets near it */
+	int bw = aw / 2 > SCREEN_W ? aw / 2 : SCREEN_W, bh = ah / 2 > SCREEN_H ? ah / 2 : SCREEN_H;
+	if (off || !settings.cropUnreach || !shown_region(gx + SCREEN_W / 2, gy + SCREEN_H / 2, bw, bh, &L, &T, &R, &B)) { rgOn = 0; rgKey = ~0u; return; }
+	/* (inside what the area has, content_bounds(), global; the GBA screen is in it) */
+	if (L < cL) L = cL; if (T < cT) T = cT; if (R > cR) R = cR; if (B > cB) B = cB;
+	if (L > gx) L = gx; if (T > gy) T = gy;
+	if (R < gx + SCREEN_W) R = gx + SCREEN_W; if (B < gy + SCREEN_H) B = gy + SCREEN_H;
+	u32 key = (u32)(CUR_AREA & 0x7F);
+	if (key != rgKey || !rgOn) { rgL = L; rgT = T; rgR = R; rgB = B; rgKey = key; }
+	else {   /* eased like the game's camera (a part of the way each frame) */
+		rgL += (L - rgL) * 0.12f; rgT += (T - rgT) * 0.12f; rgR += (R - rgR) * 0.12f; rgB += (B - rgB) * 0.12f;
+		if (rgL > gx) rgL = gx; if (rgT > gy) rgT = gy;
+		if (rgR < gx + SCREEN_W) rgR = gx + SCREEN_W; if (rgB < gy + SCREEN_H) rgB = gy + SCREEN_H;
+	}
+	rgOn = 1;
+	static int dbg = -1;
+	if (dbg < 0) dbg = getenv("CROPDEBUG") != NULL;
+	if (dbg) fprintf(stderr, "crop: frame %ld gba %d,%d region %d..%d x %d..%d eased %.0f..%.0f x %.0f..%.0f\n", frameCount, gx, gy, L, R, T, B, rgL, rgR, rgT, rgB);
+}
+
 static __thread int levelSrc;   /* chunk_source() of the last level_entry() */
 static __thread int levelFilled;  /* the last level_entry() came from the gap fill */
 static int levelMatching;       /* the layers are being matched with video memory: the level as the GBA has it, no fill */
@@ -1404,7 +1463,17 @@ static int owfc_solve(const int *tok, const u8 *reg, int W, int H, int N, u32 se
 			for (size_t i = 0; i < n; i++) {
 				int x = i % W, y = i / W;
 				if (vt[i] < 0 || x + ex < 0 || y + ey < 0 || x + ex >= W || y + ey >= H || vt[(y + ey) * W + x + ex] != -1) continue;
-				for (int j = 1; j < N; j++) {
+				/* a gap that ends at real cells: stop N cells short of the far
+				   seam, else a window straddling both seams is invented */
+				int gap = 0, closed = 0;
+				for (int cx = x + ex, cy = y + ey; gap < 2 * N; cx += ex, cy += ey) {
+					if (cx < 0 || cy < 0 || cx >= W || cy >= H) break;
+					if (tok[cy * W + cx] != -1) { closed = 1; break; }
+					gap++;
+				}
+				int jmax = closed ? gap - N : N - 1;
+				if (jmax > N - 1) jmax = N - 1;
+				for (int j = 1; j <= jmax; j++) {
 					int cx = x + ex * j, cy = y + ey * j;
 					if (cx < 0 || cy < 0 || cx >= W || cy >= H || tok[cy * W + cx] != -1) break;
 					int k_ = j, sx = cx, sy = cy;
@@ -1918,7 +1987,7 @@ static void patch_load(void) {
 	FILE *f = fopen(patch_path(), "rb");
 	if (!f) return;
 	char magic[8]; u32 crc = 0;
-	if (fread(magic, 1, 8, f) != 8 || memcmp(magic, "MMZFILL7", 8) || fread(&crc, 4, 1, f) != 1 || crc != romCrc) {
+	if (fread(magic, 1, 8, f) != 8 || memcmp(magic, "MMZFILL8", 8) || fread(&crc, 4, 1, f) != 1 || crc != romCrc) {
 		fclose(f); patchStale = 1;
 		fprintf(stderr, "fill: %s is of another format or ROM: not used (mmz --gen-fills makes it anew)\n", patch_path());
 		return;
@@ -1946,7 +2015,7 @@ static void patch_append(const struct FillRec *r) {
 	f = fopen(p, fresh ? "wb" : "ab");
 	patchStale = 0;
 	if (!f) return;
-	if (fresh) { fwrite("MMZFILL7", 1, 8, f); fwrite(&romCrc, 4, 1, f); }
+	if (fresh) { fwrite("MMZFILL8", 1, 8, f); fwrite(&romCrc, 4, 1, f); }
 	s32 h[7] = { (s32)r->key, r->sx, r->sy, r->bg | r->fine << 8, r->cx0, r->cy0, r->cw | r->ch << 16 };
 	fwrite(h, 4, 7, f);
 	size_t cells = fill_cells(r->cw, r->ch, r->fine), ck = cells;
@@ -2091,6 +2160,20 @@ static void fit_target(void) {
 void view_fit_apply(int *w, int *h) {
 	static float cw, ch;
 	int tw = *w, th = *h;
+	view_asked_w = *w; view_asked_h = *h;
+	/* the crop: the region the GBA camera can show is shorter / narrower than the view */
+	if (rgOn && view_active && tw > SCREEN_W && th > SCREEN_H) {
+		float s = 1, rw = rgR - rgL, rh = rgB - rgT;
+		if (rw < tw * s) s = rw / tw;
+		if (rh < th * s) s = rh / th;
+		float minw = SCREEN_W > SCREEN_H * (float)tw / th ? SCREEN_W : SCREEN_H * (float)tw / th;
+		if (s < 1) {
+			float ew = tw * s;
+			if (ew < minw) ew = minw;
+			tw = (int)ew;
+			th = (int)(ew * *h / *w);
+		}
+	}
 	if (view_fit_w > 0 && (view_fit_w < tw || view_fit_h < th) && tw > SCREEN_W && th > SCREEN_H) {
 		float ew = tw;
 		if (ew > view_fit_w) ew = view_fit_w;
@@ -3048,6 +3131,14 @@ int view_render(void) {
 		fit_target();
 		if (view_fit_gba) { shownFrames = 0; return 0; }
 		cL = bL; cT = bT; cR = bR; cB = bB;
+	}
+	/* the crop: not past what the GBA camera can show around here */
+	crop_update(x0 + stageX, y0 + stageY, w, h, cL + stageX, cT + stageY, cR + stageX, cB + stageY);
+	if (rgOn) {
+		s32 oL = cL, oT = cT, oR = cR, oB = cB;
+		s32 L = (s32)(rgL + 0.5f) - stageX, T = (s32)(rgT + 0.5f) - stageY, R = (s32)(rgR + 0.5f) - stageX, B = (s32)(rgB + 0.5f) - stageY;
+		if (L > cL) cL = L; if (R < cR) cR = R; if (T > cT) cT = T; if (B < cB) cB = B;
+		if (cR <= cL || cB <= cT) { cL = oL; cT = oT; cR = oR; cB = oB; }
 	}
 	s32 left = x0 - ox, top = y0 - oy;
 	if (cR - cL >= w) { if (left < cL) left = cL; if (left > cR - w) left = cR - w; }

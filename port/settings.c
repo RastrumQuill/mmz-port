@@ -137,6 +137,7 @@ void settings_defaults(void) {
 	settings.hudEdges = 1;
 	settings.fitRooms = 1;
 	settings.fillGaps = 1;
+	settings.cropUnreach = 1;
 	settings.cpuSpeed = 400;   /* no slowdown where the GBA ran out of time */
 	for (int i = 0; i < 10; i++) settings.keys[i] = SDL_GetScancodeFromName(kDefaultKeys[i]);
 	settings.keys[BIND_QUICK] = SDL_SCANCODE_F9;
@@ -179,6 +180,7 @@ static void apply(const char *key, const char *value) {
 	else if (!strcmp(key, "view_window_height")) settings.viewHeight = atoi(value);
 	else if (!strcmp(key, "hud_edges")) settings.hudEdges = atoi(value);
 	else if (!strcmp(key, "fit_small_rooms")) settings.fitRooms = atoi(value);
+	else if (!strcmp(key, "crop_unreachable")) settings.cropUnreach = atoi(value);
 	else if (!strcmp(key, "fill_gaps")) settings.fillGaps = atoi(value);
 	else if (!strcmp(key, "cpu_speed")) settings.cpuSpeed = atoi(value);
 	else if (!strcmp(key, "log")) settings.log = atoi(value);
@@ -238,6 +240,8 @@ void settings_save(void) {
 	        kViewNames[settings.viewMode], settings.viewW, settings.viewH, settings.viewHeight, settings.hudEdges);
 	fprintf(f, "# rooms smaller than the view: 1 = the view fits them; empty parts of areas (fill_gaps): 0 = black, 1 = tile fill learned from the area, 2 = old column repeat\n"
 	           "fit_small_rooms = %d\nfill_gaps = %d\n", settings.fitRooms, settings.fillGaps);
+	fprintf(f, "# 1: the wide view stops where the GBA camera can never go (from the collision); shorter than the view: zoomed in to fill the window\n"
+	           "crop_unreachable = %d\n", settings.cropUnreach);
 	fprintf(f, "\n# CPU time the game gets per frame, percent of the GBA's (100: the GBA's slowdown)\ncpu_speed = %d\n", settings.cpuSpeed);
 	fprintf(f, "\n# 1: write mmz.log next to this file (for reporting problems)\nlog = %d\n", settings.log);
 	fprintf(f, "\n# F12 report, Share: the Email address and the Discord invite / channel link (empty: none)\n"
