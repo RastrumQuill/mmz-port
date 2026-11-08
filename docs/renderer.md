@@ -1,6 +1,6 @@
 # Native renderer (wide view)
 
-Status: design + stage 1 (BG layers). Replaces the reactive wide view (port/view.c up to 79d18387), which drew
+Status: design + stage 1 (BG layers) + stage 2 (sprites). Replaces the reactive wide view (port/view.c up to 79d18387), which drew
 the GBA's video memory and bolted a world around it (shown/kept maps, chunkOff, crop, VRAM-matched layers).
 The PPU emulation (port/ppu.c) stays as the reference picture and the fallback.
 
@@ -84,8 +84,55 @@ Computed once per (area, variant, room) and only changed by a cut:
 
 ## 7. Sprites (stage 2) and effects (stage 3)
 
-- Sprites: from OAM / the extended sprite list (sprites.c) placed in world space (GBA rect origin + OAM x/y).
-  Stage 1 keeps the current OAM-relative drawing (same result, no world culling by "shown" maps any more).
+### Sprites (stage 2, port/sprites.c + draw_sprite_row in port/view.c)
+
+The game state for sprites is the SpriteRenderer lists (struct Sprite: frame pieces, world position 24.8, attrs,
+flips, angle/scale) that the objects queue every frame, drawn by SpriteRenderer_Draw (sub_0800338C) through each
+sprite's draw callback with a DrawContext (the screen's top-left in the world). The callbacks are the only code
+that knows each sprite kind's layout (pieces, flips, quarter turns, affine pieces), so the port runs them for the
+world instead of re-implementing them:
+
+- Every frame the game draws, the renderer is run once for the GBA screen (its OAM, as on the GBA) and again for
+  every screen-sized cell (240x160, anchored on the GBA screen) that a view of the current size can cover for
+  **any** placement of the GBA rect in it (ox 0..w-240, oy 0..h-160, plus the callbacks' -128/-64 reach). So the
+  set of cells depends on the view size only, never on this frame's placement, the room fit or whether the last
+  frame was drawn wide; a sprite that is in the view is in the list at every size.
+- Each extra pass runs on a copy of the game's RAM (restored after it: no side effect survives) with the context
+  moved by whole screens and **the whole OAM buffer free**: a callback draws a sprite only if all its pieces fit,
+  and the old path started the extra passes after the GBA pass's entries, so with many sprites on screen the far
+  ones were dropped, more of them the more cells ran (size-dependent, and a sprite crossing the GBA edge could
+  lose its outer pieces).
+- Pieces are listed once: the GBA pass keeps all it makes, in OAM order (the PPU's order, so same-priority
+  overlaps inside the GBA rect resolve as on the GBA); an extra pass drops what the GBA pass also makes (GBA-
+  relative -128..239 x -64..159) and otherwise keeps a piece in the cell holding its top-left (the outermost cells
+  keep everything outwards).
+- Each piece has its world position (ExtSprite.wx/wy = context top-left + screen position). It is drawn at that
+  world position relative to the screen its renderer drew for; that screen is the GBA rect (shake included),
+  which is what makes the GBA rect pixel-identical to the PPU (checked with `MMZ_VIEWCHECK_SPRITES=1`, see 9).
+- The list is swapped when the game DMAs its OAM buffer (hw.c), so it always belongs to the frame on screen.
+- Compositing is the PPU's: per output pixel the top two of {sprite, BG0-3, backdrop} by priority (sprites first
+  at equal priority, lowest list index first among sprites), affine (matrices from OAM), flips, 1D/2D mapping,
+  4/8 bpp, OBJ window (mode 2), semi-transparent (mode 1) blending with the second target, windows/blend
+  registers of the GBA line (rows outside the GBA rect use the nearest GBA line's registers).
+- HUD/menus/cutscenes: unchanged. A HUD renderer's context is fixed, so its extra passes produce nothing
+  (moved a screen away its pieces are outside the callbacks' range); HUD sprites stay where the GBA screen has
+  them. Frames that fall back to the PPU picture draw OAM as before.
+
+What the game itself culls (game logic, not changed; the view only draws what exists):
+
+- Enemy spawning / despawning (spawn manager sub_0800E02C): objects are created only within a range of the
+  camera and removed beyond another. The port already widens both ranges with the view (port_imm_SPAWN_RANGE_*,
+  port_imm_CULL_* in view.c set_ranges, existing before stage 2), so at the view's edge enemies still appear /
+  disappear, about one GBA margin outside the view; and their number depends on the view size (motioncheck's
+  `xsprite` cross-size check reports this; it is game state, not rendering).
+- Objects that stop updating / are removed by their own code when off the GBA screen (shots leaving the screen
+  are deleted by their update when out of the camera's range): they vanish at that distance from the GBA rect.
+  motioncheck lists these as `sprite` flags with their distance from the GBA rect (`far`).
+- Blinking (invincibility, items about to vanish): the object skips drawing on alternate frames; motioncheck
+  explains it (`blinks`).
+
+### Effects (stage 3)
+
 - Blending/fog/fades: BLDCNT/BLDALPHA/BLDY come from the game's shadow registers per frame and apply to the
   whole output (they are not positional). Windows over the full GBA width/height extend over the output; small
   windows (dialogs) stay in the GBA rect.
@@ -105,3 +152,8 @@ cutscenes, fades with no stage layer, anything not modelled: the PPU picture, sc
 - Temporal: port/tools/motioncheck.py (scenarios in port/tools/motion_scenarios.txt) at x2, x3, 1120x480,
   900x520: zero unexplained pop/block events outside the GBA rect except at cuts (area/room change, teleport).
 - Cross-size: motioncheck's cross-view check: the same world pixel at two view sizes must be equal.
+- Sprites: `MMZ_VIEWCHECK=0 MMZ_VIEWCHECK_SPRITES=1` compares sprite pixels in the GBA rect too. motioncheck's
+  `sprite` flag: a sprite appearing / vanishing outside the GBA rect with no sprite near it in the other picture
+  (moved by every motion, within --sprite-reach) and away from the view's leading edge; `gba_edge` when within
+  --edge px of the GBA rect (a renderer cut at the old screen edge: must be 0), else `far` (game spawn/removal).
+  `xsprite`: sprite pixels drawn at one view size and not at the other.

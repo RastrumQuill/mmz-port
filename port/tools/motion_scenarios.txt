@@ -93,3 +93,19 @@ frames 700
 repeat 60 300 70 18 RIGHT,A RIGHT
 300 LEFT
 repeat 360 700 70 18 LEFT,A LEFT
+
+# sprites: enemies on (the config turns them off), walking and firing; sprites
+# crossing the GBA screen's edge must not be cut there (motioncheck `sprite`)
+[m1spr]
+warp mmz:m1 a0 v0 cp0
+setup 12 cheat noenemies 0
+frames 800
+0 RIGHT
+repeat 100 800 40 10 RIGHT,B RIGHT
+
+[m7spr]
+warp mmz:m7 a0 v0 cp0
+setup 12 cheat noenemies 0
+frames 800
+0 RIGHT
+repeat 100 800 40 10 RIGHT,B RIGHT

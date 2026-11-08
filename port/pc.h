@@ -20,7 +20,9 @@ void ppu_vblank(void);
 void ppu_affine_written(u32 o);
 
 /* sprites.c: sprites beyond the GBA screen, for the zoomed-out view */
-struct ExtSprite { int x, y; u16 a0, a1, a2; };   /* x, y from the GBA screen's top-left */
+/* a sprite piece of the wide view (sprites.c): x, y from the GBA screen's
+   top-left (its renderer's screen); wx, wy the same in world pixels */
+struct ExtSprite { int x, y; u16 a0, a1, a2; int wx, wy; };
 extern const struct ExtSprite *view_sprites;
 extern int view_sprite_count;                     /* -1: not made (OAM is used) */
 void sprites_commit(void);

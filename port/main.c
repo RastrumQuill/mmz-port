@@ -361,7 +361,10 @@ static double view_check(const char *png, int print) {
 			int vx = x + ox, vy = y + oy, i = y * SCREEN_W + x;
 			u32 g = ppu_frame[i], v = vx >= 0 && vx < view_w && vy >= 0 && vy < view_h ? view_frame[(size_t)vy * view_w + vx] : 0;
 			int top = ppu_layers[i] & 15, second = ppu_layers[i] >> 4;
-			int skip = top == 0 || top == 4 || second == 0 || second == 4;
+			/* MMZ_VIEWCHECK_SPRITES: sprites compared too (stage 2: the view's own sprite list must give the PPU's pixels) */
+			static int spr = -1;
+			if (spr < 0) spr = getenv("MMZ_VIEWCHECK_SPRITES") != NULL;
+			int skip = top == 0 || second == 0 || (!spr && (top == 4 || second == 4));
 			out[i] = g; out[i + SCREEN_W * SCREEN_H] = v;
 			u32 d = skip ? 0x404040 : g != v ? 0xFF0000 : (g >> 2) & 0x3F3F3F;
 			out[i + 2 * SCREEN_W * SCREEN_H] = d;

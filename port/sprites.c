@@ -1,6 +1,12 @@
 #include <stdio.h>
 #include <stdlib.h>
-/* Sprites for the zoomed-out view (view.c).
+/* Sprites for the wide view (view.c; docs/renderer.md section 7, stage 2).
+ *
+ * Every sprite piece is listed in world space: its GBA screen position plus
+ * the world position of the screen it was drawn for (the draw context's
+ * top-left, ExtSprite.wx/wy). view.c draws the list at any view size by world
+ * position, relative to the context's screen (which is the GBA rect, shake
+ * included, so the GBA rect matches the PPU exactly).
  *
  * The game draws sprites by queueing draw tasks on a renderer and flushing
  * it (sub_0800338C): every task's callback gets the camera's draw pivot and
@@ -27,7 +33,7 @@
 #define OAM_BUF 0x03001BB0u    /* the game's OAM buffer (128 entries) */
 #define OAM_PTR 0x03001FB0u    /* its write pointer */
 
-#define MAX_EXT 1024
+#define MAX_EXT 8192   /* up to 128 per cell pass */
 static struct ExtSprite lists[2][MAX_EXT];
 static int counts[2];
 static int building;           /* index of the list being made */
@@ -60,18 +66,22 @@ static u8 *ramSave;
 static void add(int x, int y, u32 e) {
 	struct ExtSprite *s;
 	if (counts[building] >= MAX_EXT) return;
+	extern s32 sprites_ctx_left, sprites_ctx_top;
 	s = &lists[building][counts[building]++];
 	s->x = x;
 	s->y = y;
 	s->a0 = peek16(e);
 	s->a1 = peek16(e + 2);
 	s->a2 = peek16(e + 4);
+	s->wx = sprites_ctx_left + x;
+	s->wy = sprites_ctx_top + y;
 }
 
 /* The entries written since `from`, with positions relative to cell
    (cx, cy). A piece is kept by the cell holding its top-left corner, except
    that the outermost cells (and callbacks only run once) keep everything
    towards the outside. */
+s32 sprites_ctx_left, sprites_ctx_top;   /* the GBA screen's top-left in the world (the draw context, whole px) */
 static void collect(u32 from, int cx, int cy, int once) {
 	u32 to = peek32(OAM_PTR);
 	for (u32 e = from; e < to; e += 8) {
@@ -79,7 +89,12 @@ static void collect(u32 from, int cx, int cy, int once) {
 		int y = a0 & 0xFF, x = a1 & 0x1FF;
 		if (y >= 160) y -= 256;   /* the callbacks keep y in -64..159, x in -128..239 */
 		if (x >= 240) x -= 512;
-		if (x < 0 && !once && cx > -view_cells_left) continue;
+		if (!cx && !cy) { add(x, y, e); continue; }   /* the GBA pass: everything, in OAM order (as the PPU sees it) */
+		{   /* drawn by the GBA pass too (its range is -128..239, -64..159 from the GBA screen) */
+			int gx = x + cx * 240, gy = y + cy * 160;
+			if (gx >= -128 && gx < 240 && gy >= -64 && gy < 160) continue;
+		}
+		if (x < 0 && !once && cx > -view_cells_left) continue;   /* (the cell to the left lists it) */
 		if (x >= 240 && !once && cx < view_cells_right) continue;
 		if (y < 0 && !once && cy > -view_cells_up) continue;
 		if (y >= 160 && !once && cy < view_cells_down) continue;
@@ -113,14 +128,19 @@ static void run_gba_pass(u32 r, u32 pivot) {
 }
 
 /* a pass for another cell: the tasks that can be run again, then taken back
-   out of the game's OAM buffer */
+   out of the game's OAM buffer. Each cell starts with the whole buffer free
+   (a callback draws a sprite only if all its pieces fit: with the GBA pass's
+   entries still there, sprites far out were dropped depending on how many
+   cells ran before, i.e. on the view size). The affine matrices are in the
+   entries' spare halfwords, which the callbacks do not write. */
 static void run_cell_pass(u32 r, u32 pivot, int cx, int cy) {
 	u32 from = lift_read32(OAM_PTR);
+	lift_write32(OAM_PTR, OAM_BUF);
 	u32 sp = cpu.r[13];
 	for (int i = 0; i < 4; i++)
 		for (u32 node = lift_read32(r + i * 4); node; node = lift_read32(node))
 			if (pure_callback(lift_read32(node + 4))) call_task(node, pivot);
-	collect(from, cx, cy, 0);
+	collect(OAM_BUF, cx, cy, 0);
 	/* the game's RAM as it was before the pass (the stack below sp too: the
 	   pivot lives there) */
 	memcpy((void *)(uintptr_t)0x02000000, ramSave, EWRAM_SIZE);
@@ -145,6 +165,8 @@ void lift_sub_0800338C(void) {
 		lift_tail = 0;
 		extern void lift_sub_08001F54(void);
 		lift_sub_08001F54();
+		sprites_ctx_left = (s32)lift_read32(pivot + 8) >> 8;
+		sprites_ctx_top = (s32)lift_read32(pivot + 12) >> 8;
 		int wide = view_cells_left || view_cells_right || view_cells_up || view_cells_down;
 		run_gba_pass(r, pivot);
 		if (wide) {

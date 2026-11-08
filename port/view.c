@@ -17,8 +17,11 @@
  *   a cut (door, teleport, area change).
  * - Nothing depends on what was visited or loaded before, or on the view
  *   size; menus and cutscenes fall back to the GBA picture.
- * - The HUD (BG0) goes to the view's edges; sprites are placed relative to
- *   the GBA screen (OAM / sprites.c's extended list).
+ * - The HUD (BG0) goes to the view's edges. Sprites come from sprites.c's
+ *   world-space list (every piece the game's draw callbacks make for any
+ *   screen-sized cell the view can cover), each placed by its world
+ *   position relative to the screen its renderer drew for (= the GBA rect);
+ *   composited with the BG layers per priority / window / blend as the PPU.
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -1126,7 +1129,22 @@ int view_render(void) {
 	set_ranges(view_w, view_h);
 	view_active = 0;
 	view_gba_pasted = 0;
-	view_cells_left = view_cells_right = view_cells_up = view_cells_down = 0;
+	/* the cells sprites are listed from (sprites.c): every place the GBA
+	   rect can take in a view of this size (ox 0..w-240, oy 0..h-160), so
+	   the list depends on the view size only, not on this frame's placement,
+	   and stays ready through frames drawn from the GBA picture */
+	{
+		int wide = view_w > SCREEN_W || view_h > SCREEN_H;
+		int ex = view_w > SCREEN_W ? view_w - SCREEN_W : 0, ey = view_h > SCREEN_H ? view_h - SCREEN_H : 0;
+		view_cells_left = wide ? cells(ex + 64, 240) : 0;
+		view_cells_right = cells(ex, 240);
+		view_cells_up = wide ? cells(ey + 64, 160) : 0;
+		view_cells_down = cells(ey, 160);
+		/* (testing) MMZ_SPRITES_GBA_ONLY: sprites only from the GBA screen, cut at its edge (motioncheck must flag it) */
+		static int gbaOnly = -1;
+		if (gbaOnly < 0) gbaOnly = getenv("MMZ_SPRITES_GBA_ONLY") != NULL;
+		if (gbaOnly) view_cells_left = view_cells_right = view_cells_up = view_cells_down = 0;
+	}
 	view_ext_left = view_ext_right = view_ext_up = view_ext_down = 0;
 	int ok = find_layers();
 	find_fx();
@@ -1154,10 +1172,6 @@ int view_render(void) {
 	int ox = gbaGX - left, oy = gbaGY - top;
 	if (dbgo.logView) fprintf(stderr, "F%ld area %d gba %d,%d ext %d..%d x %d..%d ox %d oy %d layers %d%d%d\n", frameCount, areaCur, gbaGX, gbaGY,
 	                          extL, extR, extT, extB, ox, oy, layers[1].on, layers[2].on, layers[3].on);
-	view_cells_left = cells(ox + 64, 240);
-	view_cells_right = cells(w - ox - SCREEN_W, 240);
-	view_cells_up = cells(oy + 64, 160);
-	view_cells_down = cells(h - oy - SCREEN_H, 160);
 	view_ext_left = ox; view_ext_right = w - ox - SCREEN_W;
 	view_ext_up = oy; view_ext_down = h - oy - SCREEN_H;
 	lastOx = ox; lastOy = oy;

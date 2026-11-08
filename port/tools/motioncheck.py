@@ -29,9 +29,16 @@ Flags:  pop     black <-> non-black that no motion explains
         block   other tiles appearing / changing inside the view (>= 8x8)
         layer   a BG turned on/off in DISPCNT, or most of the outside
                 changing at once while the GBA screen does not
+        sprite  a sprite (layer map id 4) appearing or vanishing outside the
+                GBA screen with no sprite near it in the other picture (per
+                motion, within --sprite-reach px) and away from the view's
+                leading edge; `gba_edge` when it is within --edge px of the
+                GBA screen (a renderer cut at the old screen edge), else
+                `far` (usually the game spawning / removing an object)
         xview   the same frame at two view sizes, aligned on the GBA screen:
                 a region black at one size and drawn at the other (where
-                both views cover it; HUD bands left out)
+                both views cover it; HUD bands left out); `xsprite` the
+                same for sprite pixels (from the layer maps)
 
 Every change of a render register (DISPCNT, BGxCNT, windows, blending,
 mosaic; `reg NAME OFF LEN` adds one) or watched memory is logged with its
@@ -49,7 +56,8 @@ as they are used (--keep keeps them).
 
 Scenario file: config lines first (`views`, `settle N`, `setup T CMD`,
 `watch NAME ADDR:LEN`, `reg NAME OFF LEN`), then per scenario a line
-`[name]`, `warp BOOKMARK`, `frames N`, and route lines `T KEYS` (T counted
+`[name]`, `warp BOOKMARK`, `frames N`, `setup T CMD` (after the config's;
+T counted from the warp), and route lines `T KEYS` (T counted
 from when the shots start; KEYS as the route's: RIGHT,A / - for none) or
 `repeat T0 T1 PERIOD HOLD KEYS ELSE`. Run from the repository root with the
 ROM in the environment as the emulator needs it (MMZ_ROM).
@@ -75,11 +83,12 @@ def parse_scenarios(path):
         if cur is None and not line.startswith("["): continue   # the config part
         m = re.match(r"\[(\S+)\]$", line)
         if m:
-            cur = {"name": m.group(1), "warp": None, "frames": 600, "lines": []}
+            cur = {"name": m.group(1), "warp": None, "frames": 600, "lines": [], "setup": []}
             out.append(cur); continue
         w = line.split()
         if w[0] == "warp": cur["warp"] = line[5:].strip()
         elif w[0] == "frames": cur["frames"] = int(w[1])
+        elif w[0] == "setup": cur["setup"].append((int(w[1]), " ".join(w[2:])))
         elif w[0] == "repeat":
             t0, t1, per, hold = map(int, w[1:5])
             keys, other = w[5], w[6] if len(w) > 6 else "-"
@@ -91,7 +100,7 @@ def parse_scenarios(path):
 def route_text(sc, cfg, prefix, every):
     S = cfg["settle"]
     watch = ",".join(w for _, w in cfg["watch"])
-    r = [f"0 warp {sc['warp']}"] + [f"{t} {c}" for t, c in cfg["setup"]] + [f"{S} shots {prefix} {every} {watch}".rstrip()]
+    r = [f"0 warp {sc['warp']}"] + [f"{t} {c}" for t, c in cfg["setup"] + sc.get("setup", [])] + [f"{S} shots {prefix} {every} {watch}".rstrip()]
     for t, cmd in sorted(sc["lines"], key=lambda x: x[0]):
         if t < sc["frames"]: r.append(f"{S + t} {cmd}")
     r += [f"{S + sc['frames']} shots -", f"{S + sc['frames'] + 1} end"]
@@ -212,7 +221,60 @@ def palette_remap(a, b):
     keep = sum(max(v.values()) for v in m.values())
     return n and keep >= 0.93 * n and len(m) > 1
 
-def analyse(src, rows, history, keep=True):
+SPRITE_REACH = 12   # px a sprite may move between two pictures and still be the same one
+EDGE = 12           # px from the GBA screen: a sprite cut there is the renderer's
+
+def mask_comps(mask, min_cells=4):
+    """connected parts of a binary L mask, in pixels (boxes of 4x4 cells, >= 2x2 cells, >= min_cells)"""
+    W, H = mask.size
+    cw, ch = W // CELL, H // CELL
+    cells = [v >= 64 for v in mask.resize((cw, ch), Image.BOX).tobytes()]
+    return [(c[0] * CELL, c[1] * CELL, c[2] * CELL, c[3] * CELL) for c in components(cells, cw, ch)
+            if c[2] - c[0] >= 2 and c[3] - c[1] >= 2 and c[4] >= min_cells]
+
+def gba_dist(box, g):
+    """pixels between a box and the GBA rect g (0: touching / overlapping)"""
+    dx = max(g[0] - box[2], box[0] - g[2], 0); dy = max(g[1] - box[3], box[1] - g[3], 0)
+    return max(dx, dy)
+
+BLINK = 8   # pictures back a blinking sprite is looked for
+
+def sprite_flags(Aspr, Bspr, S, judge, gA, gB, reach, edge, older=()):
+    """sprites appearing / vanishing outside the GBA screen (judge: where to look).
+    older: (sprite mask, motions to B) of the pictures before A: a sprite that
+    appears where one was a few pictures ago, or vanishes where there was
+    none a few pictures ago, blinks (explained)"""
+    out = []
+    for name, src, dst, sgn, g in (("appear", Bspr, Aspr, 1, gB), ("vanish", Aspr, Bspr, -1, gA)):
+        # the other picture's sprites, moved by every motion into this one's frame, grown by reach
+        other = None
+        for dx, dy in S:
+            o = shifted(dst, sgn * dx, sgn * dy)
+            other = o if other is None else ImageChops.lighter(other, o)
+        other = other.filter(ImageFilter.MaxFilter(2 * (reach // 2) + 1))
+        if name == "appear": look = ImageChops.darker(src, judge)
+        else:   # judge is B's frame: move it back to A's by the camera motion (any motion keeps it conservative)
+            jj = None
+            for dx, dy in S:
+                o = shifted(judge, -dx, -dy)
+                jj = o if jj is None else ImageChops.darker(jj, o)
+            look = ImageChops.darker(src, jj)
+        for box in mask_comps(look):
+            if other.crop(box).histogram()[255] > 0: continue   # a sprite was near: it moved
+            d = gba_dist(box, g)
+            why = None
+            for om, oSB, oSA in older:
+                hit = False
+                for dx, dy in (oSB if name == "appear" else oSA):
+                    c = shifted(om, dx, dy).crop(box).histogram()[255]
+                    if c > 0: hit = True; break
+                if name == "appear" and hit: why = "blinks (a sprite was here a few pictures ago)"; break
+                if name == "vanish" and not hit: why = "blinks (no sprite here a few pictures ago)"; break
+            out.append({**({"explained": why} if why else {}), "kind": "sprite", "what": name, "box": list(box), "cells": (box[2] - box[0]) * (box[3] - box[1]) // (CELL * CELL),
+                        "gba_dist": d, "where": "gba_edge" if d <= edge else "far"})
+    return out
+
+def analyse(src, rows, history, keep=True, reach=SPRITE_REACH, edge=EDGE):
     """src: sidecar rows as they come; rows: filled here. yields per picture: (index, flags, stats)"""
     hist = []      # (row index, RGB image, luma, black mask)
     nl = lambda im: im.convert("L")
@@ -266,6 +328,13 @@ def analyse(src, rows, history, keep=True):
                     for dx, dy in S: spr = ImageChops.lighter(spr, shifted(Aspr, dx, dy))
                 spr = spr.filter(ImageFilter.MaxFilter(5))
                 judge = ImageChops.darker(judge, ImageChops.invert(spr))
+            if Bspr is not None and Aspr is not None:
+                sj = Image.new("L", (W, H), 0)
+                if vx1 > vx0 and vy1 > vy0: ImageDraw.Draw(sj).rectangle([vx0 + 6, vy0 + 6, vx1 - 7, vy1 - 7], fill=255)
+                dj = ImageDraw.Draw(sj)
+                for q in (a, b): dj.rectangle([q["ox"] - 1, q["oy"] - 1, q["ox"] + 240, q["oy"] + 160], fill=0)
+                older = [(hs, motions(rows, hj, i), motions(rows, hj, j)) for hj, _, _, _, hs in hist[-1 - BLINK:-1] if hs is not None and hs.size == Bspr.size]
+                flags += sprite_flags(Aspr, Bspr, S, sj, (a["ox"], a["oy"], a["ox"] + 240, a["oy"] + 160), (b["ox"], b["oy"], b["ox"] + 240, b["oy"] + 160), reach, edge, older)
             un_out = ImageChops.darker(un, judge)
             un_gba = un if Bspr is None else ImageChops.darker(un, ImageChops.invert(spr))   # the GBA screen's own changes, sprites left out
             pop = ImageChops.darker(ImageChops.darker(pop, un), judge)
@@ -276,6 +345,7 @@ def analyse(src, rows, history, keep=True):
             stats = {"gba_changed": round(gfrac, 4), "out_changed": round(ofrac, 4), "motions": sorted(S)}
             if gfrac > 0.35:
                 stats["skipped"] = "most of the GBA screen changed (fade / room change)"
+                flags = [f for f in flags if f["kind"] != "sprite"]
             elif ofrac > 0.5 and jfrac_area > 0.1 * W * H:
                 flags.append({"kind": "layer", "bg": None, "frac": round(ofrac, 3), "box": [vx0, vy0, vx1, vy1]})
             else:
@@ -333,13 +403,13 @@ def analyse(src, rows, history, keep=True):
                         f["fill_share"] = round(Bfill.crop(box).histogram()[255] / ((box[2] - box[0]) * (box[3] - box[1])), 2)
                     if why: f["explained"] = why
                     flags.append(f)
-        yield i, flags, stats, B
+        yield i, flags, stats, B, Bspr
         hist.append((i, B, BL, Bblack, Bspr))
         if len(hist) > history + 1: hist.pop(0)
 
 # ------------------------------------------------------------ outputs
 
-COL = {"pop": (255, 0, 0), "block": (255, 220, 0), "layer": (255, 0, 255)}
+COL = {"pop": (255, 0, 0), "block": (255, 220, 0), "layer": (255, 0, 255), "sprite": (0, 255, 0)}
 
 def outline(img, flags, width=2):
     d = ImageDraw.Draw(img)
@@ -368,7 +438,7 @@ def reg_values(r, cfg):
         if k < len(w) and w[k]: v[name] = int.from_bytes(bytes.fromhex(w[k]), "little")
     return v
 
-def run_view(mmz, sc, cfg, view, out, every, keep, history, xevery):
+def run_view(mmz, sc, cfg, view, out, every, keep, history, xevery, reach=SPRITE_REACH, edge=EDGE):
     name = re.sub(r"[^0-9A-Za-z]+", "_", view)
     d = os.path.join(out, sc["name"], name)
     if os.path.exists(d): shutil.rmtree(d)
@@ -380,7 +450,7 @@ def run_view(mmz, sc, cfg, view, out, every, keep, history, xevery):
     rows, frames, events, changes, skipped = [], [], [], [], 0
     mp4 = shutil.which("ffmpeg"); vid = None; vsize = None; gif = []; last = None
     prevImg = None
-    for i, flags, stats, img in analyse(follow_tsv(prefix + ".tsv", proc), rows, history, keep):
+    for i, flags, stats, img, spr in analyse(follow_tsv(prefix + ".tsv", proc), rows, history, keep, reach, edge):
         r = rows[i]
         vals = reg_values(r, cfg)
         if last is not None:
@@ -390,7 +460,9 @@ def run_view(mmz, sc, cfg, view, out, every, keep, history, xevery):
         real = [f for f in flags if not f.get("explained")]
         if stats.get("skipped"): skipped += 1
         frames.append({"frame": r["frame"], "cam": [r["camx"], r["camy"]], "zero": [r["zx"], r["zy"]], "gba": [r["ox"], r["oy"]], "flags": flags, **stats})
-        if r["frame"] % xevery == 0: img.save(os.path.join(d, "xview", f"{r['frame']:06d}.png"), compress_level=1)
+        if r["frame"] % xevery == 0:
+            img.save(os.path.join(d, "xview", f"{r['frame']:06d}.png"), compress_level=1)
+            if spr is not None: spr.save(os.path.join(d, "xview", f"{r['frame']:06d}.spr.png"), compress_level=1)
         if real or i % 2 == 0:
             fr = img.copy(); gba_rect(fr, r); outline(fr, real, 3)
             k = 2 if fr.width > 800 else 1
@@ -418,9 +490,13 @@ def run_view(mmz, sc, cfg, view, out, every, keep, history, xevery):
     for e in events:
         if groups and e[0] - groups[-1][-1][0] <= 3: groups[-1].append(e)
         else: groups.append([e])
-    counts = {"pop": 0, "block": 0, "layer": 0}
+    counts = {"pop": 0, "block": 0, "layer": 0, "sprite": 0, "sprite_gba_edge": 0}
     for e in events:
-        for f in e[1]: counts[f["kind"]] += 1
+        for f in e[1]:
+            counts[f["kind"]] += 1
+            if f["kind"] == "sprite" and f["where"] == "gba_edge": counts["sprite_gba_edge"] += 1
+    sprite_events = sum(1 for g in groups if any(f["kind"] == "sprite" for e in g for f in e[1]))
+    edge_events = sum(1 for g in groups if any(f["kind"] == "sprite" and f["where"] == "gba_edge" for e in g for f in e[1]))
     expl = sum(1 for fr in frames for f in fr["flags"] if f.get("explained"))
     def near(f0, f1):   # flag changes in the frames just before an event (its likely cause)
         return [c for c in changes if f0 - 4 <= c["frame"] <= f1 + 1]
@@ -443,7 +519,9 @@ def run_view(mmz, sc, cfg, view, out, every, keep, history, xevery):
             tiles.append(t)
     sheet = save_sheet(tiles, os.path.join(d, "sheet.png"))
     summ = {"scenario": sc["name"], "view": view, "warp": sc["warp"], "pictures": len(frames), "skipped": skipped,
-            "flagged_pictures": len(events), "events": len(groups), "counts": counts, "explained_blocks": expl,
+            "flagged_pictures": len(events), "events": len(groups), "counts": counts,
+            "events_bg": len(groups) - sum(1 for g in groups if all(f["kind"] == "sprite" for e in g for f in e[1])),
+            "events_sprite": sprite_events, "events_sprite_gba_edge": edge_events, "explained_blocks": expl,
             "event_list": evs, "flag_changes": changes, "sheet": sheet,
             "video": os.path.join(d, "walk.mp4") if mp4 else (os.path.join(d, "walk.gif") if gif else None)}
     with open(os.path.join(d, "summary.json"), "w") as f: json.dump({**summ, "frames": frames}, f, indent=1)
@@ -469,7 +547,7 @@ def cross_view(sc, out, runs):
         for bi in range(ai + 1, len(names)):
             va, vb = names[ai], names[bi]
             (da, ma), (db, mb) = runs[va], runs[vb]
-            nflag, nframes, first = 0, 0, []
+            nflag, nframes, first, sflag, sfirst = 0, 0, [], 0, []
             for fr in sorted(set(ma) & set(mb)):
                 ra, rb = ma[fr], mb[fr]
                 if (ra["camx"], ra["camy"], ra["zx"], ra["zy"]) != (rb["camx"], rb["camy"], rb["zx"], rb["zy"]): continue
@@ -494,6 +572,21 @@ def cross_view(sc, out, runs):
                     dr.rectangle([e0x, e0y, e0x + 40, e1y], fill=0)
                     dr.rectangle([e0x, e0y, e1x, e0y + 24], fill=0)
                 nframes += 1
+                sa, sb = pa[:-4] + ".spr.png", pb[:-4] + ".spr.png"
+                if os.path.exists(sa) and os.path.exists(sb):   # sprite pixels drawn at one size only
+                    za = Image.open(sa).crop((x0 + ra["ox"], y0 + ra["oy"], x1 + ra["ox"], y1 + ra["oy"]))
+                    zb = Image.open(sb).crop((x0 + rb["ox"], y0 + rb["oy"], x1 + rb["ox"], y1 + rb["oy"]))
+                    zm = ImageChops.difference(za, zb)
+                    zd = ImageDraw.Draw(zm)
+                    zd.rectangle([-x0 - 2, -y0 - 2, -x0 + 241, -y0 + 161], fill=0)
+                    for (rr, im) in ((ra, A), (rb, B)):
+                        e0x, e0y = -rr["ox"] - x0, -rr["oy"] - y0
+                        e1x, e1y = im.width - rr["ox"] - x0, im.height - rr["oy"] - y0
+                        zd.rectangle([e0x, e0y, e0x + 40, e1y], fill=0); zd.rectangle([e0x, e0y, e1x, e0y + 24], fill=0)
+                    sb_ = mask_comps(zm)
+                    if sb_:
+                        sflag += 1
+                        if len(sfirst) < 20: sfirst.append({"frame": fr, "boxes": [list(b) for b in sb_]})
                 cw, ch = m.width // CELL, m.height // CELL
                 cells = [v >= 128 for v in m.resize((cw, ch), Image.BOX).tobytes()]
                 boxes = [(c[0] * CELL, c[1] * CELL, c[2] * CELL, c[3] * CELL) for c in components(cells, cw, ch)
@@ -510,7 +603,8 @@ def cross_view(sc, out, runs):
                     t.paste(ca, (0, 18)); t.paste(cb, (ca.width + 8, 18))
                     ImageDraw.Draw(t).text((4, 3), f"frame {fr}: {va} | {vb} (shared part)  {len(boxes)} region(s) black in one only", fill=(255, 255, 255))
                     tiles.append(t)
-            res.append({"views": [va, vb], "frames_compared": nframes, "frames_flagged": nflag, "first": first})
+            res.append({"views": [va, vb], "frames_compared": nframes, "frames_flagged": nflag, "first": first,
+                        "sprite_frames_flagged": sflag, "sprite_first": sfirst})
     sheet = save_sheet(tiles, os.path.join(out, sc["name"], "xview_sheet.png"))
     return {"pairs": res, "sheet": sheet}
 
@@ -539,6 +633,8 @@ def main():
     a.add_argument("--out", default="motion_out")
     a.add_argument("--jobs", type=int, default=2)
     a.add_argument("--keep", action="store_true")
+    a.add_argument("--sprite-reach", type=int, default=SPRITE_REACH, help="px a sprite may move between pictures")
+    a.add_argument("--edge", type=int, default=EDGE, help="px from the GBA screen that count as its edge (sprite flags)")
     a.add_argument("--mmz", default=os.path.join(ROOT, "build_port/mmz"))
     o = a.parse_args()
     cfg = parse_config(o.scenarios)
@@ -549,7 +645,7 @@ def main():
     jobs = [(s, v) for s in scs for v in views]
     res, runs = [], {}
     with cf.ThreadPoolExecutor(o.jobs) as ex:
-        futs = {ex.submit(run_view, os.path.abspath(o.mmz), s, cfg, v, out, o.every, o.keep, o.history, o.xview_every): (s, v) for s, v in jobs}
+        futs = {ex.submit(run_view, os.path.abspath(o.mmz), s, cfg, v, out, o.every, o.keep, o.history, o.xview_every, o.sprite_reach, o.edge): (s, v) for s, v in jobs}
         for f in cf.as_completed(futs):
             s, v = futs[f]
             try: r, meta = f.result()
@@ -559,13 +655,13 @@ def main():
             res.append(r)
             if meta: runs.setdefault(s["name"], {})[v] = meta
             if "error" in r: print(f"{r['scenario']:12} {r['view']:9} ERROR {r['error']}")
-            else: print(f"{r['scenario']:12} {r['view']:9} pictures {r['pictures']:4} events {r['events']:3} flagged {r['flagged_pictures']:4} pop {r['counts']['pop']} block {r['counts']['block']} layer {r['counts']['layer']} (explained {r['explained_blocks']}, skipped {r['skipped']}, flag changes {len(r['flag_changes'])})", flush=True)
+            else: print(f"{r['scenario']:12} {r['view']:9} pictures {r['pictures']:4} events {r['events']:3} flagged {r['flagged_pictures']:4} pop {r['counts']['pop']} block {r['counts']['block']} layer {r['counts']['layer']} sprite {r['counts']['sprite']} (gba edge {r['counts']['sprite_gba_edge']}; events bg {r['events_bg']} sprite {r['events_sprite']} edge {r['events_sprite_gba_edge']}) (explained {r['explained_blocks']}, skipped {r['skipped']}, flag changes {len(r['flag_changes'])})", flush=True)
     xv = {}
     for s in scs:
         if len(runs.get(s["name"], {})) > 1:
             xv[s["name"]] = cross_view(s, out, runs[s["name"]])
             for p in xv[s["name"]]["pairs"]:
-                print(f"{s['name']:12} xview {p['views'][0]}|{p['views'][1]}: {p['frames_flagged']}/{p['frames_compared']} frames differ in what is drawn", flush=True)
+                print(f"{s['name']:12} xview {p['views'][0]}|{p['views'][1]}: {p['frames_flagged']}/{p['frames_compared']} frames differ in what is drawn, {p['sprite_frames_flagged']} in sprites", flush=True)
         if not o.keep:
             for v in runs.get(s["name"], {}).values(): shutil.rmtree(os.path.join(v[0], "xview"), ignore_errors=True)
     res.sort(key=lambda r: (r["scenario"], r["view"]))
