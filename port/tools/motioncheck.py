@@ -267,6 +267,7 @@ def analyse(src, rows, history, keep=True):
                 spr = spr.filter(ImageFilter.MaxFilter(5))
                 judge = ImageChops.darker(judge, ImageChops.invert(spr))
             un_out = ImageChops.darker(un, judge)
+            un_gba = un if Bspr is None else ImageChops.darker(un, ImageChops.invert(spr))   # the GBA screen's own changes, sprites left out
             pop = ImageChops.darker(ImageChops.darker(pop, un), judge)
             gx0, gy0, gx1, gy1 = b["ox"], b["oy"], b["ox"] + 240, b["oy"] + 160
             gfrac = un.crop((gx0, gy0, gx1, gy1)).histogram()[255] / (240 * 160)
@@ -314,6 +315,11 @@ def analyse(src, rows, history, keep=True):
                             if x0_ - dx < 0 or y0_ - dy < 0 or x1_ - dx > W or y1_ - dy > H: continue
                             if palette_remap(A.crop((x0_ - dx, y0_ - dy, x1_ - dx, y1_ - dy)), B.crop(box)):
                                 why = "palette animation (colours remapped one to one)"; break
+                    if not why and kind == "block":   # the GBA screen changes on these lines too: the game's own effect
+                        ya, yb = max(gy0, box[1]), min(gy1, box[3])
+                        gb = un_gba.crop((gx0, ya, gx1, yb)) if yb > ya else None
+                        if gb and gb.histogram()[255] >= 0.03 * gb.size[0] * gb.size[1]:
+                            why = "the GBA screen changes on the same lines (a game effect)"
                     if not why and kind == "block" and rows_shift_match(B, box, A):
                         why = "per-line scroll (each row the last picture's, moved sideways)"
                     if not why and kind == "block":   # a moving object: the last picture, moved a little
