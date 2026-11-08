@@ -2153,6 +2153,12 @@ static void patch_load(void) {
 	fclose(f);
 }
 
+/* fills.bin was made anew (Settings button): read it again */
+void fill_patch_reload(void) {
+	for (int i = 0; i < npatch; i++) { free(patch[i].mt); free(patch[i].donor); }
+	free(patch); patch = NULL; npatch = 0; patchLoaded = 0; patchStale = 0;
+}
+
 static void patch_append(const struct FillRec *r) {
 	const char *p = patch_path();
 	FILE *f = fopen(p, "rb");
@@ -3272,15 +3278,15 @@ int view_render(void) {
 	{
 		/* (the same while the area and its sets are) */
 		static s32 bL, bT, bR, bB; static u32 bKey = ~0u; static s32 bStageX, bStageY;
-		u32 key = ((u32)CUR_AREA << 24 ^ (u32)GFX_SET_A << 12 ^ GFX_SET_B) + reachKey * 2654435761u + (u32)settings.fillGaps * 0x51ED27u + (u32)dbgo.gen * 0x2545F491u;
-		static int bFill = -1;
-		if (key != bKey || stageX != bStageX || stageY != bStageY || bFill != settings.fillGaps) {
+		u32 key = ((u32)CUR_AREA << 24 ^ (u32)GFX_SET_A << 12 ^ GFX_SET_B) + reachKey * 2654435761u + (u32)settings.fillGaps * 0x51ED27u;   /* (not dbgo.gen: fills.bin is keyed by this) */
+		static int bFill = -1, bGen = -1;
+		if (key != bKey || stageX != bStageX || stageY != bStageY || bFill != settings.fillGaps || bGen != dbgo.gen) {
 			content_bounds(&bL, &bT, &bR, &bB);
 			for (int k = 1; k < 4; k++) {
 				if (settings.fillGaps) { fill_get(k, key); if (fills[k].on) { fill_shot_in = 90; fill_shot_key = key ^ (u32)stageX << 4 ^ (u32)stageY; } }
 				else { free(fills[k].mt); free(fills[k].donor); memset(&fills[k], 0, sizeof fills[k]); }
 			}
-			bKey = key; bStageX = stageX; bStageY = stageY; bFill = settings.fillGaps;
+			bKey = key; bStageX = stageX; bStageY = stageY; bFill = settings.fillGaps; bGen = dbgo.gen;
 		}
 		fit_target();
 		if (view_fit_gba) { shownFrames = 0; return 0; }

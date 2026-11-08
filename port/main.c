@@ -601,6 +601,7 @@ static void route_step(void) {
 			else if (!strcmp(routeArg1, "inflife")) dbgo.infLife = on;
 		}
 		else if (!strcmp(routeCmd, "teleport")) { if (!teleport_to(atoi(routeArg1), atoi(routeArg2))) fprintf(stderr, "teleport: %s,%s is not open and reached\n", routeArg1, routeArg2); }   /* teleport X Y (global pixels) */
+		else if (!strcmp(routeCmd, "life")) zero_set_hp(atoi(routeArg1));   /* life N: set Zero's life (as if hurt) */
 		else if (!strcmp(routeCmd, "viewchunks")) { void view_chunk_report(void); view_chunk_report(); }   /* viewchunks: static checks of the view's chunks */
 		else if (!strcmp(routeCmd, "viewprobe")) {   /* viewprobe [PREFIX]: the wide view against the GBA camera moved over it */
 			view_level_only = 1;
@@ -936,13 +937,31 @@ void frontend_restart_warp(const char *bookmark) {
  * machine (a release build runs this once, at first start) and never shipped.
  */
 const char *fill_patch_path(void);
-static int fills_ok(void) {
+int fills_ok(void) {
 	FILE *f = fopen(fill_patch_path(), "rb");
 	if (!f) return 0;
 	char m[8]; u32 c = 0;
 	int ok = fread(m, 1, 8, f) == 8 && !memcmp(m, "MMZFILL8", 8) && fread(&c, 4, 1, f) == 1 && c == romCrc;
 	fclose(f);
 	return ok;
+}
+volatile int fillGenDone, fillGenTotal, fillGenState;   /* state: 0 idle, 1 running, 2 done, 3 failed */
+static int fillGenBg;   /* running in the UI's thread: no window calls */
+static int gen_fills(const char *romPath, const char *config, int jobs);
+static const char *gRomPath, *gConfig;
+static int fill_gen_thread(void *u) {
+	(void)u;
+	fillGenBg = 1;
+	int r = gen_fills(gRomPath, gConfig, 4);
+	fillGenState = r ? 3 : 2;
+	return r;
+}
+/* the Settings button: work fills.bin out in the background (child processes) */
+void fill_gen_start(void) {
+	if (fillGenState == 1 || !gRomPath) return;
+	fillGenDone = 0; fillGenTotal = 0; fillGenState = 1;
+	SDL_Thread *t = SDL_CreateThread(fill_gen_thread, "fillgen", NULL);
+	if (t) SDL_DetachThread(t); else fillGenState = 3;
 }
 static int gen_fills(const char *romPath, const char *config, int jobs) {
 	char self[1024];
@@ -961,6 +980,7 @@ static int gen_fills(const char *romPath, const char *config, int jobs) {
 	if (jobs < 1) jobs = 1;
 	fprintf(stderr, "fills: working out the wide view's gap fill for %d places (%d at a time) into %s\n", np, jobs, out);
 	int next = 0, done = 0, running = 0;
+	fillGenTotal = np; fillGenDone = 0;
 #ifdef _WIN32
 	intptr_t pid[16]; int slot[16];
 #else
@@ -1010,8 +1030,9 @@ static int gen_fills(const char *romPath, const char *config, int jobs) {
 		char route[1100]; snprintf(route, sizeof route, "%s.route%d", out, slot[w]); remove(route);
 		pid[w] = pid[running - 1]; slot[w] = slot[running - 1]; running--; done++;
 		fprintf(stderr, "fills: %d/%d\n", done, np);
+		fillGenDone = done;
 		char title[64]; snprintf(title, sizeof title, "Mega Man Zero: preparing the wide view %d/%d", done, np);
-		if (SDL_WasInit(SDL_INIT_VIDEO) && SDL_GL_GetCurrentWindow()) SDL_SetWindowTitle(SDL_GL_GetCurrentWindow(), title);
+		if (!fillGenBg && SDL_WasInit(SDL_INIT_VIDEO) && SDL_GL_GetCurrentWindow()) SDL_SetWindowTitle(SDL_GL_GetCurrentWindow(), title);
 	}
 	/* join the parts */
 	snprintf(tmpl, sizeof tmpl, "%s.new", out);
@@ -1111,11 +1132,9 @@ int main(int argc, char **argv) {
 	map_at(0x0E000000, 0x8000);    /* cartridge SRAM */
 	load_rom(romPath);
 	if (genFills) return gen_fills(romPath, configArg, genJobs ? genJobs : 4);
-	/* a release build has no fill file: worked out once with this ROM, before play (never during it) */
-	if (!headless && !route && settings.fillGaps == 1 && !getenv("MMZ_FILLGEN") && !fills_ok()) {
-		fprintf(stderr, "fills: no gap fill for this ROM yet: working it out once (a few minutes)\n");
-		gen_fills(romPath, configArg, 4);
-	}
+	/* gap fill is off by default; with it on and no fills.bin, Settings offers to make it (never a blocking run at start) */
+	gRomPath = romPath; gConfig = configArg;
+	if (getenv("MMZ_FILLGEN")) settings.fillGaps = 1;   /* the generator's children work the WFC fill out, whatever mmz.ini says */
 	save_load();
 	report_boot_save(SRAM);
 	if (!headless) sdl_init(settings.scale > 0 ? settings.scale : 3);

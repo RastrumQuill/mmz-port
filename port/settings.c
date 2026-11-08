@@ -136,7 +136,7 @@ void settings_defaults(void) {
 	settings.viewHeight = 240;
 	settings.hudEdges = 1;
 	settings.fitRooms = 1;
-	settings.fillGaps = 1;
+	settings.fillGaps = 0;   /* off: fills.bin takes ~25 min to make (Settings has a button) */
 	settings.cropUnreach = 1;
 	settings.cpuSpeed = 400;   /* no slowdown where the GBA ran out of time */
 	for (int i = 0; i < 10; i++) settings.keys[i] = SDL_GetScancodeFromName(kDefaultKeys[i]);

@@ -277,6 +277,10 @@ int zero_hp(void) {
 	u32 z = zero_addr();
 	return z ? *(s16 *)(uintptr_t)(z + ZERO_HP) : -1;
 }
+void zero_set_hp(int hp) {   /* (routes: as if hurt, to test the life cheat) */
+	u32 z = zero_addr();
+	if (z) *(s16 *)(uintptr_t)(z + ZERO_HP) = (s16)hp;
+}
 
 /* ------------------------------------------------------------ bookmarks */
 

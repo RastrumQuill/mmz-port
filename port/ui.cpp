@@ -25,6 +25,32 @@ extern "C" {
 #include "input.h"
 #include "report.h"
 #include "debug.h"
+
+extern "C" {
+int fills_ok(void);
+void fill_gen_start(void);
+void fill_patch_reload(void);
+extern volatile int fillGenDone, fillGenTotal, fillGenState;
+}
+/* with the WFC fill picked and no fills.bin for this ROM: say so, offer to make it */
+static void fill_status(void) {
+	static int lastState = 0;
+	if (fillGenState == 2 && lastState != 2) { fill_patch_reload(); dbg_changed(); }
+	lastState = fillGenState;
+	if (settings.fillGaps != 1) return;
+	if (fillGenState == 1) {
+		char b[64]; snprintf(b, sizeof b, "Making fill data: %d/%d places", fillGenDone, fillGenTotal);
+		ImGui::ProgressBar(fillGenTotal ? (float)fillGenDone / fillGenTotal : 0.f, ImVec2(-1, 0), b);
+		return;
+	}
+	if (fillGenState == 2) { ImGui::TextDisabled("Fill data made."); return; }
+	if (fills_ok()) return;
+	ImGui::TextColored(ImVec4(1, .8f, .3f, 1), fillGenState == 3 ? "Making fill data failed (see the log)" : "Fill data not made yet");
+	ImGui::SameLine();
+	if (ImGui::Button("Make it now (~25 min, uses 4 cores)")) fill_gen_start();
+	if (ImGui::IsItemHovered()) ImGui::SetTooltip("Works fills.bin out in the background (you can keep playing).\nOr run: mmz --gen-fills");
+}
+
 }
 
 struct DebugState debug = { 0, 0, 0, 0x1F, 0, 0 };
@@ -384,6 +410,7 @@ static void settings_window() {
 		if (ImGui::IsItemHovered()) ImGui::SetTooltip("The wide view does not show past what the GBA camera can show around Zero (worked out\nfrom the level's collision): where that is shorter or narrower than the view, the view\nzooms in (smoothly) to fill the window instead of showing filler below or beside the level.");
 		if (ImGui::Combo("Fill empty parts of areas", &fg, "Off (black)\0Tile fill (learned from the area)\0Column repeat (old)\0\0")) settings.fillGaps = fg;
 		if (ImGui::IsItemHovered()) ImGui::SetTooltip("Parts of an area the GBA camera never showed (empty in the level data) are filled\nwith the area's own tiles, arranged so every seam is one the area itself uses (deterministic per area).\nCached in fills.bin (generated, ROM-derived: not shipped); off shows the GBA's level data as it is.");
+		fill_status();
 		bool is = settings.integerScale, sm = settings.smooth;
 		if (ImGui::Checkbox("Whole-number scaling only", &is)) settings.integerScale = is;
 		if (ImGui::Checkbox("Smooth (filtered) pixels", &sm)) settings.smooth = sm;
@@ -565,6 +592,7 @@ static void debug_options() {
 		ImGui::SetNextItemWidth(160);
 		if (ImGui::Combo("Gap fill", &fg, fills, IM_ARRAYSIZE(fills))) { settings.fillGaps = fg; dbg_changed(); }
 		tip("What goes where the level has no art: black, the worked-out fill, or the column copy.");
+		fill_status();
 		ImGui::SameLine();
 		opt("Hide fill", &dbgo.fillHide, "Work the gap fill out but do not draw it (MMZ_FILLHIDE).", true);
 		ImGui::SetNextItemWidth(100);
