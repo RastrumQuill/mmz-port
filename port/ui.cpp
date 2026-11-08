@@ -402,15 +402,9 @@ static void settings_window() {
 			if (ImGui::IsItemHovered()) ImGui::SetTooltip("CPU time the game gets each frame. More removes the slowdown\n(lots of enemies, the wide view) without speeding the game up.");
 		}
 		if (ImGui::Checkbox("HUD at the screen's edges", &he)) settings.hudEdges = he;
-		bool fr = settings.fitRooms; int fg = settings.fillGaps;
+		bool fr = settings.fitRooms;
 		if (ImGui::Checkbox("Fit small rooms to the screen", &fr)) settings.fitRooms = fr;
 		if (ImGui::IsItemHovered()) ImGui::SetTooltip("A rectangular room smaller than the view: the view zooms in to fill the screen with it\n(smoothly, when you enter it) instead of showing black around it.");
-		bool cu = settings.cropUnreach;
-		if (ImGui::Checkbox("Crop where the camera never goes", &cu)) settings.cropUnreach = cu;
-		if (ImGui::IsItemHovered()) ImGui::SetTooltip("The wide view does not show past what the GBA camera can show around Zero (worked out\nfrom the level's collision): where that is shorter or narrower than the view, the view\nzooms in (smoothly) to fill the window instead of showing filler below or beside the level.");
-		if (ImGui::Combo("Fill empty parts of areas", &fg, "Off (black)\0Tile fill (learned from the area)\0Column repeat (old)\0\0")) settings.fillGaps = fg;
-		if (ImGui::IsItemHovered()) ImGui::SetTooltip("Parts of an area the GBA camera never showed (empty in the level data) are filled\nwith the area's own tiles, arranged so every seam is one the area itself uses (deterministic per area).\nCached in fills.bin (generated, ROM-derived: not shipped); off shows the GBA's level data as it is.");
-		fill_status();
 		bool is = settings.integerScale, sm = settings.smooth;
 		if (ImGui::Checkbox("Whole-number scaling only", &is)) settings.integerScale = is;
 		if (ImGui::Checkbox("Smooth (filtered) pixels", &sm)) settings.smooth = sm;
@@ -579,25 +573,8 @@ static void debug_options() {
 		tip("Reads bookmarks.txt again (after editing it by hand).");
 	}
 	if (header("Wide view")) {
-		opt("No crop", &dbgo.noCrop, "Draw the whole wide view, also where the camera never goes (MMZ_NOCROP).", true);
-		ImGui::SameLine();
-		bool cu = settings.cropUnreach;
-		if (ImGui::Checkbox("Crop unreachable (setting)", &cu)) { settings.cropUnreach = cu; dbg_changed(); }
-		tip("The setting: black out where the camera never goes.");
-		opt("No shown map", &dbgo.noShown, "Count every cell as one the camera can show (MMZ_NOSHOWN).", true);
-		ImGui::SameLine();
-		opt("Hide never-shown art", &dbgo.hideUnshown, "Draw level art only where the camera can show it (MMZ_HIDEUNSHOWN).", true);
-		static const char *const fills[] = { "Black", "WFC (fills.bin)", "Column", "Tile WFC (compare)" };
-		int fg = settings.fillGaps;
-		ImGui::SetNextItemWidth(160);
-		if (ImGui::Combo("Gap fill", &fg, fills, IM_ARRAYSIZE(fills))) { settings.fillGaps = fg; dbg_changed(); }
-		tip("What goes where the level has no art: black, the worked-out fill, or the column copy.");
-		fill_status();
-		ImGui::SameLine();
-		opt("Hide fill", &dbgo.fillHide, "Work the gap fill out but do not draw it (MMZ_FILLHIDE).", true);
-		ImGui::SetNextItemWidth(100);
-		if (ImGui::InputInt("Fill only BG (-1 all)", &dbgo.fillOnly)) { if (dbgo.fillOnly < -1) dbgo.fillOnly = -1; if (dbgo.fillOnly > 3) dbgo.fillOnly = 3; dbg_changed(); }
-		tip("Draw only this background's gap fill (MMZ_FILLONLY).");
+		{ bool no = view_native_only; if (ImGui::Checkbox("Native GBA rect", &no)) view_native_only = no; }
+		tip("Draw the GBA screen's part from the game state too, not the GBA picture (what viewcheck compares).");
 		bool fr = settings.fitRooms, he = settings.hudEdges;
 		if (ImGui::Checkbox("Fit small rooms", &fr)) { settings.fitRooms = fr; dbg_changed(); }
 		tip("The setting: zoom the view in to fit rooms smaller than it.");
@@ -606,25 +583,14 @@ static void debug_options() {
 		tip("The setting: the HUD at the screen's edges, not the GBA screen's.");
 	}
 	if (header("Overlays")) {
-		opt("Shown map", &dbgo.ovShown, "Tint 16px cells: green shown by the camera, yellow drawn from beyond it, red neither; dots where Zero can reach.");
-		ImGui::SameLine();
-		opt("Gap fill", &dbgo.ovFill, "Magenta over pixels drawn by the gap fill.");
-		ImGui::SameLine();
-		opt("Chunk sources", &dbgo.ovChunk, "Outline each 240x160 chunk with where its art comes from (video memory, a copy, none).");
-		opt("Crop rectangle", &dbgo.ovCrop, "Outline the region left after cropping where the camera never goes.");
+		opt("Room extent", &dbgo.ovCrop, "Outline the room the view draws (outside it: black).");
 		ImGui::SameLine();
 		opt("Cell grid", &dbgo.ovGrid, "A 16-pixel metatile grid.");
 	}
 	if (header("Logging (stderr / mmz.log)")) {
 		opt("View", &dbgo.logView, "Each frame: camera, layer, stage and area numbers (VIEWDEBUG).");
-		ImGui::SameLine(); opt("Crop", &dbgo.logCrop, "Each frame: the crop region (CROPDEBUG).");
-		ImGui::SameLine(); opt("Chunks", &dbgo.logChunk, "With View: each chunk's source (CHUNKDEBUG).");
 		ImGui::SameLine(); opt("Fit", &dbgo.logFit, "Every 5 s: the fitted view size (FITDEBUG).");
-		opt("Fill", &dbgo.logFill, "Gap fill timings and counts (MMZ_FILLDEBUG).", true);
-		ImGui::SameLine(); opt("Fill map", &dbgo.logFillMap, "Gap fill: a text map of the result (MMZ_FILLMAP).", true);
-		ImGui::SameLine(); opt("Overwrite map", &dbgo.logOwMap, "Gap fill: a text map of the solver's cells (MMZ_OWMAP).", true);
-		opt("Shown map", &dbgo.logShown, "When the shown map is made: a text map around Zero (SHOWNDEBUG).", true);
-		ImGui::SameLine(); opt("Line effects", &dbgo.logFx, "Per-line effects the view replays (FXDEBUG).");
+		opt("Line effects", &dbgo.logFx, "Per-line effects the view replays (FXDEBUG).");
 		ImGui::SameLine(); opt("Sprites", &dbgo.logSprite, "Each sprite draw routine, once (SPRITEDEBUG).");
 		ImGui::SameLine(); opt("Lag", &dbgo.logLag, "Routes: game frames per line (LAGDEBUG).");
 	}
@@ -1006,7 +972,7 @@ static void test_step() {
 	if (F == 16) shot = 3;
 	if (F == 17) sShowTiles = sShowSprites = sShowIo = false;
 	if (F == 22) shot = 4;   // the Debug window alone
-	if (F == 23) { sTestOpenAll = true; dbgo.ovShown = dbgo.ovChunk = dbgo.ovCrop = 1; }
+	if (F == 23) { sTestOpenAll = true; dbgo.ovCrop = 1; }
 	if (F == 28) shot = 5;   // the Debug window, every section open, overlays on
 	if (F == 29) exit(0);
 	if (!shot) return;

@@ -38,7 +38,7 @@ void view_record_line(int line);
 int view_render(void);
 void view_gba_origin(int *ox, int *oy);
 void view_gba_global(int *x, int *y);   /* the GBA screen's top-left in the world, last frame drawn */
-extern int view_level_only, view_gba_pasted;   /* viewcheck (main.c) */   /* where the GBA screen is in view_frame */
+extern int view_level_only, view_native_only, view_gba_pasted;   /* viewcheck (main.c) */   /* where the GBA screen is in view_frame */
 
 /* audio.c */
 void audio_fifo_write(int fifo, u32 word);
