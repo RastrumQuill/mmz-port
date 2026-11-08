@@ -1,0 +1,1402 @@
+kind	stages	area	variant	where	what	detail
+area_rect	m0,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	0	0	chunks 28,24..59,29	px 6720,3840 7680x960	desc 0x82946b8 id 0
+room	m0,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	0	0	chunks 28,24..48,29	39 chunks, levels 0	main room
+separate_room	m0,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	0	0	chunks 28,29..35,29	8 chunks, levels 0	camera cannot scroll here from the main room (level step > 1)
+separate_room	m0,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	0	0	chunks 46,24..48,25	6 chunks, levels 2	camera cannot scroll here from the main room (level step > 1)
+separate_room	m0,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	0	0	chunks 50,29..50,29	1 chunks, levels 0	camera cannot scroll here from the main room (level step > 1)
+camera_block	m0,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	0	0	chunk 31,25	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m0,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	0	0	chunk 32,25	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m0,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	0	0	chunk 44,26	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m0,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	0	0	chunk 46,28	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m0,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	0	0	chunk 49,24	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m0,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	0	0	chunk 49,29	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m0,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	0	0	chunk 58,24	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m0,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	0	0	chunk 58,25	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m0,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	0	0	chunk 58,26	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m0,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	0	0	chunk 58,27	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m0,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	0	0	chunk 58,28	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m0,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	0	0	chunk 58,29	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m0,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	0	0	chunk 59,24	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m0,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	0	0	chunk 59,25	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m0,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	0	0	chunk 59,26	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m0,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	0	0	chunk 59,27	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m0,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	0	0	chunk 59,28	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m0,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	0	0	chunk 59,29	layer map level 15	camera never centres here (sub_080066AC)
+room_edge	m0,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	0	0	chunk 45,24|46,24	levels 0|2	camera edge (screen stops at the chunk border)
+room_edge	m0,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	0	0	chunk 45,25|46,25	levels 0|2	camera edge (screen stops at the chunk border)
+area_rect	m1	0	1	chunks 28,24..59,29	px 6720,3840 7680x960	desc 0x8294740 id 0
+room	m1	0	1	chunks 28,24..47,29	37 chunks, levels 0	main room
+separate_room	m1	0	1	chunks 28,29..35,29	8 chunks, levels 0	camera cannot scroll here from the main room (level step > 1)
+separate_room	m1	0	1	chunks 46,24..48,25	6 chunks, levels 2	camera cannot scroll here from the main room (level step > 1)
+separate_room	m1	0	1	chunks 48,28..48,29	2 chunks, levels 2	camera cannot scroll here from the main room (level step > 1)
+separate_room	m1	0	1	chunks 50,29..50,29	1 chunks, levels 0	camera cannot scroll here from the main room (level step > 1)
+camera_block	m1	0	1	chunk 31,25	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m1	0	1	chunk 32,25	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m1	0	1	chunk 44,26	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m1	0	1	chunk 46,28	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m1	0	1	chunk 49,24	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m1	0	1	chunk 49,29	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m1	0	1	chunk 58,24	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m1	0	1	chunk 58,25	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m1	0	1	chunk 58,26	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m1	0	1	chunk 58,27	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m1	0	1	chunk 58,28	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m1	0	1	chunk 58,29	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m1	0	1	chunk 59,24	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m1	0	1	chunk 59,25	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m1	0	1	chunk 59,26	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m1	0	1	chunk 59,27	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m1	0	1	chunk 59,28	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m1	0	1	chunk 59,29	layer map level 15	camera never centres here (sub_080066AC)
+room_edge	m1	0	1	chunk 45,24|46,24	levels 0|2	camera edge (screen stops at the chunk border)
+room_edge	m1	0	1	chunk 45,25|46,25	levels 0|2	camera edge (screen stops at the chunk border)
+room_edge	m1	0	1	chunk 47,29|48,29	levels 0|2	camera edge (screen stops at the chunk border)
+area_rect	m2	0	2	chunks 28,24..59,29	px 6720,3840 7680x960	desc 0x82947c8 id 0
+separate_room	m2	0	2	chunks 28,24..30,24	3 chunks, levels 0	camera cannot scroll here from the main room (level step > 1)
+separate_room	m2	0	2	chunks 28,29..35,29	8 chunks, levels 0	camera cannot scroll here from the main room (level step > 1)
+separate_room	m2	0	2	chunks 31,24..31,24	1 chunks, levels 2	camera cannot scroll here from the main room (level step > 1)
+room	m2	0	2	chunks 32,24..48,29	35 chunks, levels 0	main room
+separate_room	m2	0	2	chunks 46,24..48,25	6 chunks, levels 2	camera cannot scroll here from the main room (level step > 1)
+separate_room	m2	0	2	chunks 50,29..50,29	1 chunks, levels 0	camera cannot scroll here from the main room (level step > 1)
+camera_block	m2	0	2	chunk 31,25	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m2	0	2	chunk 32,25	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m2	0	2	chunk 44,26	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m2	0	2	chunk 46,28	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m2	0	2	chunk 49,24	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m2	0	2	chunk 49,29	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m2	0	2	chunk 58,24	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m2	0	2	chunk 58,25	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m2	0	2	chunk 58,26	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m2	0	2	chunk 58,27	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m2	0	2	chunk 58,28	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m2	0	2	chunk 58,29	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m2	0	2	chunk 59,24	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m2	0	2	chunk 59,25	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m2	0	2	chunk 59,26	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m2	0	2	chunk 59,27	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m2	0	2	chunk 59,28	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m2	0	2	chunk 59,29	layer map level 15	camera never centres here (sub_080066AC)
+room_edge	m2	0	2	chunk 30,24|31,24	levels 0|2	camera edge (screen stops at the chunk border)
+room_edge	m2	0	2	chunk 31,24|32,24	levels 2|0	camera edge (screen stops at the chunk border)
+room_edge	m2	0	2	chunk 45,24|46,24	levels 0|2	camera edge (screen stops at the chunk border)
+room_edge	m2	0	2	chunk 45,25|46,25	levels 0|2	camera edge (screen stops at the chunk border)
+area_rect	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunks 33,1..96,5	px 7920,160 15360x800	desc 0x82962d4 id 1
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 74,1	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 75,1	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 76,1	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 77,1	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 78,1	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 79,1	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 80,1	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 81,1	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 82,1	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 83,1	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 84,1	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 85,1	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 86,1	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 87,1	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 88,1	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 89,1	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 90,1	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 91,1	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 92,1	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 93,1	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 94,1	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 95,1	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 74,2	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 75,2	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 76,2	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 77,2	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 78,2	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 79,2	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 80,2	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 81,2	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 82,2	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 83,2	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 84,2	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 85,2	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 86,2	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 87,2	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 88,2	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 89,2	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 90,2	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 91,2	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 92,2	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 93,2	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 94,2	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 95,2	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 74,3	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 75,3	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 76,3	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 77,3	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 78,3	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 79,3	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 80,3	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 81,3	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 82,3	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 83,3	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 84,3	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 85,3	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 86,3	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 87,3	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 88,3	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 89,3	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 90,3	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 91,3	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 92,3	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 93,3	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 94,3	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 95,3	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 74,4	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 84,4	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 85,4	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 86,4	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 87,4	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 88,4	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 89,4	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 90,4	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 91,4	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 92,4	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 93,4	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 94,4	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 95,4	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 74,5	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 85,5	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 86,5	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 94,5	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 95,5	grid area 3 (hi 0)	inside area 1 rect
+room	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunks 33,1..73,5	150 chunks, levels 0/1/2	main room
+separate_room	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunks 73,2..73,2	1 chunks, levels 4	camera cannot scroll here from the main room (level step > 1)
+separate_room	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunks 73,4..73,4	1 chunks, levels 8	camera cannot scroll here from the main room (level step > 1)
+camera_block	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 64,4	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 73,1	layer map level 15	camera never centres here (sub_080066AC)
+room_edge	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 73,2|73,3	levels 4|2	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	1	0	chunk 73,3|73,4	levels 2|8	camera edge (screen stops at the chunk border)
+area_rect	m3	1	1	chunks 33,1..96,5	px 7920,160 15360x800	desc 0x829635c id 1
+foreign_chunk	m3	1	1	chunk 74,1	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 75,1	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 76,1	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 77,1	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 78,1	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 79,1	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 80,1	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 81,1	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 82,1	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 83,1	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 84,1	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 85,1	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 86,1	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 87,1	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 88,1	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 89,1	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 90,1	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 91,1	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 92,1	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 93,1	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 94,1	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 95,1	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 74,2	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 75,2	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 76,2	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 77,2	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 78,2	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 79,2	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 80,2	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 81,2	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 82,2	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 83,2	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 84,2	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 85,2	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 86,2	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 87,2	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 88,2	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 89,2	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 90,2	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 91,2	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 92,2	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 93,2	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 94,2	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 95,2	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 74,3	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 75,3	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 76,3	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 77,3	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 78,3	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 79,3	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 80,3	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 81,3	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 82,3	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 83,3	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 84,3	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 85,3	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 86,3	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 87,3	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 88,3	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 89,3	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 90,3	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 91,3	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 92,3	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 93,3	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 94,3	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 95,3	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 74,4	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 84,4	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 85,4	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 86,4	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 87,4	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 88,4	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 89,4	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 90,4	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 91,4	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 92,4	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 93,4	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 94,4	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 95,4	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 74,5	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 85,5	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 86,5	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 94,5	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m3	1	1	chunk 95,5	grid area 3 (hi 0)	inside area 1 rect
+room	m3	1	1	chunks 33,1..69,5	144 chunks, levels 0	main room
+separate_room	m3	1	1	chunks 70,2..70,2	1 chunks, levels 2	camera cannot scroll here from the main room (level step > 1)
+separate_room	m3	1	1	chunks 71,1..71,3	3 chunks, levels 0	camera cannot scroll here from the main room (level step > 1)
+separate_room	m3	1	1	chunks 72,3..73,3	2 chunks, levels 2	camera cannot scroll here from the main room (level step > 1)
+separate_room	m3	1	1	chunks 73,2..73,2	1 chunks, levels 4	camera cannot scroll here from the main room (level step > 1)
+separate_room	m3	1	1	chunks 73,4..73,4	1 chunks, levels 8	camera cannot scroll here from the main room (level step > 1)
+camera_block	m3	1	1	chunk 64,4	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m3	1	1	chunk 73,1	layer map level 15	camera never centres here (sub_080066AC)
+room_edge	m3	1	1	chunk 69,2|70,2	levels 0|2	camera edge (screen stops at the chunk border)
+room_edge	m3	1	1	chunk 70,2|71,2	levels 2|0	camera edge (screen stops at the chunk border)
+room_edge	m3	1	1	chunk 71,3|72,3	levels 0|2	camera edge (screen stops at the chunk border)
+room_edge	m3	1	1	chunk 73,2|73,3	levels 4|2	camera edge (screen stops at the chunk border)
+room_edge	m3	1	1	chunk 73,3|73,4	levels 2|8	camera edge (screen stops at the chunk border)
+area_rect	m4	1	2	chunks 33,1..96,5	px 7920,160 15360x800	desc 0x82963e4 id 1
+foreign_chunk	m4	1	2	chunk 74,1	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 75,1	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 76,1	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 77,1	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 78,1	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 79,1	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 80,1	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 81,1	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 82,1	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 83,1	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 84,1	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 85,1	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 86,1	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 87,1	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 88,1	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 89,1	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 90,1	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 91,1	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 92,1	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 93,1	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 94,1	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 95,1	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 74,2	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 75,2	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 76,2	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 77,2	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 78,2	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 79,2	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 80,2	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 81,2	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 82,2	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 83,2	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 84,2	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 85,2	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 86,2	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 87,2	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 88,2	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 89,2	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 90,2	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 91,2	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 92,2	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 93,2	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 94,2	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 95,2	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 74,3	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 75,3	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 76,3	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 77,3	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 78,3	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 79,3	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 80,3	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 81,3	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 82,3	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 83,3	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 84,3	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 85,3	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 86,3	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 87,3	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 88,3	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 89,3	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 90,3	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 91,3	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 92,3	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 93,3	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 94,3	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 95,3	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 74,4	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 84,4	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 85,4	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 86,4	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 87,4	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 88,4	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 89,4	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 90,4	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 91,4	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 92,4	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 93,4	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 94,4	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 95,4	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 74,5	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 85,5	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 86,5	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 94,5	grid area 3 (hi 0)	inside area 1 rect
+foreign_chunk	m4	1	2	chunk 95,5	grid area 3 (hi 0)	inside area 1 rect
+room	m4	1	2	chunks 33,1..72,5	149 chunks, levels 0/1	main room
+separate_room	m4	1	2	chunks 73,1..73,2	2 chunks, levels 0	camera cannot scroll here from the main room (level step > 1)
+separate_room	m4	1	2	chunks 73,3..73,3	1 chunks, levels 4	camera cannot scroll here from the main room (level step > 1)
+separate_room	m4	1	2	chunks 73,4..73,4	1 chunks, levels 8	camera cannot scroll here from the main room (level step > 1)
+camera_block	m4	1	2	chunk 64,4	layer map level 15	camera never centres here (sub_080066AC)
+room_edge	m4	1	2	chunk 72,3|73,3	levels 1|4	camera edge (screen stops at the chunk border)
+room_edge	m4	1	2	chunk 73,2|73,3	levels 0|4	camera edge (screen stops at the chunk border)
+room_edge	m4	1	2	chunk 73,3|73,4	levels 4|8	camera edge (screen stops at the chunk border)
+area_rect	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunks 49,6..112,11	px 11760,960 15360x960	desc 0x8297854 id 2
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 97,6	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 98,6	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 99,6	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 100,6	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 101,6	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 102,6	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 103,6	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 104,6	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 105,6	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 106,6	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 107,6	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 108,6	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 109,6	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 110,6	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 111,6	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 112,6	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 97,7	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 98,7	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 99,7	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 100,7	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 101,7	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 102,7	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 103,7	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 104,7	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 105,7	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 106,7	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 107,7	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 108,7	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 109,7	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 110,7	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 111,7	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 112,7	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 97,8	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 98,8	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 99,8	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 100,8	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 101,8	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 102,8	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 103,8	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 104,8	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 105,8	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 106,8	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 107,8	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 108,8	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 109,8	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 110,8	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 111,8	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 112,8	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 97,9	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 98,9	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 99,9	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 100,9	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 101,9	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 102,9	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 103,9	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 104,9	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 105,9	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 106,9	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 107,9	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 108,9	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 109,9	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 110,9	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 111,9	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 112,9	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 97,10	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 98,10	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 99,10	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 100,10	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 101,10	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 102,10	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 103,10	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 104,10	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 105,10	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 106,10	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 107,10	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 108,10	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 109,10	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 110,10	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 111,10	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 112,10	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 97,11	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 98,11	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 99,11	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 100,11	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 101,11	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 102,11	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 103,11	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 104,11	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 105,11	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 106,11	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 107,11	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 108,11	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 109,11	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 110,11	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 111,11	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 112,11	grid area 0 (hi 0)	inside area 2 rect
+separate_room	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunks 49,6..65,10	49 chunks, levels 0	camera cannot scroll here from the main room (level step > 1)
+separate_room	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunks 66,9..66,9	1 chunks, levels 2	camera cannot scroll here from the main room (level step > 1)
+separate_room	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunks 67,9..68,10	4 chunks, levels 0	camera cannot scroll here from the main room (level step > 1)
+separate_room	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunks 69,7..69,7	1 chunks, levels 8	camera cannot scroll here from the main room (level step > 1)
+separate_room	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunks 69,9..69,9	1 chunks, levels 2	camera cannot scroll here from the main room (level step > 1)
+room	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunks 70,6..92,10	91 chunks, levels 0/1/2/3	main room
+camera_block	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 49,11	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 50,11	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 51,11	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 52,11	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 54,11	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 55,11	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 57,10	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 59,11	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 60,11	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 61,11	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 62,11	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 63,11	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 64,11	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 65,10	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 66,10	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 75,7	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 75,11	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 88,11	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 93,7	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 93,8	layer map level 15	camera never centres here (sub_080066AC)
+room_edge	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 65,9|66,9	levels 0|2	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 66,9|67,9	levels 2|0	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 68,9|69,9	levels 0|2	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 69,7|70,7	levels 8|0	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 69,9|70,9	levels 2|0	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 71,9|71,10	levels 0|3	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 72,8|73,8	levels 0|2	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 72,9|72,10	levels 0|3	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 73,7|73,8	levels 0|2	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 73,9|73,10	levels 1|3	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 74,7|74,8	levels 0|2	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	chunk 74,9|74,10	levels 1|3	camera edge (screen stops at the chunk border)
+area_rect	m5	2	1	chunks 49,6..112,11	px 11760,960 15360x960	desc 0x82977cc id 2
+foreign_chunk	m5	2	1	chunk 97,6	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 98,6	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 99,6	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 100,6	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 101,6	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 102,6	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 103,6	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 104,6	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 105,6	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 106,6	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 107,6	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 108,6	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 109,6	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 110,6	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 111,6	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 112,6	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 97,7	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 98,7	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 99,7	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 100,7	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 101,7	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 102,7	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 103,7	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 104,7	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 105,7	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 106,7	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 107,7	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 108,7	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 109,7	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 110,7	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 111,7	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 112,7	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 97,8	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 98,8	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 99,8	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 100,8	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 101,8	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 102,8	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 103,8	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 104,8	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 105,8	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 106,8	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 107,8	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 108,8	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 109,8	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 110,8	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 111,8	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 112,8	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 97,9	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 98,9	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 99,9	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 100,9	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 101,9	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 102,9	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 103,9	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 104,9	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 105,9	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 106,9	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 107,9	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 108,9	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 109,9	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 110,9	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 111,9	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 112,9	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 97,10	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 98,10	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 99,10	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 100,10	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 101,10	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 102,10	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 103,10	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 104,10	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 105,10	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 106,10	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 107,10	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 108,10	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 109,10	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 110,10	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 111,10	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 112,10	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 97,11	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 98,11	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 99,11	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 100,11	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 101,11	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 102,11	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 103,11	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 104,11	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 105,11	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 106,11	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 107,11	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 108,11	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 109,11	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 110,11	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 111,11	grid area 0 (hi 0)	inside area 2 rect
+foreign_chunk	m5	2	1	chunk 112,11	grid area 0 (hi 0)	inside area 2 rect
+room	m5	2	1	chunks 49,6..65,10	50 chunks, levels 0	main room
+separate_room	m5	2	1	chunks 66,9..66,9	1 chunks, levels 2	camera cannot scroll here from the main room (level step > 1)
+separate_room	m5	2	1	chunks 67,9..68,10	4 chunks, levels 0	camera cannot scroll here from the main room (level step > 1)
+separate_room	m5	2	1	chunks 69,9..69,9	1 chunks, levels 2	camera cannot scroll here from the main room (level step > 1)
+separate_room	m5	2	1	chunks 70,6..79,9	29 chunks, levels 0	camera cannot scroll here from the main room (level step > 1)
+separate_room	m5	2	1	chunks 80,9..80,9	1 chunks, levels 4	camera cannot scroll here from the main room (level step > 1)
+separate_room	m5	2	1	chunks 81,7..83,9	8 chunks, levels 0	camera cannot scroll here from the main room (level step > 1)
+separate_room	m5	2	1	chunks 81,9..81,9	1 chunks, levels 2	camera cannot scroll here from the main room (level step > 1)
+camera_block	m5	2	1	chunk 49,11	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m5	2	1	chunk 50,11	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m5	2	1	chunk 51,11	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m5	2	1	chunk 52,11	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m5	2	1	chunk 54,11	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m5	2	1	chunk 55,11	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m5	2	1	chunk 59,11	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m5	2	1	chunk 60,11	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m5	2	1	chunk 61,11	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m5	2	1	chunk 62,11	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m5	2	1	chunk 63,11	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m5	2	1	chunk 64,11	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m5	2	1	chunk 65,10	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m5	2	1	chunk 66,10	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m5	2	1	chunk 69,7	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m5	2	1	chunk 70,7	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m5	2	1	chunk 70,8	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m5	2	1	chunk 71,10	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m5	2	1	chunk 72,10	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m5	2	1	chunk 73,10	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m5	2	1	chunk 74,10	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m5	2	1	chunk 75,10	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m5	2	1	chunk 75,11	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m5	2	1	chunk 76,10	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m5	2	1	chunk 77,10	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m5	2	1	chunk 78,10	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m5	2	1	chunk 79,10	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m5	2	1	chunk 80,7	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m5	2	1	chunk 80,8	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m5	2	1	chunk 80,10	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m5	2	1	chunk 81,10	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m5	2	1	chunk 82,10	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m5	2	1	chunk 83,10	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m5	2	1	chunk 84,7	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m5	2	1	chunk 84,8	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m5	2	1	chunk 84,9	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m5	2	1	chunk 84,10	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m5	2	1	chunk 85,7	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m5	2	1	chunk 85,8	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m5	2	1	chunk 85,9	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m5	2	1	chunk 85,10	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m5	2	1	chunk 86,7	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m5	2	1	chunk 86,8	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m5	2	1	chunk 86,9	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m5	2	1	chunk 86,10	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m5	2	1	chunk 87,7	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m5	2	1	chunk 87,8	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m5	2	1	chunk 87,9	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m5	2	1	chunk 87,10	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m5	2	1	chunk 88,7	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m5	2	1	chunk 88,8	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m5	2	1	chunk 88,9	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m5	2	1	chunk 88,10	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m5	2	1	chunk 88,11	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m5	2	1	chunk 89,7	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m5	2	1	chunk 89,8	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m5	2	1	chunk 89,9	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m5	2	1	chunk 89,10	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m5	2	1	chunk 90,7	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m5	2	1	chunk 90,8	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m5	2	1	chunk 90,9	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m5	2	1	chunk 90,10	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m5	2	1	chunk 91,7	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m5	2	1	chunk 91,8	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m5	2	1	chunk 91,9	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m5	2	1	chunk 91,10	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m5	2	1	chunk 92,7	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m5	2	1	chunk 92,8	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m5	2	1	chunk 92,9	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m5	2	1	chunk 92,10	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m5	2	1	chunk 93,7	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m5	2	1	chunk 93,8	layer map level 15	camera never centres here (sub_080066AC)
+room_edge	m5	2	1	chunk 65,9|66,9	levels 0|2	camera edge (screen stops at the chunk border)
+room_edge	m5	2	1	chunk 66,9|67,9	levels 2|0	camera edge (screen stops at the chunk border)
+room_edge	m5	2	1	chunk 68,9|69,9	levels 0|2	camera edge (screen stops at the chunk border)
+room_edge	m5	2	1	chunk 69,9|70,9	levels 2|0	camera edge (screen stops at the chunk border)
+room_edge	m5	2	1	chunk 79,9|80,9	levels 0|4	camera edge (screen stops at the chunk border)
+room_edge	m5	2	1	chunk 80,9|81,9	levels 4|2	camera edge (screen stops at the chunk border)
+room_edge	m5	2	1	chunk 81,8|81,9	levels 0|2	camera edge (screen stops at the chunk border)
+room_edge	m5	2	1	chunk 81,9|82,9	levels 2|0	camera edge (screen stops at the chunk border)
+area_rect	m0,m1,m2,m3,m4,m5,m6,m9,m10,m11,m12,m13,m14,m15,m16	3	0	chunks 74,1..105,5	px 17760,160 7680x800	desc 0x8297f44 id 3
+foreign_chunk	m0,m1,m2,m3,m4,m5,m6,m9,m10,m11,m12,m13,m14,m15,m16	3	0	chunk 97,1	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m0,m1,m2,m3,m4,m5,m6,m9,m10,m11,m12,m13,m14,m15,m16	3	0	chunk 98,1	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m0,m1,m2,m3,m4,m5,m6,m9,m10,m11,m12,m13,m14,m15,m16	3	0	chunk 99,1	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m0,m1,m2,m3,m4,m5,m6,m9,m10,m11,m12,m13,m14,m15,m16	3	0	chunk 100,1	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m0,m1,m2,m3,m4,m5,m6,m9,m10,m11,m12,m13,m14,m15,m16	3	0	chunk 101,1	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m0,m1,m2,m3,m4,m5,m6,m9,m10,m11,m12,m13,m14,m15,m16	3	0	chunk 102,1	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m0,m1,m2,m3,m4,m5,m6,m9,m10,m11,m12,m13,m14,m15,m16	3	0	chunk 103,1	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m0,m1,m2,m3,m4,m5,m6,m9,m10,m11,m12,m13,m14,m15,m16	3	0	chunk 104,1	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m0,m1,m2,m3,m4,m5,m6,m9,m10,m11,m12,m13,m14,m15,m16	3	0	chunk 105,1	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m0,m1,m2,m3,m4,m5,m6,m9,m10,m11,m12,m13,m14,m15,m16	3	0	chunk 97,2	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m0,m1,m2,m3,m4,m5,m6,m9,m10,m11,m12,m13,m14,m15,m16	3	0	chunk 98,2	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m0,m1,m2,m3,m4,m5,m6,m9,m10,m11,m12,m13,m14,m15,m16	3	0	chunk 99,2	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m0,m1,m2,m3,m4,m5,m6,m9,m10,m11,m12,m13,m14,m15,m16	3	0	chunk 100,2	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m0,m1,m2,m3,m4,m5,m6,m9,m10,m11,m12,m13,m14,m15,m16	3	0	chunk 101,2	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m0,m1,m2,m3,m4,m5,m6,m9,m10,m11,m12,m13,m14,m15,m16	3	0	chunk 102,2	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m0,m1,m2,m3,m4,m5,m6,m9,m10,m11,m12,m13,m14,m15,m16	3	0	chunk 103,2	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m0,m1,m2,m3,m4,m5,m6,m9,m10,m11,m12,m13,m14,m15,m16	3	0	chunk 104,2	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m0,m1,m2,m3,m4,m5,m6,m9,m10,m11,m12,m13,m14,m15,m16	3	0	chunk 105,2	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m0,m1,m2,m3,m4,m5,m6,m9,m10,m11,m12,m13,m14,m15,m16	3	0	chunk 97,3	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m0,m1,m2,m3,m4,m5,m6,m9,m10,m11,m12,m13,m14,m15,m16	3	0	chunk 98,3	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m0,m1,m2,m3,m4,m5,m6,m9,m10,m11,m12,m13,m14,m15,m16	3	0	chunk 99,3	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m0,m1,m2,m3,m4,m5,m6,m9,m10,m11,m12,m13,m14,m15,m16	3	0	chunk 100,3	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m0,m1,m2,m3,m4,m5,m6,m9,m10,m11,m12,m13,m14,m15,m16	3	0	chunk 101,3	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m0,m1,m2,m3,m4,m5,m6,m9,m10,m11,m12,m13,m14,m15,m16	3	0	chunk 102,3	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m0,m1,m2,m3,m4,m5,m6,m9,m10,m11,m12,m13,m14,m15,m16	3	0	chunk 103,3	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m0,m1,m2,m3,m4,m5,m6,m9,m10,m11,m12,m13,m14,m15,m16	3	0	chunk 104,3	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m0,m1,m2,m3,m4,m5,m6,m9,m10,m11,m12,m13,m14,m15,m16	3	0	chunk 105,3	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m0,m1,m2,m3,m4,m5,m6,m9,m10,m11,m12,m13,m14,m15,m16	3	0	chunk 97,4	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m0,m1,m2,m3,m4,m5,m6,m9,m10,m11,m12,m13,m14,m15,m16	3	0	chunk 98,4	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m0,m1,m2,m3,m4,m5,m6,m9,m10,m11,m12,m13,m14,m15,m16	3	0	chunk 99,4	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m0,m1,m2,m3,m4,m5,m6,m9,m10,m11,m12,m13,m14,m15,m16	3	0	chunk 100,4	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m0,m1,m2,m3,m4,m5,m6,m9,m10,m11,m12,m13,m14,m15,m16	3	0	chunk 101,4	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m0,m1,m2,m3,m4,m5,m6,m9,m10,m11,m12,m13,m14,m15,m16	3	0	chunk 102,4	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m0,m1,m2,m3,m4,m5,m6,m9,m10,m11,m12,m13,m14,m15,m16	3	0	chunk 103,4	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m0,m1,m2,m3,m4,m5,m6,m9,m10,m11,m12,m13,m14,m15,m16	3	0	chunk 104,4	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m0,m1,m2,m3,m4,m5,m6,m9,m10,m11,m12,m13,m14,m15,m16	3	0	chunk 105,4	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m0,m1,m2,m3,m4,m5,m6,m9,m10,m11,m12,m13,m14,m15,m16	3	0	chunk 97,5	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m0,m1,m2,m3,m4,m5,m6,m9,m10,m11,m12,m13,m14,m15,m16	3	0	chunk 98,5	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m0,m1,m2,m3,m4,m5,m6,m9,m10,m11,m12,m13,m14,m15,m16	3	0	chunk 99,5	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m0,m1,m2,m3,m4,m5,m6,m9,m10,m11,m12,m13,m14,m15,m16	3	0	chunk 100,5	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m0,m1,m2,m3,m4,m5,m6,m9,m10,m11,m12,m13,m14,m15,m16	3	0	chunk 101,5	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m0,m1,m2,m3,m4,m5,m6,m9,m10,m11,m12,m13,m14,m15,m16	3	0	chunk 102,5	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m0,m1,m2,m3,m4,m5,m6,m9,m10,m11,m12,m13,m14,m15,m16	3	0	chunk 103,5	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m0,m1,m2,m3,m4,m5,m6,m9,m10,m11,m12,m13,m14,m15,m16	3	0	chunk 104,5	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m0,m1,m2,m3,m4,m5,m6,m9,m10,m11,m12,m13,m14,m15,m16	3	0	chunk 105,5	grid area 0 (hi 0)	inside area 3 rect
+room	m0,m1,m2,m3,m4,m5,m6,m9,m10,m11,m12,m13,m14,m15,m16	3	0	chunks 74,1..95,5	74 chunks, levels 0/1/2/3/4/5	main room
+separate_room	m0,m1,m2,m3,m4,m5,m6,m9,m10,m11,m12,m13,m14,m15,m16	3	0	chunks 88,1..88,1	1 chunks, levels 3	camera cannot scroll here from the main room (level step > 1)
+separate_room	m0,m1,m2,m3,m4,m5,m6,m9,m10,m11,m12,m13,m14,m15,m16	3	0	chunks 89,1..90,1	2 chunks, levels 5	camera cannot scroll here from the main room (level step > 1)
+camera_block	m0,m1,m2,m3,m4,m5,m6,m9,m10,m11,m12,m13,m14,m15,m16	3	0	chunk 82,2	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m0,m1,m2,m3,m4,m5,m6,m9,m10,m11,m12,m13,m14,m15,m16	3	0	chunk 84,4	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m0,m1,m2,m3,m4,m5,m6,m9,m10,m11,m12,m13,m14,m15,m16	3	0	chunk 85,5	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m0,m1,m2,m3,m4,m5,m6,m9,m10,m11,m12,m13,m14,m15,m16	3	0	chunk 86,5	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m0,m1,m2,m3,m4,m5,m6,m9,m10,m11,m12,m13,m14,m15,m16	3	0	chunk 91,1	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m0,m1,m2,m3,m4,m5,m6,m9,m10,m11,m12,m13,m14,m15,m16	3	0	chunk 94,5	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m0,m1,m2,m3,m4,m5,m6,m9,m10,m11,m12,m13,m14,m15,m16	3	0	chunk 95,5	layer map level 15	camera never centres here (sub_080066AC)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m9,m10,m11,m12,m13,m14,m15,m16	3	0	chunk 83,2|83,3	levels 2|4	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m9,m10,m11,m12,m13,m14,m15,m16	3	0	chunk 84,1|84,2	levels 4|2	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m9,m10,m11,m12,m13,m14,m15,m16	3	0	chunk 84,2|85,2	levels 2|5	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m9,m10,m11,m12,m13,m14,m15,m16	3	0	chunk 84,3|85,3	levels 3|5	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m9,m10,m11,m12,m13,m14,m15,m16	3	0	chunk 85,1|86,1	levels 5|0	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m9,m10,m11,m12,m13,m14,m15,m16	3	0	chunk 85,2|86,2	levels 5|1	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m9,m10,m11,m12,m13,m14,m15,m16	3	0	chunk 85,3|86,3	levels 5|2	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m9,m10,m11,m12,m13,m14,m15,m16	3	0	chunk 87,1|88,1	levels 0|3	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m9,m10,m11,m12,m13,m14,m15,m16	3	0	chunk 88,1|89,1	levels 3|5	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m9,m10,m11,m12,m13,m14,m15,m16	3	0	chunk 88,1|88,2	levels 3|1	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m9,m10,m11,m12,m13,m14,m15,m16	3	0	chunk 89,1|89,2	levels 5|0	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m9,m10,m11,m12,m13,m14,m15,m16	3	0	chunk 90,1|90,2	levels 5|0	camera edge (screen stops at the chunk border)
+area_rect	m7	3	1	chunks 74,1..105,5	px 17760,160 7680x800	desc 0x8297ebc id 3
+foreign_chunk	m7	3	1	chunk 97,1	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m7	3	1	chunk 98,1	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m7	3	1	chunk 99,1	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m7	3	1	chunk 100,1	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m7	3	1	chunk 101,1	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m7	3	1	chunk 102,1	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m7	3	1	chunk 103,1	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m7	3	1	chunk 104,1	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m7	3	1	chunk 105,1	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m7	3	1	chunk 97,2	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m7	3	1	chunk 98,2	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m7	3	1	chunk 99,2	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m7	3	1	chunk 100,2	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m7	3	1	chunk 101,2	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m7	3	1	chunk 102,2	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m7	3	1	chunk 103,2	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m7	3	1	chunk 104,2	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m7	3	1	chunk 105,2	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m7	3	1	chunk 97,3	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m7	3	1	chunk 98,3	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m7	3	1	chunk 99,3	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m7	3	1	chunk 100,3	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m7	3	1	chunk 101,3	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m7	3	1	chunk 102,3	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m7	3	1	chunk 103,3	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m7	3	1	chunk 104,3	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m7	3	1	chunk 105,3	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m7	3	1	chunk 97,4	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m7	3	1	chunk 98,4	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m7	3	1	chunk 99,4	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m7	3	1	chunk 100,4	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m7	3	1	chunk 101,4	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m7	3	1	chunk 102,4	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m7	3	1	chunk 103,4	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m7	3	1	chunk 104,4	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m7	3	1	chunk 105,4	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m7	3	1	chunk 97,5	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m7	3	1	chunk 98,5	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m7	3	1	chunk 99,5	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m7	3	1	chunk 100,5	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m7	3	1	chunk 101,5	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m7	3	1	chunk 102,5	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m7	3	1	chunk 103,5	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m7	3	1	chunk 104,5	grid area 0 (hi 0)	inside area 3 rect
+foreign_chunk	m7	3	1	chunk 105,5	grid area 0 (hi 0)	inside area 3 rect
+room	m7	3	1	chunks 74,1..95,5	74 chunks, levels 0/1/2/3/4/5	main room
+separate_room	m7	3	1	chunks 88,1..88,1	1 chunks, levels 3	camera cannot scroll here from the main room (level step > 1)
+separate_room	m7	3	1	chunks 89,1..90,1	2 chunks, levels 5	camera cannot scroll here from the main room (level step > 1)
+camera_block	m7	3	1	chunk 82,2	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m7	3	1	chunk 84,4	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m7	3	1	chunk 85,5	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m7	3	1	chunk 86,5	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m7	3	1	chunk 91,1	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m7	3	1	chunk 94,5	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m7	3	1	chunk 95,5	layer map level 15	camera never centres here (sub_080066AC)
+room_edge	m7	3	1	chunk 83,2|83,3	levels 2|4	camera edge (screen stops at the chunk border)
+room_edge	m7	3	1	chunk 84,1|84,2	levels 4|2	camera edge (screen stops at the chunk border)
+room_edge	m7	3	1	chunk 84,2|85,2	levels 2|5	camera edge (screen stops at the chunk border)
+room_edge	m7	3	1	chunk 84,3|85,3	levels 3|5	camera edge (screen stops at the chunk border)
+room_edge	m7	3	1	chunk 85,1|86,1	levels 5|0	camera edge (screen stops at the chunk border)
+room_edge	m7	3	1	chunk 85,2|86,2	levels 5|1	camera edge (screen stops at the chunk border)
+room_edge	m7	3	1	chunk 85,3|86,3	levels 5|2	camera edge (screen stops at the chunk border)
+room_edge	m7	3	1	chunk 87,1|88,1	levels 0|3	camera edge (screen stops at the chunk border)
+room_edge	m7	3	1	chunk 88,1|89,1	levels 3|5	camera edge (screen stops at the chunk border)
+room_edge	m7	3	1	chunk 88,1|88,2	levels 3|1	camera edge (screen stops at the chunk border)
+room_edge	m7	3	1	chunk 89,1|89,2	levels 5|0	camera edge (screen stops at the chunk border)
+room_edge	m7	3	1	chunk 90,1|90,2	levels 5|0	camera edge (screen stops at the chunk border)
+area_rect	m0,m1,m2,m3,m4,m5,m6,m7,m8,m11,m12,m13,m14,m15,m16	4	0	chunks 1,2..32,5	px 240,320 7680x640	desc 0x82985d4 id 4
+room	m0,m1,m2,m3,m4,m5,m6,m7,m8,m11,m12,m13,m14,m15,m16	4	0	chunks 1,2..32,5	96 chunks, levels 0	main room
+separate_room	m0,m1,m2,m3,m4,m5,m6,m7,m8,m11,m12,m13,m14,m15,m16	4	0	chunks 1,5..2,5	2 chunks, levels 8	camera cannot scroll here from the main room (level step > 1)
+separate_room	m0,m1,m2,m3,m4,m5,m6,m7,m8,m11,m12,m13,m14,m15,m16	4	0	chunks 30,5..30,5	1 chunks, levels 4	camera cannot scroll here from the main room (level step > 1)
+camera_block	m0,m1,m2,m3,m4,m5,m6,m7,m8,m11,m12,m13,m14,m15,m16	4	0	chunk 4,4	layer map level 15	camera never centres here (sub_080066AC)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m11,m12,m13,m14,m15,m16	4	0	chunk 1,4|1,5	levels 0|8	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m11,m12,m13,m14,m15,m16	4	0	chunk 2,4|2,5	levels 0|8	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m11,m12,m13,m14,m15,m16	4	0	chunk 30,4|30,5	levels 0|4	camera edge (screen stops at the chunk border)
+area_rect	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m13,m14,m15,m16	5	0	chunks 6,6..37,16	px 1440,960 7680x1760	desc 0x82996a4 id 5
+separate_room	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m13,m14,m15,m16	5	0	chunks 6,7..7,8	4 chunks, levels 1	camera cannot scroll here from the main room (level step > 1)
+room	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m13,m14,m15,m16	5	0	chunks 6,6..23,15	105 chunks, levels 0/1/2/3/4/5/6/7/8	main room
+separate_room	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m13,m14,m15,m16	5	0	chunks 8,8..8,8	1 chunks, levels 3	camera cannot scroll here from the main room (level step > 1)
+separate_room	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m13,m14,m15,m16	5	0	chunks 18,7..21,9	12 chunks, levels 8	camera cannot scroll here from the main room (level step > 1)
+camera_block	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m13,m14,m15,m16	5	0	chunk 6,9	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m13,m14,m15,m16	5	0	chunk 6,16	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m13,m14,m15,m16	5	0	chunk 7,9	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m13,m14,m15,m16	5	0	chunk 8,7	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m13,m14,m15,m16	5	0	chunk 8,9	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m13,m14,m15,m16	5	0	chunk 9,7	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m13,m14,m15,m16	5	0	chunk 13,10	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m13,m14,m15,m16	5	0	chunk 15,7	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m13,m14,m15,m16	5	0	chunk 18,6	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m13,m14,m15,m16	5	0	chunk 19,6	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m13,m14,m15,m16	5	0	chunk 20,6	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m13,m14,m15,m16	5	0	chunk 21,6	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m13,m14,m15,m16	5	0	chunk 22,9	layer map level 15	camera never centres here (sub_080066AC)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m13,m14,m15,m16	5	0	chunk 7,8|8,8	levels 1|3	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m13,m14,m15,m16	5	0	chunk 8,8|9,8	levels 3|5	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m13,m14,m15,m16	5	0	chunk 9,8|9,9	levels 5|8	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m13,m14,m15,m16	5	0	chunk 9,9|9,10	levels 8|0	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m13,m14,m15,m16	5	0	chunk 10,7|11,7	levels 7|5	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m13,m14,m15,m16	5	0	chunk 10,8|10,9	levels 6|8	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m13,m14,m15,m16	5	0	chunk 10,9|10,10	levels 8|0	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m13,m14,m15,m16	5	0	chunk 11,7|12,7	levels 5|7	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m13,m14,m15,m16	5	0	chunk 11,9|12,9	levels 7|5	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m13,m14,m15,m16	5	0	chunk 11,9|11,10	levels 7|0	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m13,m14,m15,m16	5	0	chunk 12,7|13,7	levels 7|5	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m13,m14,m15,m16	5	0	chunk 12,9|13,9	levels 5|7	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m13,m14,m15,m16	5	0	chunk 12,9|12,10	levels 5|0	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m13,m14,m15,m16	5	0	chunk 13,7|14,7	levels 5|7	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m13,m14,m15,m16	5	0	chunk 13,9|14,9	levels 7|5	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m13,m14,m15,m16	5	0	chunk 14,8|14,9	levels 7|5	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m13,m14,m15,m16	5	0	chunk 14,10|15,10	levels 5|3	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m13,m14,m15,m16	5	0	chunk 14,10|14,11	levels 5|1	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m13,m14,m15,m16	5	0	chunk 15,9|15,10	levels 5|3	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m13,m14,m15,m16	5	0	chunk 15,11|16,11	levels 2|0	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m13,m14,m15,m16	5	0	chunk 16,7|17,7	levels 7|5	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m13,m14,m15,m16	5	0	chunk 16,8|16,9	levels 6|4	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m13,m14,m15,m16	5	0	chunk 16,10|17,10	levels 3|5	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m13,m14,m15,m16	5	0	chunk 16,10|16,11	levels 3|0	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m13,m14,m15,m16	5	0	chunk 17,7|18,7	levels 5|8	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m13,m14,m15,m16	5	0	chunk 17,8|18,8	levels 6|8	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m13,m14,m15,m16	5	0	chunk 17,8|17,9	levels 6|4	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m13,m14,m15,m16	5	0	chunk 17,9|18,9	levels 4|8	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m13,m14,m15,m16	5	0	chunk 17,10|17,11	levels 5|0	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m13,m14,m15,m16	5	0	chunk 21,7|22,7	levels 8|0	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m13,m14,m15,m16	5	0	chunk 21,8|22,8	levels 8|0	camera edge (screen stops at the chunk border)
+area_rect	m11	5	1	chunks 6,6..37,16	px 1440,960 7680x1760	desc 0x829961c id 5
+separate_room	m11	5	1	chunks 6,7..7,8	4 chunks, levels 1	camera cannot scroll here from the main room (level step > 1)
+room	m11	5	1	chunks 6,6..23,15	103 chunks, levels 0/1/2/3/4/5/6/7/8	main room
+separate_room	m11	5	1	chunks 8,8..8,8	1 chunks, levels 3	camera cannot scroll here from the main room (level step > 1)
+separate_room	m11	5	1	chunks 18,7..21,9	12 chunks, levels 8	camera cannot scroll here from the main room (level step > 1)
+camera_block	m11	5	1	chunk 6,9	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m11	5	1	chunk 6,16	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m11	5	1	chunk 7,9	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m11	5	1	chunk 8,7	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m11	5	1	chunk 8,9	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m11	5	1	chunk 9,7	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m11	5	1	chunk 13,10	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m11	5	1	chunk 15,7	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m11	5	1	chunk 17,7	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m11	5	1	chunk 17,8	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m11	5	1	chunk 18,6	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m11	5	1	chunk 19,6	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m11	5	1	chunk 20,6	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m11	5	1	chunk 21,6	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m11	5	1	chunk 22,9	layer map level 15	camera never centres here (sub_080066AC)
+room_edge	m11	5	1	chunk 7,8|8,8	levels 1|3	camera edge (screen stops at the chunk border)
+room_edge	m11	5	1	chunk 8,8|9,8	levels 3|5	camera edge (screen stops at the chunk border)
+room_edge	m11	5	1	chunk 9,8|9,9	levels 5|8	camera edge (screen stops at the chunk border)
+room_edge	m11	5	1	chunk 9,9|9,10	levels 8|0	camera edge (screen stops at the chunk border)
+room_edge	m11	5	1	chunk 10,7|11,7	levels 7|5	camera edge (screen stops at the chunk border)
+room_edge	m11	5	1	chunk 10,8|10,9	levels 6|8	camera edge (screen stops at the chunk border)
+room_edge	m11	5	1	chunk 10,9|10,10	levels 8|0	camera edge (screen stops at the chunk border)
+room_edge	m11	5	1	chunk 11,7|12,7	levels 5|7	camera edge (screen stops at the chunk border)
+room_edge	m11	5	1	chunk 11,9|12,9	levels 7|5	camera edge (screen stops at the chunk border)
+room_edge	m11	5	1	chunk 11,9|11,10	levels 7|0	camera edge (screen stops at the chunk border)
+room_edge	m11	5	1	chunk 12,7|13,7	levels 7|5	camera edge (screen stops at the chunk border)
+room_edge	m11	5	1	chunk 12,9|13,9	levels 5|7	camera edge (screen stops at the chunk border)
+room_edge	m11	5	1	chunk 12,9|12,10	levels 5|0	camera edge (screen stops at the chunk border)
+room_edge	m11	5	1	chunk 13,7|14,7	levels 5|7	camera edge (screen stops at the chunk border)
+room_edge	m11	5	1	chunk 13,9|14,9	levels 7|5	camera edge (screen stops at the chunk border)
+room_edge	m11	5	1	chunk 14,8|14,9	levels 7|5	camera edge (screen stops at the chunk border)
+room_edge	m11	5	1	chunk 14,10|15,10	levels 5|3	camera edge (screen stops at the chunk border)
+room_edge	m11	5	1	chunk 14,10|14,11	levels 5|1	camera edge (screen stops at the chunk border)
+room_edge	m11	5	1	chunk 15,9|15,10	levels 5|3	camera edge (screen stops at the chunk border)
+room_edge	m11	5	1	chunk 15,11|16,11	levels 2|0	camera edge (screen stops at the chunk border)
+room_edge	m11	5	1	chunk 16,8|16,9	levels 6|4	camera edge (screen stops at the chunk border)
+room_edge	m11	5	1	chunk 16,10|17,10	levels 3|5	camera edge (screen stops at the chunk border)
+room_edge	m11	5	1	chunk 16,10|16,11	levels 3|0	camera edge (screen stops at the chunk border)
+room_edge	m11	5	1	chunk 17,9|18,9	levels 4|8	camera edge (screen stops at the chunk border)
+room_edge	m11	5	1	chunk 17,10|17,11	levels 5|0	camera edge (screen stops at the chunk border)
+room_edge	m11	5	1	chunk 21,7|22,7	levels 8|0	camera edge (screen stops at the chunk border)
+room_edge	m11	5	1	chunk 21,8|22,8	levels 8|0	camera edge (screen stops at the chunk border)
+area_rect	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m15,m16	6	0	chunks 1,39..32,50	px 240,6240 7680x1920	desc 0x829a3d0 id 6
+foreign_chunk	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m15,m16	6	0	chunk 22,39	grid area 7 (hi 0)	inside area 6 rect
+foreign_chunk	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m15,m16	6	0	chunk 20,40	grid area 7 (hi 0)	inside area 6 rect
+foreign_chunk	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m15,m16	6	0	chunk 21,40	grid area 7 (hi 0)	inside area 6 rect
+foreign_chunk	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m15,m16	6	0	chunk 22,40	grid area 7 (hi 0)	inside area 6 rect
+foreign_chunk	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m15,m16	6	0	chunk 22,41	grid area 7 (hi 0)	inside area 6 rect
+room	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m15,m16	6	0	chunks 1,39..15,50	107 chunks, levels 0/1/2	main room
+separate_room	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m15,m16	6	0	chunks 15,39..15,40	2 chunks, levels 4	camera cannot scroll here from the main room (level step > 1)
+separate_room	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m15,m16	6	0	chunks 16,39..17,39	2 chunks, levels 0	camera cannot scroll here from the main room (level step > 1)
+separate_room	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m15,m16	6	0	chunks 16,40..16,40	1 chunks, levels 2	camera cannot scroll here from the main room (level step > 1)
+separate_room	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m15,m16	6	0	chunks 16,41..16,41	1 chunks, levels 6	camera cannot scroll here from the main room (level step > 1)
+separate_room	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m15,m16	6	0	chunks 17,40..17,40	1 chunks, levels 4	camera cannot scroll here from the main room (level step > 1)
+separate_room	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m15,m16	6	0	chunks 17,41..17,41	1 chunks, levels 8	camera cannot scroll here from the main room (level step > 1)
+separate_room	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m15,m16	6	0	chunks 18,40..19,40	2 chunks, levels 0	camera cannot scroll here from the main room (level step > 1)
+camera_block	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m15,m16	6	0	chunk 8,50	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m15,m16	6	0	chunk 9,50	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m15,m16	6	0	chunk 12,50	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m15,m16	6	0	chunk 14,44	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m15,m16	6	0	chunk 15,44	layer map level 15	camera never centres here (sub_080066AC)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m15,m16	6	0	chunk 13,39|14,39	levels 0|2	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m15,m16	6	0	chunk 14,39|15,39	levels 2|4	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m15,m16	6	0	chunk 14,40|15,40	levels 2|4	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m15,m16	6	0	chunk 14,40|14,41	levels 2|0	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m15,m16	6	0	chunk 15,39|16,39	levels 4|0	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m15,m16	6	0	chunk 15,40|16,40	levels 4|2	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m15,m16	6	0	chunk 15,40|15,41	levels 4|0	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m15,m16	6	0	chunk 15,41|16,41	levels 0|6	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m15,m16	6	0	chunk 16,39|16,40	levels 0|2	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m15,m16	6	0	chunk 16,40|17,40	levels 2|4	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m15,m16	6	0	chunk 16,40|16,41	levels 2|6	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m15,m16	6	0	chunk 16,41|17,41	levels 6|8	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m15,m16	6	0	chunk 17,39|17,40	levels 0|4	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m15,m16	6	0	chunk 17,40|18,40	levels 4|0	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m15,m16	6	0	chunk 17,40|17,41	levels 4|8	camera edge (screen stops at the chunk border)
+area_rect	m14	6	1	chunks 1,39..32,50	px 240,6240 7680x1920	desc 0x829a458 id 6
+foreign_chunk	m14	6	1	chunk 22,39	grid area 7 (hi 0)	inside area 6 rect
+foreign_chunk	m14	6	1	chunk 20,40	grid area 7 (hi 0)	inside area 6 rect
+foreign_chunk	m14	6	1	chunk 21,40	grid area 7 (hi 0)	inside area 6 rect
+foreign_chunk	m14	6	1	chunk 22,40	grid area 7 (hi 0)	inside area 6 rect
+foreign_chunk	m14	6	1	chunk 22,41	grid area 7 (hi 0)	inside area 6 rect
+room	m14	6	1	chunks 1,39..15,50	105 chunks, levels 0	main room
+separate_room	m14	6	1	chunks 14,39..14,40	2 chunks, levels 2	camera cannot scroll here from the main room (level step > 1)
+separate_room	m14	6	1	chunks 15,39..15,40	2 chunks, levels 4	camera cannot scroll here from the main room (level step > 1)
+separate_room	m14	6	1	chunks 16,39..17,39	2 chunks, levels 0	camera cannot scroll here from the main room (level step > 1)
+separate_room	m14	6	1	chunks 16,40..16,40	1 chunks, levels 2	camera cannot scroll here from the main room (level step > 1)
+separate_room	m14	6	1	chunks 16,41..16,41	1 chunks, levels 6	camera cannot scroll here from the main room (level step > 1)
+separate_room	m14	6	1	chunks 17,40..17,40	1 chunks, levels 4	camera cannot scroll here from the main room (level step > 1)
+separate_room	m14	6	1	chunks 17,41..17,41	1 chunks, levels 8	camera cannot scroll here from the main room (level step > 1)
+separate_room	m14	6	1	chunks 18,40..19,40	2 chunks, levels 0	camera cannot scroll here from the main room (level step > 1)
+camera_block	m14	6	1	chunk 8,50	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m14	6	1	chunk 9,50	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m14	6	1	chunk 12,50	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m14	6	1	chunk 14,44	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m14	6	1	chunk 15,44	layer map level 15	camera never centres here (sub_080066AC)
+room_edge	m14	6	1	chunk 13,39|14,39	levels 0|2	camera edge (screen stops at the chunk border)
+room_edge	m14	6	1	chunk 13,40|14,40	levels 0|2	camera edge (screen stops at the chunk border)
+room_edge	m14	6	1	chunk 14,39|15,39	levels 2|4	camera edge (screen stops at the chunk border)
+room_edge	m14	6	1	chunk 14,40|15,40	levels 2|4	camera edge (screen stops at the chunk border)
+room_edge	m14	6	1	chunk 14,40|14,41	levels 2|0	camera edge (screen stops at the chunk border)
+room_edge	m14	6	1	chunk 15,39|16,39	levels 4|0	camera edge (screen stops at the chunk border)
+room_edge	m14	6	1	chunk 15,40|16,40	levels 4|2	camera edge (screen stops at the chunk border)
+room_edge	m14	6	1	chunk 15,40|15,41	levels 4|0	camera edge (screen stops at the chunk border)
+room_edge	m14	6	1	chunk 15,41|16,41	levels 0|6	camera edge (screen stops at the chunk border)
+room_edge	m14	6	1	chunk 16,39|16,40	levels 0|2	camera edge (screen stops at the chunk border)
+room_edge	m14	6	1	chunk 16,40|17,40	levels 2|4	camera edge (screen stops at the chunk border)
+room_edge	m14	6	1	chunk 16,40|16,41	levels 2|6	camera edge (screen stops at the chunk border)
+room_edge	m14	6	1	chunk 16,41|17,41	levels 6|8	camera edge (screen stops at the chunk border)
+room_edge	m14	6	1	chunk 17,39|17,40	levels 0|4	camera edge (screen stops at the chunk border)
+room_edge	m14	6	1	chunk 17,40|18,40	levels 4|0	camera edge (screen stops at the chunk border)
+room_edge	m14	6	1	chunk 17,40|17,41	levels 4|8	camera edge (screen stops at the chunk border)
+area_rect	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m16	7	0	chunks 20,17..27,41	px 4800,2720 1920x4000	desc 0x829aa14 id 7
+room	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m16	7	0	chunks 20,18..22,40	25 chunks, levels 0	main room
+separate_room	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m16	7	0	chunks 23,18..23,18	1 chunks, levels 2	camera cannot scroll here from the main room (level step > 1)
+separate_room	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m16	7	0	chunks 24,18..24,18	1 chunks, levels 0	camera cannot scroll here from the main room (level step > 1)
+separate_room	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m16	7	0	chunks 25,18..25,18	1 chunks, levels 2	camera cannot scroll here from the main room (level step > 1)
+separate_room	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m16	7	0	chunks 25,19..25,19	1 chunks, levels 8	camera cannot scroll here from the main room (level step > 1)
+separate_room	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m16	7	0	chunks 26,18..27,18	2 chunks, levels 0	camera cannot scroll here from the main room (level step > 1)
+camera_block	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m16	7	0	chunk 22,41	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m16	7	0	chunk 24,19	layer map level 15	camera never centres here (sub_080066AC)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m16	7	0	chunk 22,18|23,18	levels 0|2	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m16	7	0	chunk 23,18|24,18	levels 2|0	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m16	7	0	chunk 24,18|25,18	levels 0|2	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m16	7	0	chunk 25,18|26,18	levels 2|0	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m16	7	0	chunk 25,18|25,19	levels 2|8	camera edge (screen stops at the chunk border)
+area_rect	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15	8	0	chunks 28,17..59,21	px 6720,2720 7680x800	desc 0x829af64 id 8
+separate_room	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15	8	0	chunks 28,17..33,18	10 chunks, levels 0	camera cannot scroll here from the main room (level step > 1)
+separate_room	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15	8	0	chunks 29,19..29,20	2 chunks, levels 8	camera cannot scroll here from the main room (level step > 1)
+separate_room	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15	8	0	chunks 31,19..31,20	2 chunks, levels 6	camera cannot scroll here from the main room (level step > 1)
+separate_room	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15	8	0	chunks 32,19..33,20	4 chunks, levels 8	camera cannot scroll here from the main room (level step > 1)
+separate_room	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15	8	0	chunks 34,17..34,18	2 chunks, levels 4	camera cannot scroll here from the main room (level step > 1)
+separate_room	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15	8	0	chunks 34,19..34,20	2 chunks, levels 6	camera cannot scroll here from the main room (level step > 1)
+separate_room	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15	8	0	chunks 35,17..35,18	2 chunks, levels 2	camera cannot scroll here from the main room (level step > 1)
+separate_room	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15	8	0	chunks 35,20..35,20	1 chunks, levels 8	camera cannot scroll here from the main room (level step > 1)
+separate_room	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15	8	0	chunks 36,17..36,18	2 chunks, levels 4	camera cannot scroll here from the main room (level step > 1)
+separate_room	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15	8	0	chunks 37,17..42,20	13 chunks, levels 0	camera cannot scroll here from the main room (level step > 1)
+separate_room	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15	8	0	chunks 40,17..40,18	2 chunks, levels 4	camera cannot scroll here from the main room (level step > 1)
+separate_room	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15	8	0	chunks 42,18..42,18	1 chunks, levels 4	camera cannot scroll here from the main room (level step > 1)
+separate_room	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15	8	0	chunks 43,17..43,19	3 chunks, levels 2	camera cannot scroll here from the main room (level step > 1)
+separate_room	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15	8	0	chunks 44,18..44,18	1 chunks, levels 4	camera cannot scroll here from the main room (level step > 1)
+room	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15	8	0	chunks 45,17..52,19	14 chunks, levels 0	main room
+separate_room	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15	8	0	chunks 46,20..47,20	2 chunks, levels 8	camera cannot scroll here from the main room (level step > 1)
+separate_room	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15	8	0	chunks 50,19..51,20	4 chunks, levels 8	camera cannot scroll here from the main room (level step > 1)
+separate_room	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15	8	0	chunks 53,18..53,18	1 chunks, levels 2	camera cannot scroll here from the main room (level step > 1)
+separate_room	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15	8	0	chunks 54,17..55,18	4 chunks, levels 4	camera cannot scroll here from the main room (level step > 1)
+separate_room	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15	8	0	chunks 57,19..58,20	4 chunks, levels 8	camera cannot scroll here from the main room (level step > 1)
+separate_room	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15	8	0	chunks 58,17..58,18	2 chunks, levels 6	camera cannot scroll here from the main room (level step > 1)
+camera_block	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15	8	0	chunk 35,19	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15	8	0	chunk 38,19	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15	8	0	chunk 49,19	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15	8	0	chunk 49,20	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15	8	0	chunk 52,19	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15	8	0	chunk 52,20	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15	8	0	chunk 53,17	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15	8	0	chunk 54,19	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15	8	0	chunk 55,19	layer map level 15	camera never centres here (sub_080066AC)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15	8	0	chunk 29,18|29,19	levels 0|8	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15	8	0	chunk 31,18|31,19	levels 0|6	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15	8	0	chunk 31,19|32,19	levels 6|8	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15	8	0	chunk 31,20|32,20	levels 6|8	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15	8	0	chunk 32,18|32,19	levels 0|8	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15	8	0	chunk 33,17|34,17	levels 0|4	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15	8	0	chunk 33,18|34,18	levels 0|4	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15	8	0	chunk 33,18|33,19	levels 0|8	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15	8	0	chunk 33,19|34,19	levels 8|6	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15	8	0	chunk 33,20|34,20	levels 8|6	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15	8	0	chunk 34,17|35,17	levels 4|2	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15	8	0	chunk 34,18|35,18	levels 4|2	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15	8	0	chunk 34,18|34,19	levels 4|6	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15	8	0	chunk 34,20|35,20	levels 6|8	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15	8	0	chunk 35,17|36,17	levels 2|4	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15	8	0	chunk 35,18|36,18	levels 2|4	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15	8	0	chunk 36,17|37,17	levels 4|0	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15	8	0	chunk 36,18|37,18	levels 4|0	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15	8	0	chunk 39,18|40,18	levels 0|4	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15	8	0	chunk 40,18|41,18	levels 4|0	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15	8	0	chunk 41,18|42,18	levels 0|4	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15	8	0	chunk 42,18|43,18	levels 4|2	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15	8	0	chunk 42,18|42,19	levels 4|0	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15	8	0	chunk 42,19|43,19	levels 0|2	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15	8	0	chunk 43,18|44,18	levels 2|4	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15	8	0	chunk 44,18|45,18	levels 4|0	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15	8	0	chunk 46,19|46,20	levels 0|8	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15	8	0	chunk 47,19|47,20	levels 0|8	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15	8	0	chunk 50,18|50,19	levels 0|8	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15	8	0	chunk 52,18|53,18	levels 0|2	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15	8	0	chunk 53,18|54,18	levels 2|4	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15	8	0	chunk 58,18|58,19	levels 6|8	camera edge (screen stops at the chunk border)
+area_rect	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m14,m15,m16	9	0	chunks 38,6..53,13	px 9120,960 3840x1280	desc 0x829b370 id 9
+foreign_chunk	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m14,m15,m16	9	0	chunk 49,7	grid area 2 (hi 0)	inside area 9 rect
+foreign_chunk	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m14,m15,m16	9	0	chunk 50,7	grid area 2 (hi 0)	inside area 9 rect
+foreign_chunk	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m14,m15,m16	9	0	chunk 51,7	grid area 2 (hi 0)	inside area 9 rect
+foreign_chunk	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m14,m15,m16	9	0	chunk 52,7	grid area 2 (hi 0)	inside area 9 rect
+foreign_chunk	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m14,m15,m16	9	0	chunk 53,7	grid area 2 (hi 0)	inside area 9 rect
+foreign_chunk	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m14,m15,m16	9	0	chunk 50,8	grid area 2 (hi 0)	inside area 9 rect
+foreign_chunk	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m14,m15,m16	9	0	chunk 51,8	grid area 2 (hi 0)	inside area 9 rect
+foreign_chunk	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m14,m15,m16	9	0	chunk 52,8	grid area 2 (hi 0)	inside area 9 rect
+foreign_chunk	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m14,m15,m16	9	0	chunk 53,8	grid area 2 (hi 0)	inside area 9 rect
+foreign_chunk	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m14,m15,m16	9	0	chunk 50,9	grid area 2 (hi 0)	inside area 9 rect
+foreign_chunk	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m14,m15,m16	9	0	chunk 51,9	grid area 2 (hi 0)	inside area 9 rect
+foreign_chunk	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m14,m15,m16	9	0	chunk 52,9	grid area 2 (hi 0)	inside area 9 rect
+foreign_chunk	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m14,m15,m16	9	0	chunk 53,9	grid area 2 (hi 0)	inside area 9 rect
+foreign_chunk	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m14,m15,m16	9	0	chunk 50,10	grid area 2 (hi 0)	inside area 9 rect
+foreign_chunk	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m14,m15,m16	9	0	chunk 51,10	grid area 2 (hi 0)	inside area 9 rect
+foreign_chunk	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m14,m15,m16	9	0	chunk 52,10	grid area 2 (hi 0)	inside area 9 rect
+foreign_chunk	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m14,m15,m16	9	0	chunk 49,11	grid area 2 (hi 0)	inside area 9 rect
+foreign_chunk	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m14,m15,m16	9	0	chunk 50,11	grid area 2 (hi 0)	inside area 9 rect
+foreign_chunk	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m14,m15,m16	9	0	chunk 51,11	grid area 2 (hi 0)	inside area 9 rect
+foreign_chunk	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m14,m15,m16	9	0	chunk 52,11	grid area 2 (hi 0)	inside area 9 rect
+room	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m14,m15,m16	9	0	chunks 38,6..48,12	48 chunks, levels 0/1/2/3	main room
+separate_room	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m14,m15,m16	9	0	chunks 38,12..39,12	2 chunks, levels 4	camera cannot scroll here from the main room (level step > 1)
+separate_room	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m14,m15,m16	9	0	chunks 38,13..39,13	2 chunks, levels 8	camera cannot scroll here from the main room (level step > 1)
+separate_room	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m14,m15,m16	9	0	chunks 40,6..41,6	2 chunks, levels 4	camera cannot scroll here from the main room (level step > 1)
+separate_room	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m14,m15,m16	9	0	chunks 41,12..41,12	1 chunks, levels 4	camera cannot scroll here from the main room (level step > 1)
+separate_room	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m14,m15,m16	9	0	chunks 45,6..48,7	6 chunks, levels 0	camera cannot scroll here from the main room (level step > 1)
+separate_room	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m14,m15,m16	9	0	chunks 45,8..45,9	2 chunks, levels 6	camera cannot scroll here from the main room (level step > 1)
+separate_room	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m14,m15,m16	9	0	chunks 45,10..45,10	1 chunks, levels 8	camera cannot scroll here from the main room (level step > 1)
+separate_room	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m14,m15,m16	9	0	chunks 45,13..45,13	1 chunks, levels 4	camera cannot scroll here from the main room (level step > 1)
+separate_room	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m14,m15,m16	9	0	chunks 46,9..46,9	1 chunks, levels 8	camera cannot scroll here from the main room (level step > 1)
+separate_room	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m14,m15,m16	9	0	chunks 47,9..47,9	1 chunks, levels 4	camera cannot scroll here from the main room (level step > 1)
+separate_room	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m14,m15,m16	9	0	chunks 47,13..47,13	1 chunks, levels 8	camera cannot scroll here from the main room (level step > 1)
+camera_block	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m14,m15,m16	9	0	chunk 39,6	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m14,m15,m16	9	0	chunk 40,12	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m14,m15,m16	9	0	chunk 44,13	layer map level 15	camera never centres here (sub_080066AC)
+camera_block	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m14,m15,m16	9	0	chunk 46,13	layer map level 15	camera never centres here (sub_080066AC)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m14,m15,m16	9	0	chunk 38,9|38,10	levels 2|0	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m14,m15,m16	9	0	chunk 38,11|38,12	levels 0|4	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m14,m15,m16	9	0	chunk 38,12|38,13	levels 4|8	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m14,m15,m16	9	0	chunk 39,9|39,10	levels 2|0	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m14,m15,m16	9	0	chunk 39,11|39,12	levels 0|4	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m14,m15,m16	9	0	chunk 39,12|39,13	levels 4|8	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m14,m15,m16	9	0	chunk 40,6|40,7	levels 4|0	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m14,m15,m16	9	0	chunk 41,6|42,6	levels 4|0	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m14,m15,m16	9	0	chunk 41,6|41,7	levels 4|0	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m14,m15,m16	9	0	chunk 41,11|41,12	levels 0|4	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m14,m15,m16	9	0	chunk 41,12|42,12	levels 4|1	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m14,m15,m16	9	0	chunk 43,9|44,9	levels 0|2	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m14,m15,m16	9	0	chunk 44,8|45,8	levels 1|6	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m14,m15,m16	9	0	chunk 44,9|45,9	levels 2|6	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m14,m15,m16	9	0	chunk 44,10|45,10	levels 1|8	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m14,m15,m16	9	0	chunk 44,10|44,11	levels 1|3	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m14,m15,m16	9	0	chunk 45,7|45,8	levels 0|6	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m14,m15,m16	9	0	chunk 45,9|46,9	levels 6|8	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m14,m15,m16	9	0	chunk 45,9|45,10	levels 6|8	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m14,m15,m16	9	0	chunk 45,10|46,10	levels 8|0	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m14,m15,m16	9	0	chunk 45,10|45,11	levels 8|2	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m14,m15,m16	9	0	chunk 45,12|45,13	levels 2|4	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m14,m15,m16	9	0	chunk 46,9|47,9	levels 8|4	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m14,m15,m16	9	0	chunk 46,9|46,10	levels 8|0	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m14,m15,m16	9	0	chunk 47,9|47,10	levels 4|0	camera edge (screen stops at the chunk border)
+room_edge	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m14,m15,m16	9	0	chunk 47,12|47,13	levels 0|8	camera edge (screen stops at the chunk border)
+variant_layermap	m1	0	1	chunks 28,24..48,29	9 chunks differ from variant 0	handlers/levels change with the variant
+variant_layout	m1	0	1	layer 0 layout 0x8293cc4	variant 0 0x8293d88	other chunks in the same place
+variant_layermap	m2	0	2	chunks 31,24..31,24	1 chunks differ from variant 0	handlers/levels change with the variant
+variant_layermap	m3	1	1	chunks 70,2..72,3	2 chunks differ from variant 0	handlers/levels change with the variant
+variant_layermap	m4	1	2	chunks 33,1..73,5	172 chunks differ from variant 0	handlers/levels change with the variant
+variant_layout	m4	1	2	layer 0 layout 0x8295260	variant 0 0x829511c	other chunks in the same place
+variant_layermap	m5	2	1	chunks 49,6..93,10	111 chunks differ from variant 0	handlers/levels change with the variant
+variant_layout	m5	2	1	layer 0 layout 0x829659c	variant 0 0x8296720	other chunks in the same place
+variant_layermap	m7	3	1	chunks 82,1..85,5	14 chunks differ from variant 0	handlers/levels change with the variant
+variant_layermap	m11	5	1	chunks 6,7..18,16	61 chunks differ from variant 0	handlers/levels change with the variant
+variant_layout	m11	5	1	layer 0 layout 0x8298834	variant 0 0x8298998	other chunks in the same place
+variant_layermap	m14	6	1	chunks 13,40..13,40	1 chunks differ from variant 0	handlers/levels change with the variant
+door	m3	1	1	mt 1049,26 chunk 69,2	opens from left/either	left side area 1 chunk 69,2 | right side area 1 chunk 70,2
+door	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	mt 989,98 chunk 65,9	opens from left/either	left side area 2 chunk 65,9 | right side area 2 chunk 66,9
+door	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	mt 1004,98 chunk 66,9	opens from left/either	left side area 2 chunk 66,9 | right side area 2 chunk 67,9
+door	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	mt 1034,98 chunk 68,9	opens from left/either	left side area 2 chunk 68,9 | right side area 2 chunk 69,9
+door	m0,m1,m2,m3,m4,m7,m8,m9,m10,m11,m12,m13,m14,m15,m16	2	0	mt 1049,98 chunk 69,9	opens from left/either	left side area 2 chunk 69,9 | right side area 2 chunk 70,9
+door	m5	2	1	mt 989,98 chunk 65,9	opens from left/either	left side area 2 chunk 65,9 | right side area 2 chunk 66,9
+door	m5	2	1	mt 1004,98 chunk 66,9	opens from left/either	left side area 2 chunk 66,9 | right side area 2 chunk 67,9
+door	m5	2	1	mt 1049,98 chunk 69,9	opens from left/either	left side area 2 chunk 69,9 | right side area 2 chunk 70,9
+door	m5	2	1	mt 1199,97 chunk 79,9	opens from left/either	left side area 2 chunk 79,9 | right side area 2 chunk 80,9
+door	m5	2	1	mt 1214,97 chunk 80,9	opens from left/either	left side area 2 chunk 80,9 | right side area 2 chunk 81,9
+door	m6	2	2	mt 1034,99 chunk 68,9	opens from left/either	left side area 2 chunk 68,9 | right side area 2 chunk 69,9
+door	m6	2	2	mt 1049,98 chunk 69,9	opens from left/either	left side area 2 chunk 69,9 | right side area 2 chunk 70,9
+door	m7	3	1	mt 1319,18 chunk 87,1	opens from left/either	left side area 3 chunk 87,1 | right side area 3 chunk 88,1
+door	m11	5	1	mt 119,87 chunk 7,8	opens from right	left side area 5 chunk 7,8 | right side area 5 chunk 8,8
+door	m11	5	1	mt 134,87 chunk 8,8	opens from right	left side area 5 chunk 8,8 | right side area 5 chunk 9,8
+door	m14	6	1	mt 209,407 chunk 13,40	opens from left/either	left side area 6 chunk 13,40 | right side area 6 chunk 14,40
+door	m14	6	1	mt 254,405 chunk 16,40	opens from left/either	left side area 6 chunk 16,40 | right side area 6 chunk 17,40
+door	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m16	7	0	mt 374,188 chunk 24,18	opens from left/either	left side area 7 chunk 24,18 | right side area 7 chunk 25,18
+door	m15	7	1	mt 344,188 chunk 22,18	opens from left/either	left side area 7 chunk 22,18 | right side area 7 chunk 23,18
+door	m15	7	1	mt 359,188 chunk 23,18	opens from left/either	left side area 7 chunk 23,18 | right side area 7 chunk 24,18
+door	m0,m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11,m12,m13,m14,m15	8	0	mt 794,187 chunk 52,18	opens from left/either	left side area 8 chunk 52,18 | right side area 8 chunk 53,18
+door	m16	8	1	mt 794,187 chunk 52,18	opens from left/either	left side area 8 chunk 52,18 | right side area 8 chunk 53,18
+player_spawn	m0	9		m0 script 0 cmd 0	px 10864,1584 chunk 45,9	actor type 0 kind 0
+camera_template	m0			m0 script 0 cmd 1	mode 3 chase 0x0 follow slot 0 target px 0,0	limits px L0 R0 T0 B0
+player_spawn	m0	9		m0 script 1 cmd 0	px 10864,1584 chunk 45,9	actor type 0 kind 0
+camera_template	m0			m0 script 1 cmd 1	mode 3 chase 0x0 follow slot 0 target px 0,0	limits px L0 R0 T0 B0
+player_spawn	m0	9		m0 script 2 cmd 0	px 10864,1584 chunk 45,9	actor type 0 kind 0
+camera_template	m0			m0 script 2 cmd 1	mode 3 chase 0x0 follow slot 0 target px 0,0	limits px L0 R0 T0 B0
+player_spawn	m0	9		m0 script 3 cmd 0	px 10864,1584 chunk 45,9	actor type 0 kind 0
+camera_template	m0			m0 script 3 cmd 1	mode 3 chase 0x0 follow slot 0 target px 0,0	limits px L0 R0 T0 B0
+camera_mode	m0			m0 script 3 cmd 21	camera off, stage BGs off	
+camera_template	m0			m0 script 3 cmd 30	mode 3 chase 0x0 follow slot 0 target px 0,0	limits px L0 R0 T0 B0
+player_spawn	m0	9		m0 script 4 cmd 0	px 10864,1584 chunk 45,9	actor type 0 kind 0
+camera_template	m0			m0 script 4 cmd 1	mode 3 chase 0x0 follow slot 0 target px 0,0	limits px L0 R0 T0 B0
+player_spawn	m0	7		m0 script 5 cmd 0	px 6080,3024 chunk 25,18	actor type 0 kind 0
+camera_template	m0			m0 script 5 cmd 1	mode 3 chase 0x0 follow slot 0 target px 0,0	limits px L0 R0 T0 B0
+camera_template	m1	0		m1 script 0 cmd 10	mode 1 chase 0x0 follow slot 0 target px 8224,4720	limits px L0 R0 T0 B0
+camera_mode	m1			m1 script 0 cmd 41	camera off, stage BGs off	
+camera_template	m1	0		m1 script 0 cmd 52	mode 1 chase 0x1 follow slot 0 target px 8256,4720	limits px L0 R0 T0 B0
+camera_mode	m1			m1 script 0 cmd 98	camera off, stage BGs off	
+camera_template	m1	0		m1 script 0 cmd 110	mode 1 chase 0x1 follow slot 0 target px 7776,4720	limits px L0 R0 T0 B0
+camera_mode	m1			m1 script 0 cmd 130	camera off, stage BGs off	
+camera_template	m1	0		m1 script 0 cmd 141	mode 1 chase 0x1 follow slot 0 target px 7984,4720	limits px L0 R0 T0 B0
+camera_mode	m1			m1 script 0 cmd 186	camera off, stage BGs off	
+camera_template	m1	0		m1 script 0 cmd 210	mode 1 chase 0x1 follow slot 0 target px 7984,4720	limits px L0 R0 T0 B0
+camera_template	m1	0		m1 script 0 cmd 213	mode 1 chase 0x1 follow slot 0 target px 7320,3920	limits px L0 R0 T0 B0
+camera_mode	m1			m1 script 0 cmd 273	camera off, stage BGs off	
+camera_template	m1	0		m1 script 0 cmd 281	mode 1 chase 0x1 follow slot 0 target px 7080,3920	limits px L0 R0 T0 B0
+camera_mode	m1			m1 script 0 cmd 374	camera off, stage BGs off	
+camera_template	m1	0		m1 script 0 cmd 396	mode 1 chase 0x1 follow slot 0 target px 7080,3920	limits px L0 R0 T0 B0
+camera_mode	m1			m1 script 0 cmd 411	camera off, stage BGs off	
+camera_template	m1	0		m1 script 0 cmd 421	mode 1 chase 0x1 follow slot 0 target px 7080,3920	limits px L0 R0 T0 B0
+camera_mode	m1			m1 script 0 cmd 439	camera off, stage BGs off	
+camera_template	m1	0		m1 script 0 cmd 447	mode 3 chase 0x0 follow slot 0 target px 7080,3920	limits px L0 R0 T0 B0
+player_spawn	m1	0		m1 script 0 cmd 458	px 7080,3984 chunk 29,24	actor type 0 kind 0
+camera_mode	m1			m1 script 2 cmd 6	mode 1	
+camera_mode	m1			m1 script 2 cmd 28	mode 3	
+camera_mode	m1			m1 script 3 cmd 2	mode 3	
+camera_mode	m1			m1 script 5 cmd 10	camera off, stage BGs off	
+camera_mode	m1			m1 script 5 cmd 15	follow in area	
+player_moved	m1	0		m1 script 5 cmd 18	slot 0 to px 11632,4768 chunk 48,29	scripted teleport
+camera_mode	m1			m1 script 7 cmd 2	camera off, stage BGs off	
+camera_template	m1	0		m1 script 8 cmd 1	mode 3 chase 0x0 follow slot 0 target px 7080,3920	limits px L0 R0 T0 B0
+player_spawn	m1	0		m1 script 8 cmd 13	px 7080,3984 chunk 29,24	actor type 0 kind 0
+player_spawn	m1	0		m1 script 9 cmd 0	px 11344,4768 chunk 47,29	actor type 0 kind 0
+camera_template	m1	0		m1 script 9 cmd 1	mode 4 chase 0x0 follow slot 0 target px 6720,3840	limits px L11280 R11520 T4480 B4800
+player_spawn	m2	0		m2 script 0 cmd 0	px 11712,4768 chunk 48,29	actor type 0 kind 0
+camera_template	m2			m2 script 0 cmd 1	mode 3 chase 0x0 follow slot 0 target px 0,0	limits px L0 R0 T0 B0
+camera_mode	m2			m2 script 3 cmd 3	mode 1	
+camera_template	m2			m2 script 3 cmd 20	mode 4 chase 0x0 follow slot 0 target px 0,0	limits px L6928 R7408 T3840 B4000
+player_moved	m2	0		m2 script 4 cmd 12	slot 0 to px 7120,3984 chunk 29,24	scripted teleport
+camera_limit	m2			m2 script 4 cmd 14	R = px 7296	
+camera_mode	m2			m2 script 5 cmd 17	mode 1	
+camera_mode	m2			m2 script 5 cmd 27	mode 3	
+camera_template	m2			m2 script 6 cmd 0	mode 3 chase 0x0 follow slot 0 target px 0,0	limits px L0 R0 T0 B0
+player_spawn	m2	0		m2 script 7 cmd 0	px 7568,3968 chunk 31,24	actor type 0 kind 0
+camera_template	m2			m2 script 7 cmd 1	mode 3 chase 0x0 follow slot 0 target px 0,0	limits px L0 R0 T0 B0
+player_spawn	m2	0		m2 script 8 cmd 0	px 7040,3984 chunk 29,24	actor type 0 kind 0
+camera_template	m2			m2 script 8 cmd 1	mode 3 chase 0x10 follow slot 0 target px 0,0	limits px L0 R0 T0 B0
+player_spawn	m3	1		m3 script 0 cmd 0	px 10512,768 chunk 43,4	actor type 0 kind 0
+camera_template	m3			m3 script 0 cmd 2	mode 4 chase 0x0 follow slot 0 target px 0,0	limits px L10400 R19920 T160 B1280
+camera_mode	m3			m3 script 3 cmd 16	mode 1	
+camera_mode	m3			m3 script 3 cmd 42	mode 3	
+player_moved	m3	1		m3 script 4 cmd 19	slot 0 to px 17072,592 chunk 71,3	scripted teleport
+camera_mode	m3			m3 script 8 cmd 1	mode 1	
+player_spawn	m3	1		m3 script 9 cmd 0	px 16912,448 chunk 70,2	actor type 0 kind 0
+camera_template	m3			m3 script 9 cmd 1	mode 4 chase 0x0 follow slot 0 target px 0,0	limits px L10400 R19920 T160 B1280
+player_spawn	m4	1		m4 script 0 cmd 0	px 17408,624 chunk 72,3	actor type 0 kind 0
+camera_template	m4			m4 script 0 cmd 1	mode 3 chase 0x0 follow slot 0 target px 0,0	limits px L7920 R17760 T160 B800
+camera_mode	m4			m4 script 1 cmd 12	mode 1	
+camera_mode	m4			m4 script 1 cmd 30	mode 3	
+camera_mode	m4			m4 script 2 cmd 11	camera off, stage BGs off	
+camera_mode	m4			m4 script 2 cmd 16	follow in area	
+camera_mode	m4			m4 script 2 cmd 18	mode 4	
+camera_mode	m4			m4 script 3 cmd 14	camera off, stage BGs off	
+player_spawn	m5	2		m5 script 0 cmd 0	px 12672,1264 chunk 52,7	actor type 0 kind 0
+camera_template	m5			m5 script 0 cmd 1	mode 3 chase 0x0 follow slot 0 target px 0,0	limits px L0 R0 T0 B0
+camera_limit	m5			m5 script 2 cmd 0	L = px 11760	
+camera_limit	m5			m5 script 2 cmd 1	R = px 21360	
+camera_limit	m5			m5 script 2 cmd 2	T = px 1440	
+camera_limit	m5			m5 script 2 cmd 3	B = px 7360	
+camera_mode	m5			m5 script 2 cmd 4	mode 5	
+camera_template	m5			m5 script 3 cmd 19	mode 3 chase 0x0 follow slot 0 target px 0,0	limits px L0 R0 T0 B0
+camera_mode	m5			m5 script 6 cmd 7	camera off, stage BGs off	
+camera_mode	m5			m5 script 7 cmd 2	follow in area	
+player_moved	m5	2		m5 script 7 cmd 4	slot 0 to px 19888,1552 chunk 82,9	scripted teleport
+camera_template	m5			m5 script 7 cmd 6	mode 4 chase 0x0 follow slot 0 target px 0,0	limits px L19776 R20016 T1280 B1600
+camera_template	m5	2		m5 script 8 cmd 5	mode 1 chase 0x1 follow slot 0 target px 19816,1520	limits px L0 R0 T0 B0
+player_spawn	m5	2		m5 script 9 cmd 0	px 17008,1584 chunk 70,9	actor type 0 kind 0
+camera_template	m5			m5 script 9 cmd 1	mode 5 chase 0x0 follow slot 0 target px 0,0	limits px L11760 R21360 T1440 B7360
+player_spawn	m6	2		m6 script 0 cmd 0	px 17472,1584 chunk 72,9	actor type 0 kind 0
+camera_template	m6			m6 script 0 cmd 1	mode 3 chase 0x0 follow slot 0 target px 0,0	limits px L0 R0 T0 B0
+camera_mode	m6			m6 script 1 cmd 3	mode 1	
+camera_template	m6			m6 script 1 cmd 38	mode 4 chase 0x0 follow slot 0 target px 0,0	limits px L21840 R22080 T1280 B1600
+player_spawn	m6	2		m6 script 3 cmd 0	px 21712,1584 chunk 90,9	actor type 0 kind 0
+camera_template	m6			m6 script 3 cmd 1	mode 4 chase 0x0 follow slot 0 target px 0,0	limits px L21600 R22080 T1280 B1600
+player_spawn	m7	3		m7 script 0 cmd 0	px 17968,608 chunk 74,3	actor type 0 kind 0
+camera_template	m7			m7 script 0 cmd 1	mode 3 chase 0x0 follow slot 0 target px 0,0	limits px L0 R0 T0 B0
+camera_mode	m7			m7 script 1 cmd 6	mode 1	
+camera_mode	m7			m7 script 1 cmd 11	mode 1	
+camera_mode	m7			m7 script 1 cmd 16	mode 1	
+camera_mode	m7			m7 script 1 cmd 21	mode 1	
+camera_template	m7			m7 script 1 cmd 28	mode 3 chase 0x0 follow slot 0 target px 0,0	limits px L0 R0 T0 B0
+camera_mode	m7			m7 script 6 cmd 2	mode 1	
+player_spawn	m7	3		m7 script 8 cmd 0	px 21232,320 chunk 88,2	actor type 0 kind 0
+camera_template	m7			m7 script 8 cmd 2	mode 3 chase 0x0 follow slot 0 target px 0,0	limits px L0 R0 T0 B0
+player_spawn	m8	3		m8 script 0 cmd 0	px 17952,608 chunk 74,3	actor type 0 kind 0
+camera_template	m8			m8 script 0 cmd 1	mode 4 chase 0x0 follow slot 0 target px 0,0	limits px L17840 R23040 T160 B800
+camera_limit	m8			m8 script 1 cmd 3	L = px 18000	
+camera_limit	m8			m8 script 1 cmd 4	R = px 18240	
+camera_limit	m8			m8 script 1 cmd 5	T = px 320	
+camera_limit	m8			m8 script 1 cmd 6	B = px 640	
+camera_mode	m8			m8 script 1 cmd 7	mode 4	
+camera_limit	m8			m8 script 2 cmd 12	L = px 17840	
+camera_limit	m8			m8 script 2 cmd 13	R = px 23040	
+camera_limit	m8			m8 script 2 cmd 14	T = px 160	
+camera_limit	m8			m8 script 2 cmd 15	B = px 800	
+camera_mode	m8			m8 script 2 cmd 16	mode 4	
+camera_mode	m8			m8 script 8 cmd 11	camera off, stage BGs off	
+player_spawn	m8	3		m8 script 9 cmd 0	px 18272,608 chunk 76,3	actor type 0 kind 0
+camera_template	m8			m8 script 9 cmd 1	mode 4 chase 0x0 follow slot 0 target px 0,0	limits px L17840 R23040 T160 B800
+player_spawn	m9	4		m9 script 0 cmd 0	px 7120,768 chunk 29,4	actor type 0 kind 0
+camera_template	m9			m9 script 0 cmd 1	mode 3 chase 0x0 follow slot 0 target px 0,0	limits px L0 R0 T0 B0
+camera_mode	m9			m9 script 2 cmd 1	mode 1	
+camera_template	m9			m9 script 2 cmd 21	mode 4 chase 0x0 follow slot 0 target px 0,0	limits px L960 R1200 T320 B640
+camera_mode	m9			m9 script 3 cmd 11	mode 3	
+camera_mode	m9			m9 script 4 cmd 4	mode 1	
+camera_mode	m9			m9 script 4 cmd 19	mode 3	
+player_spawn	m9	4		m9 script 7 cmd 0	px 1328,624 chunk 5,3	actor type 0 kind 0
+camera_template	m9			m9 script 7 cmd 2	mode 4 chase 0x0 follow slot 0 target px 0,0	limits px L960 R1376 T320 B640
+player_spawn	m9	4		m9 script 8 cmd 0	px 1104,608 chunk 4,3	actor type 0 kind 0
+camera_template	m9			m9 script 8 cmd 2	mode 3 chase 0x0 follow slot 0 target px 0,0	limits px L0 R0 T0 B0
+player_spawn	m10	4		m10 script 0 cmd 1	px 7072,768 chunk 29,4	actor type 0 kind 0
+camera_template	m10			m10 script 0 cmd 2	mode 5 chase 0x0 follow slot 0 target px 0,0	limits px L240 R8640 T320 B960
+camera_limit	m10			m10 script 2 cmd 13	L = px 896	
+camera_limit	m10			m10 script 2 cmd 14	R = px 1376	
+camera_limit	m10			m10 script 2 cmd 15	T = px 320	
+camera_limit	m10			m10 script 2 cmd 16	B = px 640	
+camera_mode	m10			m10 script 2 cmd 17	mode 1	
+player_moved	m10	4		m10 script 2 cmd 22	slot 0 to px 1344,624 chunk 5,3	scripted teleport
+camera_mode	m10			m10 script 2 cmd 31	mode 1	
+camera_mode	m10			m10 script 2 cmd 48	mode 4	
+player_spawn	m10	4		m10 script 5 cmd 1	px 7072,768 chunk 29,4	actor type 0 kind 0
+player_moved	m10	4		m10 script 5 cmd 2	slot 0 to px 1344,624 chunk 5,3	scripted teleport
+camera_template	m10			m10 script 5 cmd 3	mode 5 chase 0x0 follow slot 0 target px 0,0	limits px L240 R8640 T320 B960
+camera_limit	m10			m10 script 5 cmd 4	L = px 896	
+camera_limit	m10			m10 script 5 cmd 5	R = px 1376	
+camera_limit	m10			m10 script 5 cmd 6	T = px 320	
+camera_limit	m10			m10 script 5 cmd 7	B = px 640	
+camera_mode	m10			m10 script 5 cmd 8	mode 1	
+camera_mode	m10			m10 script 5 cmd 25	mode 1	
+camera_mode	m10			m10 script 5 cmd 42	mode 4	
+player_spawn	m11	4		m11 script 0 cmd 0	px 7088,768 chunk 29,4	actor type 0 kind 0
+camera_template	m11			m11 script 0 cmd 1	mode 3 chase 0x0 follow slot 0 target px 0,0	limits px L0 R0 T0 B0
+player_spawn	m11	5		m11 script 15 cmd 0	px 3872,1728 chunk 16,10	actor type 0 kind 0
+camera_template	m11			m11 script 15 cmd 1	mode 3 chase 0x0 follow slot 0 target px 0,0	limits px L0 R0 T0 B0
+player_spawn	m11	5		m11 script 16 cmd 0	px 2048,1408 chunk 8,8	actor type 0 kind 0
+camera_template	m11			m11 script 16 cmd 1	mode 3 chase 0x0 follow slot 0 target px 0,0	limits px L0 R0 T0 B0
+player_spawn	m12	4		m12 script 0 cmd 0	px 7088,768 chunk 29,4	actor type 0 kind 0
+camera_template	m12			m12 script 0 cmd 1	mode 3 chase 0x0 follow slot 0 target px 0,0	limits px L0 R0 T0 B0
+camera_limit	m12			m12 script 10 cmd 3	L = px 3600	
+camera_limit	m12			m12 script 10 cmd 4	R = px 4080	
+camera_limit	m12			m12 script 10 cmd 5	T = px 1920	
+camera_limit	m12			m12 script 10 cmd 6	B = px 2400	
+camera_mode	m12			m12 script 10 cmd 8	mode 1	
+camera_mode	m12			m12 script 10 cmd 24	mode 4	
+player_spawn	m12	5		m12 script 12 cmd 0	px 3872,1728 chunk 16,10	actor type 0 kind 0
+camera_template	m12			m12 script 12 cmd 1	mode 3 chase 0x0 follow slot 0 target px 0,0	limits px L0 R0 T0 B0
+player_spawn	m12	5		m12 script 13 cmd 0	px 3744,2352 chunk 15,14	actor type 0 kind 0
+camera_template	m12			m12 script 13 cmd 1	mode 4 chase 0x0 follow slot 0 target px 0,0	limits px L3648 R4080 T1920 B2400
+player_spawn	m13	9		m13 script 0 cmd 0	px 10672,1440 chunk 44,9	actor type 0 kind 0
+camera_template	m13			m13 script 0 cmd 1	mode 5 chase 0x0 follow slot 0 target px 0,0	limits px L9120 R11760 T960 B2240
+camera_mode	m13			m13 script 2 cmd 1	mode 1	
+camera_limit	m13			m13 script 2 cmd 5	L = px 9184	
+camera_limit	m13			m13 script 2 cmd 6	R = px 9536	
+camera_limit	m13			m13 script 2 cmd 7	T = px 1920	
+camera_limit	m13			m13 script 2 cmd 8	B = px 2080	
+camera_mode	m13			m13 script 2 cmd 23	mode 4	
+camera_mode	m13			m13 script 3 cmd 11	mode 3	
+player_spawn	m13	9		m13 script 5 cmd 0	px 9184,2064 chunk 38,12	actor type 0 kind 0
+camera_template	m13			m13 script 5 cmd 1	mode 4 chase 0x0 follow slot 0 target px 0,0	limits px L9152 R9520 T1920 B2080
+player_spawn	m14	6		m14 script 0 cmd 0	px 3976,6688 chunk 16,41	actor type 0 kind 0
+camera_template	m14			m14 script 0 cmd 1	mode 3 chase 0x0 follow slot 0 target px 0,0	limits px L0 R0 T0 B0
+camera_limit	m14			m14 script 1 cmd 0	L = px 1920	
+camera_limit	m14			m14 script 1 cmd 1	R = px 2400	
+camera_limit	m14			m14 script 1 cmd 2	T = px 7248	
+camera_limit	m14			m14 script 1 cmd 3	B = px 7536	
+camera_mode	m14			m14 script 1 cmd 4	mode 4	
+camera_mode	m14			m14 script 3 cmd 0	mode 3	
+camera_limit	m14			m14 script 4 cmd 2	L = px 1920	
+camera_limit	m14			m14 script 4 cmd 3	R = px 2400	
+camera_limit	m14			m14 script 4 cmd 4	T = px 6768	
+camera_limit	m14			m14 script 4 cmd 5	B = px 7024	
+camera_mode	m14			m14 script 4 cmd 6	mode 4	
+camera_mode	m14			m14 script 5 cmd 11	mode 3	
+player_spawn	m14	6		m14 script 9 cmd 0	px 3472,6528 chunk 14,40	actor type 0 kind 0
+camera_template	m14			m14 script 9 cmd 1	mode 3 chase 0x0 follow slot 0 target px 0,0	limits px L0 R0 T0 B0
+camera_mode	m14			m14 script 14 cmd 2	camera off, stage BGs off	
+player_spawn	m15	7		m15 script 0 cmd 0	px 4992,6528 chunk 20,40	actor type 0 kind 0
+camera_template	m15			m15 script 0 cmd 1	mode 3 chase 0x0 follow slot 0 target px 0,0	limits px L0 R0 T0 B0
+player_spawn	m15	7		m15 script 4 cmd 0	px 5632,3024 chunk 23,18	actor type 0 kind 0
+camera_template	m15			m15 script 4 cmd 1	mode 3 chase 0x0 follow slot 0 target px 0,0	limits px L0 R0 T0 B0
+player_spawn	m16	8		m16 script 0 cmd 0	px 6880,3024 chunk 28,18	actor type 0 kind 0
+camera_template	m16			m16 script 0 cmd 1	mode 3 chase 0x0 follow slot 0 target px 0,0	limits px L0 R0 T0 B0
+camera_mode	m16			m16 script 5 cmd 8	camera off, stage BGs off	
+camera_mode	m16			m16 script 5 cmd 13	follow in area	
+player_moved	m16	8		m16 script 5 cmd 15	slot 0 to px 8520,2896 chunk 35,18	scripted teleport
+player_spawn	m16	8		m16 script 6 cmd 0	px 8520,2896 chunk 35,18	actor type 0 kind 0
+camera_template	m16			m16 script 6 cmd 1	mode 3 chase 0x0 follow slot 0 target px 0,0	limits px L0 R0 T0 B0
+camera_mode	m16			m16 script 11 cmd 9	camera off, stage BGs off	
+camera_mode	m16			m16 script 11 cmd 14	follow in area	
+player_moved	m16	8		m16 script 11 cmd 16	slot 0 to px 10440,2928 chunk 43,18	scripted teleport
+player_spawn	m16	8		m16 script 12 cmd 0	px 10440,2896 chunk 43,18	actor type 0 kind 0
+camera_template	m16			m16 script 12 cmd 1	mode 3 chase 0x0 follow slot 0 target px 0,0	limits px L0 R0 T0 B0
+camera_mode	m16			m16 script 13 cmd 20	camera off, stage BGs off	
+camera_mode	m16			m16 script 13 cmd 25	follow in area	
+player_moved	m16	8		m16 script 13 cmd 27	slot 0 to px 10440,2928 chunk 43,18	scripted teleport
+camera_mode	m16			m16 script 14 cmd 9	camera off, stage BGs off	
+camera_mode	m16			m16 script 14 cmd 14	follow in area	
+player_moved	m16	8		m16 script 14 cmd 16	slot 0 to px 10440,2928 chunk 43,18	scripted teleport
+camera_mode	m16			m16 script 16 cmd 26	mode 1	
+camera_mode	m16			m16 script 16 cmd 57	mode 3	
+camera_mode	m16			m16 script 17 cmd 6	mode 1	
+camera_mode	m16			m16 script 17 cmd 27	mode 3	
+camera_mode	m16			m16 script 18 cmd 6	mode 1	
+camera_mode	m16			m16 script 18 cmd 30	mode 3	
+player_spawn	m16	8		m16 script 19 cmd 0	px 12824,3008 chunk 53,18	actor type 0 kind 0
+camera_template	m16			m16 script 19 cmd 1	mode 3 chase 0x0 follow slot 0 target px 0,0	limits px L0 R0 T0 B0
+player_moved	m16	4		m16 script 20 cmd 1	slot 0 to px 576,928 chunk 2,5	scripted teleport
+camera_template	m16			m16 script 20 cmd 2	mode 3 chase 0x0 follow slot 0 target px 0,0	limits px L0 R0 T0 B0
+camera_mode	m16			m16 script 20 cmd 5	camera off, stage BGs off	
+camera_template	m16			m16 script 20 cmd 18	mode 3 chase 0x0 follow slot 10 target px 0,0	limits px L0 R0 T0 B0
+camera_mode	m16			m16 script 20 cmd 46	camera off, stage BGs off	
+camera_template	m16			m16 script 21 cmd 2	mode 3 chase 0x0 follow slot 0 target px 0,0	limits px L0 R0 T0 B0
+camera_mode	m16			m16 script 21 cmd 20	camera off, stage BGs off	
