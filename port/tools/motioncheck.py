@@ -222,7 +222,7 @@ def palette_remap(a, b):
     return n and keep >= 0.93 * n and len(m) > 1
 
 SPRITE_REACH = 12   # px a sprite may move between two pictures and still be the same one
-EDGE = 12           # px from the GBA screen: a sprite cut there is the renderer's
+EDGE = 2            # px from the GBA screen: a sprite cut there (touching it) is the renderer's
 
 def mask_comps(mask, min_cells=4):
     """connected parts of a binary L mask, in pixels (boxes of 4x4 cells, >= 2x2 cells, >= min_cells)"""

@@ -155,5 +155,10 @@ cutscenes, fades with no stage layer, anything not modelled: the PPU picture, sc
 - Sprites: `MMZ_VIEWCHECK=0 MMZ_VIEWCHECK_SPRITES=1` compares sprite pixels in the GBA rect too. motioncheck's
   `sprite` flag: a sprite appearing / vanishing outside the GBA rect with no sprite near it in the other picture
   (moved by every motion, within --sprite-reach) and away from the view's leading edge; `gba_edge` when within
-  --edge px of the GBA rect (a renderer cut at the old screen edge: must be 0), else `far` (game spawn/removal).
+  --edge px (default 2: touching) of the GBA rect (a renderer cut at the old screen edge: must be 0), else `far` (game spawn/removal).
   `xsprite`: sprite pixels drawn at one view size and not at the other.
+
+Stage 2 results (x3, all scenarios): BG events 18 (= stage 1), sprite `gba_edge` 0. Control:
+`MMZ_SPRITES_GBA_ONLY=1` (sprites cut at the GBA edge) gives `gba_edge` in m1spr (3 at x2 and x3) and m7spr (1).
+Remaining `far` sprite flags are objects ending (shots, dust) at varying distances; the cross-size `xsprite`
+differences (m1spr x2|x3: 20/80 frames, also before stage 2) come from the size-scaled spawn/cull ranges.
