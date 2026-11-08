@@ -568,8 +568,49 @@ void dbg_run_check(int which) {
 	else { void view_chunk_report(void); view_chunk_report(); }
 }
 
+/* shots PREFIX K: from now a PNG every K frames (PREFIX_FRAME.png) and a line in
+   PREFIX.tsv: the camera, the GBA screen in the view and the BGs' scroll
+   (motioncheck.py); shots - stops */
+static char shotsPrefix[256];
+static int shotsEvery;
+static FILE *shotsTsv;
+static u32 shotsWatch[32][2];   /* ADDR, LEN */
+static int shotsWatchN;
+static void shots_step(void) {
+	if (!shotsEvery || frameCount % shotsEvery) return;
+	char p[300];
+	snprintf(p, sizeof p, "%s_%06ld.png", shotsPrefix, frameCount);
+	write_ppm(p);
+	if (view_active && view_layers) {   /* PREFIX_FRAME.layers.png: red = view_layers (top | second << 4, bit 3 gap fill) */
+		static u32 *lb; static size_t ln;
+		size_t n = (size_t)view_w * view_h;
+		if (n > ln) { lb = realloc(lb, n * 4); ln = n; }
+		for (size_t i = 0; i < n; i++) lb[i] = (u32)view_layers[i] << 16;
+		char q[300];
+		snprintf(q, sizeof q, "%s_%06ld.layers.png", shotsPrefix, frameCount);
+		write_image(q, lb, view_w, view_h);
+	}
+	struct Location l;
+	loc_now(&l);
+	int ox = 0, oy = 0, gx = 0, gy = 0;
+	if (view_active) { view_gba_origin(&ox, &oy); view_gba_global(&gx, &gy); }
+	const u16 *r = (const u16 *)(uintptr_t)0x04000000;
+	fprintf(shotsTsv, "%ld\t%s\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d", frameCount, p, view_active ? view_w : SCREEN_W, view_active ? view_h : SCREEN_H, ox, oy, gx, gy, l.camX, l.camY, l.x, l.y, r[0]);
+	for (int b = 0; b < 4; b++) fprintf(shotsTsv, "\t%d\t%d", r[0x08 / 2 + b], r[0x10 / 2 + b * 2] & 0x1FF), fprintf(shotsTsv, "\t%d", r[0x12 / 2 + b * 2] & 0x1FF);
+	fputc('\t', shotsTsv);   /* the IO registers DISPCNT..BLDY, hex */
+	for (int o = 0; o < 0x56; o++) fprintf(shotsTsv, "%02x", ((const u8 *)(uintptr_t)0x04000000)[o]);
+	fputc('\t', shotsTsv);   /* the watched memory (shots' third argument), hex, comma between */
+	for (int k = 0; k < shotsWatchN; k++) {
+		if (k) fputc(',', shotsTsv);
+		for (u32 o = 0; o < shotsWatch[k][1]; o++) fprintf(shotsTsv, "%02x", ((const u8 *)(uintptr_t)shotsWatch[k][0])[o]);
+	}
+	fputc('\n', shotsTsv);
+	fflush(shotsTsv);
+}
+
 static void route_step(void) {
 	if (warp_active()) { routeDelay++; return; }
+	shots_step();
 	for (;;) {
 		if (routeFrame < 0) {
 			char line[512];
@@ -619,6 +660,26 @@ static void route_step(void) {
 			loc_now(&l);
 			loc_format(&l, b, sizeof b);
 			fprintf(stderr, "where: frame %ld %s life %d\n", frameCount, b, zero_hp());
+		}
+		else if (!strcmp(routeCmd, "shots")) {   /* shots PREFIX K [ADDR:LEN,...] / shots -: a picture + sidecar line every K frames */
+			if (shotsTsv) { fclose(shotsTsv); shotsTsv = NULL; }
+			shotsEvery = 0;
+			if (strcmp(routeArg1, "-")) {
+				char t[300];
+				snprintf(shotsPrefix, sizeof shotsPrefix, "%s", routeArg1);
+				snprintf(t, sizeof t, "%s.tsv", routeArg1);
+				if ((shotsTsv = fopen(t, "w"))) {
+					fprintf(shotsTsv, "frame\tpng\tw\th\tox\toy\tgx\tgy\tcamx\tcamy\tzx\tzy\tdispcnt\tbg0cnt\tbg0h\tbg0v\tbg1cnt\tbg1h\tbg1v\tbg2cnt\tbg2h\tbg2v\tbg3cnt\tbg3h\tbg3v\tio\twatch\n");
+					shotsEvery = atoi(routeArg2) > 0 ? atoi(routeArg2) : 1;
+					shotsWatchN = 0;   /* ADDR:LEN,ADDR:LEN (LEN <= 64) */
+					for (char *t = routeArg3; *t && shotsWatchN < 32; ) {
+						char *e;
+						u32 ad = strtoul(t, &e, 0), n = *e == ':' ? strtoul(e + 1, &e, 0) : 1;
+						if (((ad >= 0x02000000 && ad + n <= 0x02040000) || (ad >= 0x03000000 && ad + n <= 0x03008000)) && n && n <= 64) { shotsWatch[shotsWatchN][0] = ad; shotsWatch[shotsWatchN][1] = n; shotsWatchN++; }
+						t = strchr(e, ','); if (!t) break; t++;
+					}
+				}
+			}
 		}
 		else if (!strcmp(routeCmd, "dump")) {   /* dump ADDR LEN FILE */
 			u32 a = strtoul(routeArg1, 0, 0), len = strtoul(routeArg2, 0, 0);

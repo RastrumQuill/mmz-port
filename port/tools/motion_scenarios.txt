@@ -1,0 +1,95 @@
+# motioncheck.py scenarios (MMZ1). The part before the first [name] is the
+# game-specific config: route commands run after the warp, memory to log
+# (each change is listed with its frame, to tie a pop-in to its cause),
+# view sizes to run at.
+views x2,x3,1120x480,900x520
+settle 90
+setup 10 cheat invincible 1
+setup 10 cheat noenemies 1
+watch mission 0x0202A574:1
+watch stage 0x02022B60:2
+watch area 0x0200520C:2
+watch variants 0x02005208:4
+watch checkpoint 0x02022AEC:1
+
+# issue #11: a background layer appears while on screen (black -> background)
+[issue11]
+warp mmz:m1 a0 v1 cp1 x7811 y3968 cx7811 cy3920
+frames 700
+0 RIGHT
+repeat 120 700 90 20 RIGHT,A RIGHT
+
+# issue #12: the fill applies well after it should be visible
+[issue12]
+warp mmz:m1 a0 v1 cp1 x7947 y3983 cx7947 cy3959
+frames 700
+0 RIGHT
+repeat 120 700 90 20 RIGHT,A RIGHT
+
+# mission 1 from its start
+[m1cp0]
+warp mmz:m1 a0 v0 cp0
+frames 800
+0 RIGHT
+repeat 100 800 70 18 RIGHT,A RIGHT
+
+[m3cp0]
+warp mmz:m3 a0 v0 cp0
+frames 800
+0 RIGHT
+repeat 100 800 70 18 RIGHT,A RIGHT
+
+# m5: the station, then the train ride
+[m5cp0]
+warp mmz:m5 a0 v0 cp0
+frames 900
+# this warp lands in the pause menu: Start closes it
+20 START
+24 -
+# Ciel talks first: A (after the start menu is gone) through the text, then walk
+repeat 150 420 16 4 A -
+420 RIGHT
+repeat 480 900 70 18 RIGHT,A RIGHT
+
+[m5cp1]
+warp mmz:m5 a0 v0 cp1
+frames 900
+# Ciel talks first: A through the text, then walk onto the train
+repeat 100 560 12 4 A -
+560 RIGHT
+repeat 600 900 70 18 RIGHT,A RIGHT
+
+# m9: the desert
+[m9cp0]
+warp mmz:m9 a0 v0 cp0
+frames 800
+# a gate to the right at the start: out into the desert, to the left
+0 LEFT
+repeat 100 800 70 18 LEFT,A LEFT
+
+# m11 cp1: walk to the ladder, climb up, then down again
+[m11cp1]
+warp mmz:m11 a0 v0 cp1
+frames 900
+0 RIGHT,UP
+repeat 60 300 60 15 RIGHT,UP,A RIGHT,UP
+300 UP
+500 LEFT,UP
+560 UP
+700 DOWN
+900 -
+
+[m7cp0]
+warp mmz:m7 a0 v0 cp0
+frames 800
+0 RIGHT
+repeat 100 800 70 18 RIGHT,A RIGHT
+
+# the base / HQ
+[base]
+warp mmz:base
+frames 700
+0 RIGHT
+repeat 60 300 70 18 RIGHT,A RIGHT
+300 LEFT
+repeat 360 700 70 18 LEFT,A LEFT
