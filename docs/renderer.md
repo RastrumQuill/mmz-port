@@ -72,14 +72,25 @@ Computed once per (area, variant, room) and only changed by a cut:
   layerMap level step > 1 or a level-15 chunk (the camera's edge-pull rule, sub_080066F8). Rooms the camera
   never shows together are never drawn together.
 - recomputed only when the camera's chunk leaves the room (door, teleport, area change, Stage_Init): a cut.
-- outside the room: black, for every layer. (The offline gap fill is not wired to this model yet: off.)
+- level-15 chunks of the area next to the room (the camera never centres there, but they hold the walls / ground
+  the GBA screen shows at the room's edge) are drawn with it; they do not join rooms and are not in its box.
+- outside the room: black, for every layer. The offline gap fill (fills.bin, `fill_gaps`) is not used by this
+  renderer at all: whatever the setting, the picture is the level data; black is where the area grid has no chunk.
 - active camera limits (gCamera mode 4/5) clip the extent as hard edges.
 
 ## 6. View placement and size
 
-- The GBA rect is centred, then the view is clamped into the room's bounding box where the box is larger.
-- Fit (settings.fitRooms): square pixels; the view height is fitted to the room box height, the width follows
-  the window aspect; never above the asked size. The target changes only with the room; the size eases only then.
+- The GBA rect is centred, then clamped per axis (place_axis): sideways into the room's box, up/down into the
+  room's rows **under the view's columns** (local_span), then sideways into the room's columns over the rows shown.
+  A room is often not a rectangle (m1: the base corridor is one chunk tall, its room reaches 5 rows down through a
+  shaft 16 chunks away): clamping into the bounding box pinned the GBA rect to the top with 2/3 of the view black.
+- Fit (settings.fitRooms): square pixels; the view height is fitted to the room's height under the current view's
+  columns (not the room box), the width follows the window aspect; never above the asked size, down to the GBA
+  screen (then the GBA picture is shown). The size eases (0.15/frame) when that height changes.
+- Layers whose BG is off on the GBA screen (the handler of the layer map cell under the screen's top-left has
+  none) are drawn outside the GBA rect where the chunk's own cell has a native handler for them, scrolled by the
+  game's rule from the screen position (pos*scale>>8 + offset). Before, such a layer (the m1 cave background) was
+  black in the wide view until the GBA screen's top-left entered the cave, then appeared at once.
 - Nothing about a world pixel depends on the view size.
 
 ## 7. Sprites (stage 2) and effects (stage 3)
@@ -151,6 +162,11 @@ cutscenes, fades with no stage layer, anything not modelled: the PPU picture, sc
   the PPU frame (pixel-identical expected; differences reported with counts). The HUD is excluded (moved).
 - Temporal: port/tools/motioncheck.py (scenarios in port/tools/motion_scenarios.txt) at x2, x3, 1120x480,
   900x520: zero unexplained pop/block events outside the GBA rect except at cuts (area/room change, teleport).
+- Static (per picture, motioncheck `static`): share of the view outside the GBA rect that is unfilled (layer map
+  id 7), the GBA rect pushed off-centre with a mostly unfilled band on the far side, and drawn content outside the
+  GBA rect from another room than the GBA screen's (config `regions` / `regionkey`: regionaudit.py --rooms-json).
+  Limits in the scenario file (`static black_mean 0.08 black_max 0.30 foreign_max 0.01 events_bg 0`); any
+  unexplained BG event (pop/block/layer) also fails the run. Headless runs use the window's fit (env MMZ_HEADLESS_FIT).
 - Cross-size: motioncheck's cross-view check: the same world pixel at two view sizes must be equal.
 - Sprites: `MMZ_VIEWCHECK=0 MMZ_VIEWCHECK_SPRITES=1` compares sprite pixels in the GBA rect too. motioncheck's
   `sprite` flag: a sprite appearing / vanishing outside the GBA rect with no sprite near it in the other picture

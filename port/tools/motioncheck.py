@@ -40,6 +40,14 @@ Flags:  pop     black <-> non-black that no motion explains
                 both views cover it; HUD bands left out); `xsprite` the
                 same for sprite pixels (from the layer maps)
 
+Static checks, per picture (they fail the run, exit 1): the share of the view
+outside the GBA screen that is unfilled (`black`), the GBA screen pushed
+off-centre with a mostly unfilled band on the other side (`place`), drawn
+content outside the GBA screen from another room than the GBA screen's
+(`foreign`, from the config's `regions CMD` / `regionkey EXPR`), and any
+unexplained background event. Limits: config `static NAME LIMIT ...`;
+`env NAME=VALUE` is passed to the emulator.
+
 Every change of a render register (DISPCNT, BGxCNT, windows, blending,
 mosaic; `reg NAME OFF LEN` adds one) or watched memory is logged with its
 frame (flag_changes), and each event lists the ones in its frames.
@@ -274,7 +282,67 @@ def sprite_flags(Aspr, Bspr, S, judge, gA, gB, reach, edge, older=()):
                         "gba_dist": d, "where": "gba_edge" if d <= edge else "far"})
     return out
 
-def analyse(src, rows, history, keep=True, reach=SPRITE_REACH, edge=EDGE):
+# ------------------------------------------------------------ static (per picture)
+
+UNFILLED = 7       # the layer map's top id where nothing is drawn (outside the world / room)
+
+def static_check(B, lm, r, regions=None, chunk=(240, 160)):
+    """one picture, on its own: how much of the view outside the GBA screen is
+    unfilled (black: the layer map's id 7, else luma < 6), whether the GBA
+    screen is pushed to one side with an unfilled band on the other (the
+    camera should keep it centred unless the world ends there), and how much
+    of the drawn outside comes from another room than the GBA screen's
+    (regions: world chunk "cx,cy" -> room, from the scenario config)"""
+    W, H = B.size
+    ox, oy = r["ox"], r["oy"]
+    if W <= 240 and H <= 160: return {"wide": 0}
+    if lm is not None: none = lm.point(lambda v: 255 if v & 7 == UNFILLED else 0)
+    else: none = B.convert("L").point(lambda v: 255 if v < 6 else 0)
+    out = Image.new("L", (W, H), 255); ImageDraw.Draw(out).rectangle([ox, oy, ox + 239, oy + 159], fill=0)
+    n_out = max(1, out.histogram()[255])
+    black = ImageChops.darker(none, out).histogram()[255] / n_out
+    def band(box):
+        x0, y0, x1, y1 = max(0, box[0]), max(0, box[1]), min(W, box[2]), min(H, box[3])
+        if x1 <= x0 or y1 <= y0: return 0.0, 0
+        c = none.crop((x0, y0, x1, y1)); return c.histogram()[255] / ((x1 - x0) * (y1 - y0)), (x1 - x0) * (y1 - y0)
+    st = {"wide": 1, "black": round(black, 4)}
+    # placement: per axis, the GBA screen's offset from the view's centre and the far side's band
+    place = []
+    for axis, lo, hi, far_lo, far_hi in (("x", ox, W - ox - 240, (0, 0, ox, H), (ox + 240, 0, W, H)),
+                                         ("y", oy, H - oy - 160, (0, 0, W, oy), (0, oy + 160, W, H))):
+        if abs(lo - hi) <= 16: continue
+        fb, area = band(far_hi if lo < hi else far_lo)
+        if fb > 0.5 and area: place.append({"axis": axis, "offset": (lo - hi) // 2, "far_unfilled": round(fb, 3)})
+    st["place"] = place
+    st["offset"] = [(ox - (W - ox - 240)) // 2, (oy - (H - oy - 160)) // 2]
+    if regions is not None and "gx" in r:
+        cw, ch = chunk
+        def lab(x, y):
+            gx, gy = r["gx"] - ox + x, r["gy"] - oy + y
+            return regions.get(f"{gx // cw},{gy // ch}")
+        gl = {}
+        for y in range(oy + 4, oy + 160, 8):
+            for x in range(ox + 4, ox + 240, 8):
+                l = lab(x, y)
+                if isinstance(l, int) and l >= 0: gl[l] = gl.get(l, 0) + 1
+        home = max(gl, key=gl.get) if gl else None
+        nb = nf = 0; boxes = {}
+        npx = none.load(); opx = out.load()
+        for y in range(4, H, 8):
+            for x in range(4, W, 8):
+                if not opx[x, y] or npx[x, y]: continue
+                nb += 1
+                l = lab(x, y)
+                if not (l == home or (isinstance(l, list) and home in l)):   # (a list: a wall chunk at the edge of these rooms)
+                    nf += 1
+                    k = (r["gx"] - ox + x) // cw, (r["gy"] - oy + y) // ch
+                    boxes[k] = boxes.get(k, 0) + 1
+        st["foreign"] = round(nf / max(1, nb), 4)
+        st["home_room"] = home
+        if nf: st["foreign_chunks"] = sorted(f"{k[0]},{k[1]}" for k in boxes)[:12]
+    return st
+
+def analyse(src, rows, history, keep=True, reach=SPRITE_REACH, edge=EDGE, regions_for=None):
     """src: sidecar rows as they come; rows: filled here. yields per picture: (index, flags, stats)"""
     hist = []      # (row index, RGB image, luma, black mask)
     nl = lambda im: im.convert("L")
@@ -288,7 +356,7 @@ def analyse(src, rows, history, keep=True, reach=SPRITE_REACH, edge=EDGE):
             continue
         BL = nl(B)
         Bblack = BL.point(lambda v: 255 if v < 6 else 0)
-        Bspr = Bfill = None   # sprites / gap fill, from the view's layer map (PREFIX_FRAME.layers.png) when there is one
+        Bspr = Bfill = lm = None   # sprites / gap fill, from the view's layer map (PREFIX_FRAME.layers.png) when there is one
         lp = r["png"][:-4] + ".layers.png"
         if os.path.exists(lp):
             lm = Image.open(lp).getchannel(0); lm.load()
@@ -296,6 +364,7 @@ def analyse(src, rows, history, keep=True, reach=SPRITE_REACH, edge=EDGE):
             Bspr = lm.point(lambda v: 255 if v & 7 == SPRITE_LAYER or v >> 4 & 7 == SPRITE_LAYER else 0)   # blended sprites too
             Bfill = lm.point(lambda v: 255 if v & 8 else 0)
         flags, stats = [], {}
+        static = static_check(B, lm, r, regions_for(r) if regions_for else None)
         if hist and hist[-1][0] == i - 1 and B.size == hist[-1][1].size:
             j, A, AL, Ablack, Aspr = hist[-1]
             W, H = B.size
@@ -403,6 +472,7 @@ def analyse(src, rows, history, keep=True, reach=SPRITE_REACH, edge=EDGE):
                         f["fill_share"] = round(Bfill.crop(box).histogram()[255] / ((box[2] - box[0]) * (box[3] - box[1])), 2)
                     if why: f["explained"] = why
                     flags.append(f)
+        stats["static"] = static
         yield i, flags, stats, B, Bspr
         hist.append((i, B, BL, Bblack, Bspr))
         if len(hist) > history + 1: hist.pop(0)
@@ -446,11 +516,11 @@ def run_view(mmz, sc, cfg, view, out, every, keep, history, xevery, reach=SPRITE
     prefix = os.path.join(d, "shots", "f")
     with open(os.path.join(d, "route.txt"), "w") as f: f.write(route_text(sc, cfg, prefix, every))
     errf = open(os.path.join(d, "stderr.txt"), "w")
-    proc = subprocess.Popen([mmz, "--headless", "--route", os.path.join(d, "route.txt"), "--view", view], cwd=cfg["cwd"], stderr=errf, stdout=subprocess.DEVNULL)
+    proc = subprocess.Popen([mmz, "--headless", "--route", os.path.join(d, "route.txt"), "--view", view], cwd=cfg["cwd"], stderr=errf, stdout=subprocess.DEVNULL, env={**os.environ, **cfg.get("env", {})})
     rows, frames, events, changes, skipped = [], [], [], [], 0
     mp4 = shutil.which("ffmpeg"); vid = None; vsize = None; gif = []; last = None
     prevImg = None
-    for i, flags, stats, img, spr in analyse(follow_tsv(prefix + ".tsv", proc), rows, history, keep, reach, edge):
+    for i, flags, stats, img, spr in analyse(follow_tsv(prefix + ".tsv", proc), rows, history, keep, reach, edge, regions_for(cfg)):
         r = rows[i]
         vals = reg_values(r, cfg)
         if last is not None:
@@ -518,7 +588,8 @@ def run_view(mmz, sc, cfg, view, out, every, keep, history, xevery, reach=SPRITE
                                    + (f"  after {', '.join(c['what'] for c in nc)}" if nc else ""), fill=(255, 255, 255))
             tiles.append(t)
     sheet = save_sheet(tiles, os.path.join(d, "sheet.png"))
-    summ = {"scenario": sc["name"], "view": view, "warp": sc["warp"], "pictures": len(frames), "skipped": skipped,
+    static = static_summary(frames, cfg, wide_expected=view not in ("240x160", "x1"), events_bg=len(groups) - sum(1 for g in groups if all(f["kind"] == "sprite" for e in g for f in e[1])))
+    summ = {"scenario": sc["name"], "view": view, "warp": sc["warp"], "pictures": len(frames), "static": static, "skipped": skipped,
             "flagged_pictures": len(events), "events": len(groups), "counts": counts,
             "events_bg": len(groups) - sum(1 for g in groups if all(f["kind"] == "sprite" for e in g for f in e[1])),
             "events_sprite": sprite_events, "events_sprite_gba_edge": edge_events, "explained_blocks": expl,
@@ -608,6 +679,49 @@ def cross_view(sc, out, runs):
     sheet = save_sheet(tiles, os.path.join(out, sc["name"], "xview_sheet.png"))
     return {"pairs": res, "sheet": sheet}
 
+STATIC = {"black_mean": 0.08, "black_max": 0.30, "foreign_max": 0.01, "events_bg": 0}
+
+def regions_for(cfg):
+    """per sidecar row: world chunk -> room for the row's area (config `regions CMD` + `regionkey EXPR`), or None"""
+    if not cfg.get("regions") or not cfg.get("regionkey"): return None
+    if "_regions" not in cfg:
+        cfg["_regions"] = json.loads(subprocess.run(cfg["regions"], shell=True, cwd=cfg["cwd"], capture_output=True, text=True, check=True).stdout)
+    def f(r):
+        try: return cfg["_regions"].get(eval(cfg["regionkey"], {}, reg_values(r, cfg)))
+        except Exception: return None
+    return f
+
+def static_summary(frames, cfg, events_bg=0, wide_expected=False):
+    """the static checks over a run: FAIL when the mean / any picture's unfilled share, a misplaced GBA screen or
+    another room's content goes over the config's `static` limits"""
+    lim = {**STATIC, **cfg.get("static", {})}
+    st = [f["static"] for f in frames if f.get("static", {}).get("wide")]
+    res = {"wide_pictures": len(st), "pictures": len(frames)}
+    if not st:
+        why = [f"{events_bg} unexplained background events"] if events_bg > lim["events_bg"] else []
+        # a view asked wider than the GBA screen that never got wide checked nothing (warp failed / fit off)
+        if wide_expected and frames: why.append("no picture wider than the GBA screen: the scenario checked nothing (warp failed or fit off)")
+        return {**res, "events_bg": events_bg, "fail": bool(why), "why": why}
+    bl = [x["black"] for x in st]
+    res["black_mean"] = round(sum(bl) / len(bl), 4); res["black_max"] = max(bl)
+    res["black_over"] = sum(1 for b in bl if b > lim["black_max"])
+    res["place_bad"] = sum(1 for x in st if x["place"])
+    res["place_axes"] = sorted({p["axis"] for x in st for p in x["place"]})
+    fo = [x["foreign"] for x in st if "foreign" in x]
+    if fo:
+        res["foreign_max"] = max(fo); res["foreign_over"] = sum(1 for v in fo if v > lim["foreign_max"])
+        res["foreign_chunks"] = sorted({c for x in st for c in x.get("foreign_chunks", [])})[:20]
+    why = []
+    if res["black_mean"] > lim["black_mean"]: why.append(f"black mean {res['black_mean']:.1%} > {lim['black_mean']:.0%}")
+    if res["black_over"]: why.append(f"{res['black_over']} pictures black > {lim['black_max']:.0%}")
+    if res["place_bad"]: why.append(f"{res['place_bad']} pictures with the GBA screen pushed off-centre and the far side unfilled")
+    # temporal events are failures too (a background blinking in is not a baseline to keep)
+    res["events_bg"] = events_bg
+    if events_bg > lim["events_bg"]: why.append(f"{events_bg} unexplained background events (pop/block/layer) > {lim['events_bg']:.0f}")
+    if res.get("foreign_over"): why.append(f"{res['foreign_over']} pictures with another room's content > {lim['foreign_max']:.0%}")
+    res["fail"] = bool(why); res["why"] = why
+    return res
+
 def parse_config(path):
     cfg = {"regs": list(GBA_REGS), "watch": [], "setup": [], "settle": SETTLE, "views": None, "cwd": ROOT}
     for line in open(path):
@@ -620,6 +734,10 @@ def parse_config(path):
         elif w[0] == "settle": cfg["settle"] = int(w[1])
         elif w[0] == "views": cfg["views"] = w[1]
         elif w[0] == "reg": cfg["regs"].append((w[1], int(w[2], 0), int(w[3])))
+        elif w[0] == "env": k, _, v = w[1].partition("="); cfg.setdefault("env", {})[k] = v   # env NAME=VALUE for the emulator
+        elif w[0] == "regions": cfg["regions"] = line[8:].strip()          # regions CMD: prints {"KEY": {"cx,cy": room}}
+        elif w[0] == "regionkey": cfg["regionkey"] = line[10:].strip()     # regionkey EXPR: KEY from the watched values
+        elif w[0] == "static": cfg["static"] = {w[k]: float(w[k + 1]) for k in range(1, len(w) - 1, 2)}   # static NAME LIMIT ...
     return cfg
 
 def main():
@@ -655,7 +773,10 @@ def main():
             res.append(r)
             if meta: runs.setdefault(s["name"], {})[v] = meta
             if "error" in r: print(f"{r['scenario']:12} {r['view']:9} ERROR {r['error']}")
-            else: print(f"{r['scenario']:12} {r['view']:9} pictures {r['pictures']:4} events {r['events']:3} flagged {r['flagged_pictures']:4} pop {r['counts']['pop']} block {r['counts']['block']} layer {r['counts']['layer']} sprite {r['counts']['sprite']} (gba edge {r['counts']['sprite_gba_edge']}; events bg {r['events_bg']} sprite {r['events_sprite']} edge {r['events_sprite_gba_edge']}) (explained {r['explained_blocks']}, skipped {r['skipped']}, flag changes {len(r['flag_changes'])})", flush=True)
+            else:
+                st = r["static"]
+                print(f"{r['scenario']:12} {r['view']:9} static {'FAIL' if st['fail'] else 'ok'}: black mean {st.get('black_mean', 0):.1%} max {st.get('black_max', 0):.1%} (over {st.get('black_over', 0)}), off-centre {st.get('place_bad', 0)}, foreign max {st.get('foreign_max', 0):.1%} (over {st.get('foreign_over', 0)}), wide {st['wide_pictures']}/{st['pictures']}", flush=True)
+                print(f"{r['scenario']:12} {r['view']:9} pictures {r['pictures']:4} events {r['events']:3} flagged {r['flagged_pictures']:4} pop {r['counts']['pop']} block {r['counts']['block']} layer {r['counts']['layer']} sprite {r['counts']['sprite']} (gba edge {r['counts']['sprite_gba_edge']}; events bg {r['events_bg']} sprite {r['events_sprite']} edge {r['events_sprite_gba_edge']}) (explained {r['explained_blocks']}, skipped {r['skipped']}, flag changes {len(r['flag_changes'])})", flush=True)
     xv = {}
     for s in scs:
         if len(runs.get(s["name"], {})) > 1:
@@ -666,6 +787,9 @@ def main():
             for v in runs.get(s["name"], {}).values(): shutil.rmtree(os.path.join(v[0], "xview"), ignore_errors=True)
     res.sort(key=lambda r: (r["scenario"], r["view"]))
     with open(os.path.join(out, "summary.json"), "w") as f: json.dump({"runs": res, "cross_view": xv}, f, indent=1)
+    bad = [r for r in res if "error" in r or r["static"]["fail"]]
+    for r in bad: print(f"FAIL {r['scenario']} {r['view']}: {r.get('error') or '; '.join(r['static']['why'])}")
+    sys.exit(1 if bad else 0)
 
 if __name__ == "__main__":
     main()

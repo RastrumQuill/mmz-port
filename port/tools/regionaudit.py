@@ -129,14 +129,63 @@ def load_names(src):
     return names
 
 
+def room_components(rom, D, ar):
+    """chunk -> room index (components joined by layer map level steps <= 1); level 15 -> the list of
+    rooms next to it (drawn as their edge), or -1"""
+    L, T = D['left'], D['top']
+    lvl = {}
+    for (c, r), cell in D['cells'].items():
+        g = grid(rom, L + c, T + r)
+        if g >= 0xF0 or (g & 15) != ar:
+            continue
+        lvl[L + c, T + r] = cell >> 12
+    comp, n = {}, 0
+    for k in sorted(lvl):
+        if k in comp:
+            continue
+        if lvl[k] == 15:
+            comp[k] = -1; continue
+        q = deque([k]); comp[k] = n
+        while q:
+            p = q.popleft()
+            for d in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                nb = (p[0] + d[0], p[1] + d[1])
+                if nb in lvl and nb not in comp and lvl[nb] != 15 and abs(lvl[nb] - lvl[p]) <= 1:
+                    comp[nb] = n; q.append(nb)
+        n += 1
+    # level-15 chunks: the edge of every room next to them (a wall between two rooms is drawn with either)
+    edge = {}
+    for k in comp:
+        if comp[k] == -1:
+            rs = sorted({comp[nb] for d in ((1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (1, -1), (-1, 1), (-1, -1))
+                         for nb in [(k[0] + d[0], k[1] + d[1])] if lvl.get(nb, 15) != 15})
+            if rs: edge[k] = rs
+    comp.update(edge)
+    return comp
+
+
+def rooms_map(rom):
+    out = {}
+    for ar in range(N_AREAS):
+        for v in range(3):
+            D = parse_desc(rom, area_desc(rom, ar, v))
+            out['%d:%d' % (ar, v)] = {'%d,%d' % k: i for k, i in room_components(rom, D, ar).items()}
+    return out
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('rom')
     ap.add_argument('--tsv', default='-')
     ap.add_argument('--layers', action='store_true', help='print the per area/variant layer table (markdown)')
     ap.add_argument('--src', default='', help='decomp src/ dir, to name layer handlers')
+    ap.add_argument('--rooms-json', action='store_true', help='print {"area:variant": {"cx,cy": room or [rooms]}} (motioncheck regions)')
     a = ap.parse_args()
     rom = Rom(a.rom)
+    if a.rooms_json:
+        import json
+        print(json.dumps(rooms_map(rom)))
+        return
     names = load_names(a.src)
     rows = []
 
