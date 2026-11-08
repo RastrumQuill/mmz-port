@@ -187,6 +187,20 @@ def crop_match(B, box, A, dx, dy, tol=0.08):
     bad = sum(h[THRESH + 1:])
     return bad <= tol * (x1 - x0) * (y1 - y0)
 
+def rows_shift_match(B, box, A, reach=24):
+    """every row of B's box is the last picture's row moved sideways by up to reach (line scroll / H-blank effects)"""
+    x0, y0, x1, y1 = box
+    W = A.size[0]
+    for y in range(y0, y1):
+        row = B.crop((x0, y, x1, y + 1))
+        ok = False
+        for dx in sorted(range(-reach, reach + 1), key=abs):
+            if x0 - dx < 0 or x1 - dx > W: continue
+            h = ImageChops.difference(row, A.crop((x0 - dx, y, x1 - dx, y + 1))).convert("L").histogram()
+            if sum(h[THRESH + 1:]) <= 0.05 * (x1 - x0): ok = True; break
+        if not ok: return False
+    return True
+
 def palette_remap(a, b):
     """b is a with its colours swapped (each colour of a going to one colour of b, for 93% of the pixels)"""
     m = {}
@@ -198,7 +212,7 @@ def palette_remap(a, b):
     keep = sum(max(v.values()) for v in m.values())
     return n and keep >= 0.93 * n and len(m) > 1
 
-def analyse(src, rows, history):
+def analyse(src, rows, history, keep=True):
     """src: sidecar rows as they come; rows: filled here. yields per picture: (index, flags, stats)"""
     hist = []      # (row index, RGB image, luma, black mask)
     nl = lambda im: im.convert("L")
@@ -207,6 +221,7 @@ def analyse(src, rows, history):
         i = len(rows) - 1
         try:
             B = Image.open(r["png"]).convert("RGB")
+            if not keep: os.remove(r["png"])   # in memory from here: the disk holds one picture per run
         except Exception:
             continue
         BL = nl(B)
@@ -214,7 +229,8 @@ def analyse(src, rows, history):
         Bspr = Bfill = None   # sprites / gap fill, from the view's layer map (PREFIX_FRAME.layers.png) when there is one
         lp = r["png"][:-4] + ".layers.png"
         if os.path.exists(lp):
-            lm = Image.open(lp).getchannel(0)
+            lm = Image.open(lp).getchannel(0); lm.load()
+            if not keep: os.remove(lp)
             Bspr = lm.point(lambda v: 255 if v & 7 == SPRITE_LAYER or v >> 4 & 7 == SPRITE_LAYER else 0)   # blended sprites too
             Bfill = lm.point(lambda v: 255 if v & 8 else 0)
         flags, stats = [], {}
@@ -298,6 +314,8 @@ def analyse(src, rows, history):
                             if x0_ - dx < 0 or y0_ - dy < 0 or x1_ - dx > W or y1_ - dy > H: continue
                             if palette_remap(A.crop((x0_ - dx, y0_ - dy, x1_ - dx, y1_ - dy)), B.crop(box)):
                                 why = "palette animation (colours remapped one to one)"; break
+                    if not why and kind == "block" and rows_shift_match(B, box, A):
+                        why = "per-line scroll (each row the last picture's, moved sideways)"
                     if not why and kind == "block":   # a moving object: the last picture, moved a little
                         for dx in range(-8, 9, 1):
                             for dy in range(-8, 9, 1):
@@ -309,7 +327,7 @@ def analyse(src, rows, history):
                         f["fill_share"] = round(Bfill.crop(box).histogram()[255] / ((box[2] - box[0]) * (box[3] - box[1])), 2)
                     if why: f["explained"] = why
                     flags.append(f)
-        yield i, flags, stats
+        yield i, flags, stats, B
         hist.append((i, B, BL, Bblack, Bspr))
         if len(hist) > history + 1: hist.pop(0)
 
@@ -355,7 +373,8 @@ def run_view(mmz, sc, cfg, view, out, every, keep, history, xevery):
     proc = subprocess.Popen([mmz, "--headless", "--route", os.path.join(d, "route.txt"), "--view", view], cwd=cfg["cwd"], stderr=errf, stdout=subprocess.DEVNULL)
     rows, frames, events, changes, skipped = [], [], [], [], 0
     mp4 = shutil.which("ffmpeg"); vid = None; vsize = None; gif = []; last = None
-    for i, flags, stats in analyse(follow_tsv(prefix + ".tsv", proc), rows, history):
+    prevImg = None
+    for i, flags, stats, img in analyse(follow_tsv(prefix + ".tsv", proc), rows, history, keep):
         r = rows[i]
         vals = reg_values(r, cfg)
         if last is not None:
@@ -365,7 +384,6 @@ def run_view(mmz, sc, cfg, view, out, every, keep, history, xevery):
         real = [f for f in flags if not f.get("explained")]
         if stats.get("skipped"): skipped += 1
         frames.append({"frame": r["frame"], "cam": [r["camx"], r["camy"]], "zero": [r["zx"], r["zy"]], "gba": [r["ox"], r["oy"]], "flags": flags, **stats})
-        img = Image.open(r["png"]).convert("RGB")
         if r["frame"] % xevery == 0: img.save(os.path.join(d, "xview", f"{r['frame']:06d}.png"), compress_level=1)
         if real or i % 2 == 0:
             fr = img.copy(); gba_rect(fr, r); outline(fr, real, 3)
@@ -382,11 +400,9 @@ def run_view(mmz, sc, cfg, view, out, every, keep, history, xevery):
             elif i % 4 == 0 or real:
                 gif.append(fr.quantize(64))
         if real:
-            prev = Image.open(rows[i - 1]["png"]).convert("RGB")
+            prev = prevImg
             events.append((i, real, prev, img))
-        if not keep and i > history + 1:   # pictures the history no longer needs
-            try: os.remove(rows[i - history - 2]["png"]); os.remove(rows[i - history - 2]["png"][:-4] + ".layers.png")
-            except OSError: pass
+        prevImg = img
     proc.wait(); errf.close()
     if vid: vid.stdin.close(); vid.wait()
     if gif: gif[0].save(os.path.join(d, "walk.gif"), save_all=True, append_images=gif[1:], duration=66, loop=0)
