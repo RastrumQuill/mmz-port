@@ -161,7 +161,7 @@ int warp_step(u16 *keys) {
 		if (picked && (!playing || warpStable < 2)) RD8(ADDR_CHECKPOINT) = warpTo.checkpoint;
 		warpStable = playing && RD8(ADDR_MISSION) == warpTo.mission ? warpStable + 1 : 0;
 		if (warp_verbose && warpFrames % (warp_verbose > 1 ? 50 : 300) == 0)
-			fprintf(stderr, "warp: frame %ld mode %02X.%02X stage %d mission %d playing %d\n", warpFrames, RD8(0x020236E0), RD8(0x020236E1), RD16(ADDR_STAGE), RD8(ADDR_MISSION), playing);
+			fprintf(stderr, "warp: frame %ld mode %02X.%02X stage %d mission %d playing %d (view %d zero %X event %04X)\n", warpFrames, RD8(0x020236E0), RD8(0x020236E1), RD16(ADDR_STAGE), RD8(ADDR_MISSION), playing, view_gameplay, zero_addr(), RD16(0x02022B6E));
 		if (warpStable >= 60) { warpState = 2; warpFrames = 0; }
 		else {
 			debug.fastForward = 1;

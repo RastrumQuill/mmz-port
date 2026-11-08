@@ -166,7 +166,7 @@ cutscenes, fades with no stage layer, anything not modelled: the PPU picture, sc
   id 7), the GBA rect pushed off-centre with a mostly unfilled band on the far side, and drawn content outside the
   GBA rect from another room than the GBA screen's (config `regions` / `regionkey`: regionaudit.py --rooms-json).
   Limits in the scenario file (`static black_mean 0.08 black_max 0.30 foreign_max 0.01 events_bg 0`); any
-  unexplained BG event (pop/block/layer) also fails the run. Headless runs use the window's fit (env MMZ_HEADLESS_FIT).
+  unexplained BG event (pop/block/layer) also fails the run. Headless runs use the window's fit (`fit_small_rooms`; env MMZ_HEADLESS_NOFIT turns it off).
 - Cross-size: motioncheck's cross-view check: the same world pixel at two view sizes must be equal.
 - Sprites: `MMZ_VIEWCHECK=0 MMZ_VIEWCHECK_SPRITES=1` compares sprite pixels in the GBA rect too. motioncheck's
   `sprite` flag: a sprite appearing / vanishing outside the GBA rect with no sprite near it in the other picture

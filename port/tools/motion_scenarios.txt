@@ -4,8 +4,7 @@
 # view sizes to run at.
 views x2,x3,1120x480,900x520
 settle 90
-# the view sized as in the window (the room fit: the view's height fits the world around the camera)
-env MMZ_HEADLESS_FIT=1
+# (headless runs size the view as the window does: the fit, fit_small_rooms)
 setup 10 cheat invincible 1
 setup 10 cheat noenemies 1
 watch mission 0x0202A574:1

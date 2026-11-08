@@ -912,7 +912,9 @@ void frontend_frame(void) {
 	}
 	if (headless) {
 		route_step();
-		if (getenv("MMZ_HEADLESS_FIT")) {   /* testing: the fit / crop sizes as in the window (after the shots: they use this frame's size) */
+		/* the fit as in the window (settings fit_small_rooms; after the shots: they use this frame's size);
+		   MMZ_HEADLESS_NOFIT: the view stays at the size asked for */
+		if (!getenv("MMZ_HEADLESS_NOFIT")) {
 			static int aw, ah;
 			if (!aw) { aw = view_w; ah = view_h; }
 			view_w = aw; view_h = ah;
@@ -940,6 +942,9 @@ void frontend_frame(void) {
 		if (pct >= atof(getenv("MMZ_VIEWCHECK")) && pct > 0 && frameCount - lastPrint >= 30) { view_check(NULL, 1); lastPrint = frameCount; }
 	}
 	warp_step(&keys);   /* a warp (--warp, route, Debug window) holds the buttons until it is there */
+	if (warp_active() && getenv("WARPSHOTS") && frameCount % 500 == 0) {   /* WARPSHOTS=PREFIX: a picture every 500 frames of a warp */
+		char p[600]; snprintf(p, sizeof p, "%s%06ld.ppm", getenv("WARPSHOTS"), frameCount); write_ppm(p);
+	}
 	cheats_frame();
 	if (debug.pauseAt && frameCount == debug.pauseAt) debug.paused = 1;
 	report_input(frameCount, keys);   /* for problem reports: the buttons of every frame */

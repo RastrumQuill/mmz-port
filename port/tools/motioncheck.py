@@ -520,6 +520,7 @@ def run_view(mmz, sc, cfg, view, out, every, keep, history, xevery, reach=SPRITE
     rows, frames, events, changes, skipped = [], [], [], [], 0
     mp4 = shutil.which("ffmpeg"); vid = None; vsize = None; gif = []; last = None
     prevImg = None
+    worst, mid_at = None, max(1, (sc["frames"] - SETTLE) // max(1, every)) // 2
     for i, flags, stats, img, spr in analyse(follow_tsv(prefix + ".tsv", proc), rows, history, keep, reach, edge, regions_for(cfg)):
         r = rows[i]
         vals = reg_values(r, cfg)
@@ -547,11 +548,18 @@ def run_view(mmz, sc, cfg, view, out, every, keep, history, xevery, reach=SPRITE
                 vid.stdin.write(fr.tobytes())
             elif i % 4 == 0 or real:
                 gif.append(fr.quantize(64))
+        # the worst picture for the static checks and one from the middle of the run (contact sheets, review)
+        bscore = stats.get("static", {}).get("black", 0) + (1 if stats.get("static", {}).get("place") else 0)
+        if worst is None or bscore > worst[0]:
+            w = img.copy(); gba_rect(w, r); worst = (bscore, r["frame"], w)
+        if i == mid_at:
+            m = img.copy(); gba_rect(m, r); m.save(os.path.join(d, "mid.png"))
         if real:
             prev = prevImg
             events.append((i, real, prev, img))
         prevImg = img
     proc.wait(); errf.close()
+    if worst: worst[2].save(os.path.join(d, f"worst_{worst[1]}.png"))
     if vid: vid.stdin.close(); vid.wait()
     if gif: gif[0].save(os.path.join(d, "walk.gif"), save_all=True, append_images=gif[1:], duration=66, loop=0)
     if not keep: shutil.rmtree(os.path.join(d, "shots"), ignore_errors=True)

@@ -235,10 +235,16 @@ the game, its camera and the GBA-visible pixels do not. It is a rectangle:
 where one side of the view reaches lower than the other (mission 1 past the
 purple door), the unreachable part beside it still shows the fill / black.
 `MMZ_NOCROP=1` turns it off, `CROPDEBUG=1` prints the region per frame;
-headless routes apply the fit / crop sizes only with `MMZ_HEADLESS_FIT=1`
-(shots then have the shrunk size).
+headless routes apply the fit as the window does (`fit_small_rooms`; shots
+then have the shrunk size); `MMZ_HEADLESS_NOFIT=1` keeps the size asked for.
 
-**Gap fill (`fill_gaps`).** Everything the wide view shows that the area
+**Gap fill (`fill_gaps`).** Note: the native renderer (view.c, chunk
+drawing) does not read fills.bin; `fill_patch_reload` is a no-op and
+unfilled view is black whatever `fill_gaps` says. The text below describes
+the old renderer. The native view fills by placing/fitting the view so it
+shows as little unfilled area as possible (`place_view`, `fit_target`).
+
+Old renderer: Everything the wide view shows that the area
 does not (below, above and beside the level, and cells the shown map hides)
 is filled by overlapping-model wave function collapse over 8x8 tiles
 (view.c, "tile fill"). A token is one 8x8 tilemap entry (tile, flips,

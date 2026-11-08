@@ -37,6 +37,11 @@
 #define vram ((u8 *)0x06000000)
 #define oam ((u8 *)0x07000000)
 #define PAL16(i) (*(u16 *)(pal + (i) * 2))
+/* the BG tiles and palettes the native layers are drawn from: live video
+   memory, or (the frame the game starts loading another set pair) a copy of
+   the frame before (see chunk_sources) */
+static const u8 *bgv = (const u8 *)0x06000000, *bgp = (const u8 *)0x05000000;
+#define BGPAL16(i) (*(const u16 *)(bgp + (i) * 2))
 
 #define STAGE_LAYERS 0x02004FF0u
 #define TRANSPARENT 0x8000
@@ -420,7 +425,17 @@ static int find_layers(void) {
 		   cell under the screen's top-left has none) is still drawn where the
 		   chunks' own handlers have it (Stage_UpdateLayer): a cave's background
 		   shows in the wide view before the GBA screen reaches it */
-		int gbaOn = (dispcnt & (0x100 << bg)) != 0;
+		/* on: the game has it on and so had this frame's GBA picture (the frame
+		   the game turns a BG on, its tiles are loaded after the picture: its
+		   registers and tiles are the next frame's) */
+		int gbaOn = (dispcnt & (0x100 << bg)) && (R16(0, 0) & (0x100 << bg));
+		/* (a layer off on the GBA screen is not drawn: its tiles are loaded only
+		   when its handler turns it on, and its priority is unknown until then;
+		   drawn from what video memory holds it showed flat bands and garbage
+		   (m1's corridor). MMZ_OFF_LAYERS=1: drawn anyway, to work on it) */
+		static int offLayers = -1;
+		if (offLayers < 0) offLayers = getenv("MMZ_OFF_LAYERS") != NULL;
+		if (!gbaOn && !offLayers) continue;
 		if (!rom_ptr(td) || !rom_ptr(ch) || !rom_ptr(mp)) continue;
 		if (gbaOn && !handler_native(*(u32 *)(s + 4), *(u32 *)s)) continue;
 		struct Layer L = { 0 };
@@ -445,7 +460,8 @@ static int find_layers(void) {
 		if (!L.w || !L.h || L.w > L.stride) continue;
 		L.live = k == 0 && !L.backdrop;
 		L.mtCols = MT_STRIDE; L.mtRows = areaH * 10;
-		if (L.live && (L.mtCols <= 0 || L.mtCols > 32 * 15)) continue;
+		/* (the game's own stride: an area up to the layout's 64 chunks wide, such as m3's 42) */
+		if (L.live && (L.mtCols <= 0 || L.mtCols > 64 * 15 || (long)L.mtCols * L.mtRows > 0x10000)) continue;
 		L.charBase = gbaOn ? ((BGREGS[2 + bg] >> 2) & 3) * 0x4000 : 0x4000;   /* (BGCNT 0x6044 | prio | base when the handler turns it on) */
 		L.on = 1;
 		layers[bg] = L;
@@ -596,6 +612,20 @@ static u8 chunkLayers[128][128];
 /* per chunk this frame: -1 not drawn, 0 live video memory (the loaded pair), 1 + n cache n */
 static signed char chunkSrc[128][128];
 static void chunk_sources(s32 vl, s32 vt, int w, int h) {
+	/* the loaded pair (0x02005430) names the new sets the frame the game
+	   loads them, after this frame's GBA picture was drawn: video memory is
+	   half old, half new. That frame is drawn from a copy of the frame
+	   before's video memory and palettes, with the pair it had (else one
+	   frame of the whole view shows the wrong tiles: m1's corridor) */
+	static u8 snapV[0x10000], snapP[0x200];
+	static u32 lastSets = ~0u;
+	u32 sets = (u32)GFX_SET_A << 16 | GFX_SET_B;
+	int loading = lastSets != ~0u && sets != lastSets;
+	u16 setA = loading ? lastSets >> 16 : GFX_SET_A, setB = loading ? lastSets & 0xFFFF : GFX_SET_B;
+	bgv = loading ? snapV : (const u8 *)0x06000000;
+	bgp = loading ? snapP : (const u8 *)0x05000000;
+	if (!loading) { memcpy(snapV, vram, sizeof snapV); memcpy(snapP, pal, sizeof snapP); }
+	lastSets = sets;
 	for (int cy = floordiv(vt, 160); cy <= floordiv(vt + h - 1, 160); cy++)
 		for (int cx = floordiv(vl, 240); cx <= floordiv(vl + w - 1, 240); cx++) {
 			if (cx < 0 || cy < 0 || cx >= 128 || cy >= 128) continue;
@@ -603,7 +633,7 @@ static void chunk_sources(s32 vl, s32 vt, int w, int h) {
 			if (room[cy][cx]) {
 				int p = chunk_pair(cx, cy, areaCur);
 				if (p >= 0) {
-					if (GFX_SET_A == (areaCur << 8 | p >> 4) && GFX_SET_B == (areaCur << 8 | (p & 15))) src = 0;
+					if (setA == (areaCur << 8 | p >> 4) && setB == (areaCur << 8 | (p & 15))) src = 0;
 					else { int c = cache_get(areaCur, p >> 4, p & 15); src = c >= 0 ? 1 + c : -1; }
 				}
 			}
@@ -761,8 +791,8 @@ static inline u16 tile_pixel(u16 e, u32 charBase, int fx, int fy) {
 	if (e & 0x800) fy = 7 - fy;
 	u32 a = charBase + (e & 0x3FF) * 32 + fy * 4 + (fx >> 1);
 	if (a >= 0x10000) return TRANSPARENT;
-	u8 idx = (vram[a] >> ((fx & 1) * 4)) & 15;
-	return idx ? PAL16((e >> 12) * 16 + idx) & 0x7FFF : TRANSPARENT;
+	u8 idx = (bgv[a] >> ((fx & 1) * 4)) & 15;
+	return idx ? BGPAL16((e >> 12) * 16 + idx) & 0x7FFF : TRANSPARENT;
 }
 
 /* a pixel with a chunk's own graphics: src 0 live, 1 + n cache n */
@@ -773,10 +803,10 @@ static inline u16 nat_pixel(int src, u16 e, u32 charBase, int fx, int fy) {
 	if (e & 0x800) fy = 7 - fy;
 	u32 a = charBase + (e & 0x3FF) * 32 + fy * 4 + (fx >> 1);
 	if (a >= 0x10000) return TRANSPARENT;
-	u8 idx = ((c->own[a] ? c->tv[a] : vram[a]) >> ((fx & 1) * 4)) & 15;
+	u8 idx = ((c->own[a] ? c->tv[a] : bgv[a]) >> ((fx & 1) * 4)) & 15;
 	if (!idx) return TRANSPARENT;
 	int pi = (e >> 12) * 16 + idx;
-	return (c->palOwn[pi] ? c->tp[pi] : PAL16(pi)) & 0x7FFF;
+	return (c->palOwn[pi] ? c->tp[pi] : BGPAL16(pi)) & 0x7FFF;
 }
 
 /* a stage layer's view row: each pixel where the game's scroll rule puts it,
@@ -1131,6 +1161,7 @@ static void render_row(int vy) {
  * changes only with the room, and the size eases only then.
  */
 int view_asked_w, view_asked_h;
+#define FIT_UNFILLED 4   /* % of the view outside the GBA screen the fit lets stay unfilled */
 int view_fit_w, view_fit_h;   /* 0: no fit */
 int view_fit_gba;             /* a room no bigger than the GBA screen one way and two the other: the GBA picture */
 /* the room's extent across a span of the world: rows (cols) of room chunks in
@@ -1160,6 +1191,53 @@ static s32 place_axis(s32 g, int screen, int w, s32 lo, s32 hi) {
 	return a;
 }
 
+/* pixels of a view (left, top, w, h) that nothing would be drawn in: outside
+   the drawn region or the room, or in a chunk whose graphics sets are unknown */
+static int drawable(int cx, int cy) {
+	if (cx < 0 || cy < 0 || cx >= 128 || cy >= 128 || !room[cy][cx]) return 0;
+	return chunk_pair(cx, cy, areaCur) >= 0 && chunk_layers(cx, cy, areaCur);   /* (no layer: black) */
+}
+static long view_unfilled(s32 left, s32 top, int w, int h) {
+	long filled = 0;
+	s32 r = left + w, b = top + h;
+	for (int cy = floordiv(top, 160); cy <= floordiv(b - 1, 160); cy++)
+		for (int cx = floordiv(left, 240); cx <= floordiv(r - 1, 240); cx++) {
+			if (!drawable(cx, cy)) continue;
+			s32 x0 = cx * 240, x1 = x0 + 240, y0 = cy * 160, y1 = y0 + 160;
+			if (x0 < left) x0 = left; if (x0 < extL) x0 = extL; if (x1 > r) x1 = r; if (x1 > extR) x1 = extR;
+			if (y0 < top) y0 = top; if (y0 < extT) y0 = extT; if (y1 > b) y1 = b; if (y1 > extB) y1 = extB;
+			if (x1 > x0 && y1 > y0) filled += (long)(x1 - x0) * (y1 - y0);
+		}
+	return (long)w * h - filled;
+}
+/* one axis of the placement: of the places that keep the GBA screen inside
+   the view, the one with the fewest unfilled pixels, then the one nearest
+   the GBA screen centred (a column at the view's edge that reaches further
+   down must not pull the whole view into the black under its neighbours) */
+static s32 place_best(int vertical, s32 other, int w, int h) {
+	s32 g = vertical ? gbaGY : gbaGX;
+	int n = vertical ? h : w, screen = vertical ? SCREEN_H : SCREEN_W;
+	s32 c = g - (n - screen) / 2, best = c;
+	long bc = -1;
+	int span = n - screen, step = span > 64 ? 4 : 1;
+	for (int k = 0; k <= span; k += step) {
+		s32 a = g + screen - n + k;
+		if (k + step > span) a = g;   /* (the last place: the GBA screen at the start) */
+		long u = vertical ? view_unfilled(other, a, w, h) : view_unfilled(a, other, w, h);
+		s32 d = a > c ? a - c : c - a, bd = best > c ? best - c : c - best;
+		if (bc < 0 || u < bc || (u == bc && d < bd)) { bc = u; best = a; }
+	}
+	return best;
+}
+/* the view's placement for a size: sideways, up/down, sideways again */
+static void place_view(int w, int h, s32 *left, s32 *top) {
+	s32 l = place_axis(gbaGX, SCREEN_W, w, extL, extR);
+	s32 t = place_best(1, l, w, h);
+	l = place_best(0, t, w, h);
+	t = place_best(1, l, w, h);
+	*left = l; *top = t;
+}
+
 static void fit_target(void) {
 	view_fit_w = view_fit_h = view_fit_gba = 0;
 	if (roomX1 < 0) return;
@@ -1171,11 +1249,20 @@ static void fit_target(void) {
 	   fits that, its width follows the window's shape); the span is the
 	   current view's, so a taller part at the far edge of the widest view
 	   does not zoom out over a strip of black */
-	int aw = view_w;   /* (the view as it is now: from the GBA's size it grows only once the GBA screen's own columns are taller) */
-	s32 l = place_axis(gbaGX, SCREEN_W, aw, extL, extR), t, b;
-	local_span(1, l, aw, &t, &b);
+	/* the tallest view (of the window's shape, at most the size asked for)
+	   that, placed at its best, leaves at most FIT_UNFILLED of what is
+	   outside the GBA screen unfilled */
+	int aw = view_asked_w > SCREEN_W ? view_asked_w : view_w, ah = view_asked_h > SCREEN_H ? view_asked_h : view_h;
 	view_fit_w = bw;
-	view_fit_h = b - t;
+	view_fit_h = SCREEN_H;
+	for (int h = ah; h > SCREEN_H; h -= 16) {
+		int w = (int)((long)h * aw / ah);
+		if (w < SCREEN_W) w = SCREEN_W;
+		s32 l, t;
+		place_view(w, h, &l, &t);
+		long out = (long)w * h - SCREEN_W * SCREEN_H;
+		if (view_unfilled(l, t, w, h) * 100 <= out * FIT_UNFILLED) { view_fit_h = h; break; }
+	}
 }
 
 void view_fit_apply(int *w, int *h) {
@@ -1235,6 +1322,15 @@ int view_render(void) {
 	view_ext_left = view_ext_right = view_ext_up = view_ext_down = 0;
 	int ok = find_layers();
 	find_fx();
+	if (dbgo.logView && !ok && frameCount % 60 == 0) {   /* why the level is not drawn (the GBA picture is shown) */
+		u16 dc = BGREGS[0];
+		fprintf(stderr, "F%ld no layers: dispcnt %04X area %d", frameCount, dc, CUR_AREA & 0x7F);
+		for (int k = 0; k < 3; k++) {
+			const u8 *s = (const u8 *)(uintptr_t)(STAGE_LAYERS + k * 0x70);
+			fprintf(stderr, " | L%d bg %d area %d update %08X draw %08X td %08X ch %08X mp %08X", k, (*(u32 *)(s + 0x54) >> 4) & 0xF, s[0x0D], *(u32 *)s, *(u32 *)(s + 4), *(u32 *)(s + 0x20), *(u32 *)(s + 0x24), *(u32 *)(s + 0x28));
+		}
+		fprintf(stderr, "\n");
+	}
 	view_gameplay = ok && !(EVENT_FLAGS & 1) && (GAME_MODE == 3 || GAME_MODE == 4);
 	if (!view_gameplay) return 0;   /* menus, cutscenes, area loads: the GBA picture */
 	const struct Layer *L0 = layer0();
@@ -1250,11 +1346,8 @@ int view_render(void) {
 	   sideways in the room's box, then up/down in the room's rows under that
 	   span (not its bounding box: a corridor's room may hold a shaft far off),
 	   then sideways again in the room's columns over the rows shown */
-	s32 left = place_axis(gbaGX, SCREEN_W, w, extL, extR), top, lo, hi;
-	local_span(1, left, w, &lo, &hi);
-	top = place_axis(gbaGY, SCREEN_H, h, lo, hi);
-	local_span(0, top, h, &lo, &hi);
-	left = place_axis(gbaGX, SCREEN_W, w, lo, hi);
+	s32 left, top;
+	place_view(w, h, &left, &top);
 	int ox = gbaGX - left, oy = gbaGY - top;
 	if (dbgo.logView) fprintf(stderr, "F%ld area %d gba %d,%d ext %d..%d x %d..%d ox %d oy %d layers %d%d%d\n", frameCount, areaCur, gbaGX, gbaGY,
 	                          extL, extR, extT, extB, ox, oy, layers[1].on, layers[2].on, layers[3].on);
@@ -1280,6 +1373,8 @@ void view_chunk_report(void) {
 			if (cx < 0 || cy < 0 || cx >= 128 || cy >= 128) continue;
 			int s = chunkSrc[cy][cx];
 			n[s < 0 ? 0 : s == 0 ? 1 : 2]++;
+			fprintf(stderr, "viewchunks: chunk %d,%d room %d src %d sets %02X pair %02X level %d layers %d\n", cx, cy, room[cy][cx], s,
+			        chunk_sets(cx, cy, areaCur) & 0xFF, chunk_pair(cx, cy, areaCur) & 0xFF, chunk_level(cx, cy, areaCur), chunkLayers[cy][cx]);
 		}
 	snprintf(dbg_check_result, 400, "viewchunks: frame %ld area %d room %d..%d x %d..%d loaded %04X %04X: %d not drawn, %d live, %d decoded (%d set pairs cached)",
 	         frameCount, areaCur, roomX0, roomX1, roomY0, roomY1, GFX_SET_A, GFX_SET_B, n[0], n[1], n[2], nCache);
