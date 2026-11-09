@@ -1443,75 +1443,11 @@ static void place_view(int w, int h, s32 *left, s32 *top) {
 	*left = l; *top = t;
 }
 
-/* one view size per section of the room, worked out when the room or the
-   size asked for changes (not from the camera's place frame by frame). Each
-   of the room's screens gets the tallest view (of the window's shape, at
-   most the size asked for) that, placed at its best with the GBA screen
-   there, leaves at most FIT_UNFILLED of what is outside the GBA screen
-   unfilled. Touching screens of one height make a section; a section of
-   fewer than FIT_SECTION screens takes the lowest height next to it (no
-   size change for a nook). The view changes size where you go from one
-   section into another (above ground / below ground, a shaft off a
-   corridor) once the GBA screen's centre is FIT_MARGIN px inside it. */
-#define FIT_SECTION 3
-#define FIT_MARGIN 48
-static u16 spotH[128][128];  /* the section's view height (0: not a screen of the room) */
-static void room_fit_spots(int aw, int ah) {
-	memset(spotH, 0, sizeof spotH);
-	s32 sgx = gbaGX, sgy = gbaGY, e[4] = { extL, extT, extR, extB };
-	extL = roomX0 * 240; extT = roomY0 * 160; extR = (roomX1 + 1) * 240; extB = (roomY1 + 1) * 160;
-	for (int cy = roomY0; cy <= roomY1; cy++)
-		for (int cx = roomX0; cx <= roomX1; cx++) {
-			if (room[cy][cx] != 1) continue;
-			int fit = SCREEN_H;
-			gbaGX = cx * 240; gbaGY = cy * 160;
-			for (int h = ah; h > SCREEN_H; h -= 16) {
-				int w = (int)((long)h * aw / ah);
-				if (w < SCREEN_W) w = SCREEN_W;
-				long out = (long)w * h - SCREEN_W * SCREEN_H;
-				s32 l, t;
-				place_view(w, h, &l, &t);
-				if (view_unfilled(l, t, w, h) * 100 <= out * FIT_UNFILLED) { fit = h; break; }
-			}
-			spotH[cy][cx] = (u16)fit;
-		}
-	gbaGX = sgx; gbaGY = sgy; extL = e[0]; extT = e[1]; extR = e[2]; extB = e[3];
-	/* small sections take the lowest height next to them (repeat: merged ones can grow past the size) */
-	static u8 seen[128][128];
-	static int qx[128 * 128], qy[128 * 128];
-	static const int dx[4] = { 1, -1, 0, 0 }, dy[4] = { 0, 0, 1, -1 };
-	for (int pass = 0, changed = 1; changed && pass < 8; pass++) {
-		changed = 0;
-		memset(seen, 0, sizeof seen);
-		for (int sy = roomY0; sy <= roomY1; sy++)
-			for (int sx = roomX0; sx <= roomX1; sx++) {
-				if (!spotH[sy][sx] || seen[sy][sx]) continue;
-				u16 v = spotH[sy][sx], low = 0;
-				int n = 0, hd = 0;
-				seen[sy][sx] = 1; qx[n] = sx; qy[n++] = sy;
-				while (hd < n) {
-					int x = qx[hd], y = qy[hd++];
-					for (int k = 0; k < 4; k++) {
-						int nx = x + dx[k], ny = y + dy[k];
-						if (nx < 0 || ny < 0 || nx >= 128 || ny >= 128 || !spotH[ny][nx]) continue;
-						if (spotH[ny][nx] != v) { if (!low || spotH[ny][nx] < low) low = spotH[ny][nx]; continue; }
-						if (seen[ny][nx]) continue;
-						seen[ny][nx] = 1; qx[n] = nx; qy[n++] = ny;
-					}
-				}
-				if (n < FIT_SECTION && low && low != v) {
-					for (int i = 0; i < n; i++) spotH[qy[i]][qx[i]] = low;
-					changed = 1;
-				}
-			}
-	}
-}
-static int spot_h(s32 gx, s32 gy) {
-	int cx = floordiv(gx, 240), cy = floordiv(gy, 160);
-	if (cx < 0 || cy < 0 || cx >= 128 || cy >= 128) return 0;
-	return spotH[cy][cx];
-}
-
+/* one view size per room: set when you enter a room (an area / door change,
+   above / below ground, a part of the area the flood fill keeps apart) and
+   never changed inside it, whatever the camera does. The size asked for,
+   made smaller only where the room's box is smaller than the view (the
+   window's shape kept); tiny rooms (two screens or less) the GBA size. */
 static void fit_target(void) {
 	static u32 key = ~0u;
 	static int keyW, keyH, fitH = SCREEN_H;
@@ -1523,30 +1459,15 @@ static void fit_target(void) {
 	int aw = view_asked_w > SCREEN_W ? view_asked_w : view_w, ah = view_asked_h > SCREEN_H ? view_asked_h : view_h;
 	/* (the room: its area / state and its box) */
 	u32 rk = roomKey * 2654435761u ^ (u32)roomX0 << 24 ^ (u32)roomX1 << 16 ^ (u32)roomY0 << 8 ^ (u32)roomY1;
-	s32 mx = gbaGX + SCREEN_W / 2, my = gbaGY + SCREEN_H / 2;
-	int fresh = rk != key || aw != keyW || ah != keyH;
-	if (fresh) {
+	if (rk != key || aw != keyW || ah != keyH) {
 		key = rk; keyW = aw; keyH = ah;
-		Uint64 t0 = SDL_GetPerformanceCounter();
-		room_fit_spots(aw, ah);
-		if (dbgo.logFit) fprintf(stderr, "fit: frame %ld room %d..%d x %d..%d sizes worked out in %.1f ms\n", frameCount, roomX0, roomX1, roomY0, roomY1,
-		                         (SDL_GetPerformanceCounter() - t0) * 1000.0 / SDL_GetPerformanceFrequency());
+		int h = ah;
+		if (bh < h) h = bh;
+		if ((long)bw * ah / aw < h) h = (int)((long)bw * ah / aw);
+		if (h < SCREEN_H) h = SCREEN_H;
+		if (dbgo.logFit || h != fitH) fprintf(stderr, "fit: frame %ld area %d room %d..%d x %d..%d (%dx%d) -> height %d\n", frameCount, areaCur, roomX0, roomX1, roomY0, roomY1, bw, bh, h);
+		fitH = h;
 	}
-	/* the section under the GBA screen's centre, once the centre is FIT_MARGIN inside it (else the one held) */
-	int h = spot_h(mx, my);
-	if (h && h != fitH) {
-		int all = fresh;
-		if (!all) {
-			all = 1;
-			static const int ox[4] = { -FIT_MARGIN, FIT_MARGIN, 0, 0 }, oy[4] = { 0, 0, -FIT_MARGIN * 2 / 3, FIT_MARGIN * 2 / 3 };
-			for (int k = 0; k < 4 && all; k++) { int o = spot_h(mx + ox[k], my + oy[k]); if (o && o != h) all = 0; }
-		}
-		if (all) {
-			if (dbgo.logFit) fprintf(stderr, "fit: frame %ld room %d..%d x %d..%d section at %d,%d height %d -> %d\n", frameCount, roomX0, roomX1, roomY0, roomY1, floordiv(mx, 240), floordiv(my, 160), fitH, h);
-			fitH = h;
-		}
-	}
-	else if (!h && fresh) fitH = SCREEN_H;
 	view_fit_w = bw;
 	view_fit_h = fitH;
 }

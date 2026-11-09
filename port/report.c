@@ -65,7 +65,18 @@ static int haveBootSave;
 
 void report_boot_save(const u8 *sram) { memcpy(bootSave, sram, sizeof bootSave); haveBootSave = 1; }
 
+/* cheat switches (Debug window): replays need them (invincible changes what happens) */
+#define MAX_CHEATS 256
+static struct { long frame; int which, on; } cheats[MAX_CHEATS];
+static int nCheats, lastCheat[2] = { 0, 0 };
+
 void report_input(long frame, int keys) {
+	int now[2] = { cheat_invincible, cheat_no_enemies };
+	for (int k = 0; k < 2; k++)
+		if (now[k] != lastCheat[k] && nCheats < MAX_CHEATS) {
+			lastCheat[k] = now[k];
+			cheats[nCheats].frame = frame; cheats[nCheats].which = k; cheats[nCheats++].on = now[k];
+		}
 	if (keys == lastKeys) return;
 	lastKeys = keys;
 	if (nChanges == capChanges) {
@@ -354,10 +365,16 @@ const char *report_write(int kind, const char *message) {
 	tbLen = 0;
 	tprintf("# inputs since start (%s %s report). replay: mmz --route inputs.route --save save_at_start.sav\n",
 	        kind_name(kind), stamp);
-	for (long i = 0; i < nChanges; i++) {
+	for (long i = 0, c = 0; i < nChanges || c < nCheats;) {
+		if (c < nCheats && (i >= nChanges || cheats[c].frame <= changes[i].frame)) {
+			tprintf("%ld cheat %s %d\n", cheats[c].frame, cheats[c].which ? "noenemies" : "invincible", cheats[c].on);
+			c++;
+			continue;
+		}
 		char k[64];
 		key_names(changes[i].keys, k, sizeof k);
 		tprintf("%ld %s\n", changes[i].frame, k);
+		i++;
 	}
 	tprintf("%ld shot report_end.png\n%ld end\n", snap.frame, snap.frame + 1);
 	zip_add("inputs.route", tb, tbLen);
