@@ -412,12 +412,11 @@ def analyse(src, rows, history, keep=True, reach=SPRITE_REACH, edge=EDGE, region
             jfrac_area = max(1, judge.histogram()[255])
             ofrac = un_out.histogram()[255] / jfrac_area
             stats = {"gba_changed": round(gfrac, 4), "out_changed": round(ofrac, 4), "motions": sorted(S)}
-            # a BG turned on / off on the GBA: a pop only if the view outside the GBA screen changes with it (the
-            # renderer draws each chunk's labelled layers whatever the GBA has on)
+            # a BG turned on / off while the view is the GBA picture (no wide view: menus, cutscenes, rooms shown
+            # as the GBA screen): the PPU's own picture, nothing of the renderer's to pop
             for f in flags:
-                if f["kind"] == "layer" and f.get("bg") is not None:
-                    if W * H <= 240 * 160: f["explained"] = "the view is the GBA screen (the PPU's own picture)"
-                    elif ofrac < 0.02: f["explained"] = f"BG{f['bg']} toggled on the GBA; outside it {ofrac:.1%} changed (labels)"
+                if f["kind"] == "layer" and f.get("bg") is not None and W * H <= 240 * 160:
+                    f["explained"] = "the view is the GBA screen (the PPU's own picture)"
             if gfrac > 0.35:
                 stats["skipped"] = "most of the GBA screen changed (fade / room change)"
                 flags = [f for f in flags if f["kind"] != "sprite"]
@@ -610,13 +609,19 @@ def run_view(mmz, sc, cfg, view, out, every, keep, history, xevery, reach=SPRITE
     relabels = [l for l in errtxt.splitlines() if l.startswith("labels:") and "changed" in l]
     static = static_summary(frames, cfg, wide_expected=view not in ("240x160", "x1"), events_bg=len(groups) - sum(1 for g in groups if all(f["kind"] == "sprite" for e in g for f in e[1])))
     static["label_frames_bad"] = len(label_bad); static["relabels"] = len(relabels)
+    cam = camera_check(rows, cfg, ease_windows(errtxt))
+    cam["eases"] = sum(len(v) for v in ease_windows(errtxt).values())
+    static["camera"] = {k: (len(v) if isinstance(v, list) else v) for k, v in cam.items()}
+    for k in ("jitter", "jump", "parallax"):
+        if cam[k]:
+            static["fail"] = True; static.setdefault("parts", {})["camera"] = True; static.setdefault("why", []).append(f"{len(cam[k])} camera {k} frames (first: {cam[k][0]})")
     if label_bad:
-        static["fail"] = True; static.setdefault("why", []).append(f"{len(label_bad)} frames drew a stage layer outside its chunk's labels (first: {label_bad[0]})")
+        static["fail"] = True; static.setdefault("parts", {})["labels"] = True; static.setdefault("why", []).append(f"{len(label_bad)} frames drew a stage layer outside its chunk's labels (first: {label_bad[0]})")
     summ = {"scenario": sc["name"], "view": view, "warp": sc["warp"], "pictures": len(frames), "static": static, "skipped": skipped,
             "flagged_pictures": len(events), "events": len(groups), "counts": counts,
             "events_bg": len(groups) - sum(1 for g in groups if all(f["kind"] == "sprite" for e in g for f in e[1])),
             "events_sprite": sprite_events, "events_sprite_gba_edge": edge_events, "explained_blocks": expl,
-            "event_list": evs, "flag_changes": changes, "sheet": sheet,
+            "event_list": evs, "flag_changes": changes, "camera": cam, "sheet": sheet,
             "video": os.path.join(d, "walk.mp4") if mp4 else (os.path.join(d, "walk.gif") if gif else None)}
     with open(os.path.join(d, "summary.json"), "w") as f: json.dump({**summ, "frames": frames}, f, indent=1)
     meta = {r["frame"]: r for r in rows if r["frame"] % xevery == 0}
@@ -714,6 +719,85 @@ def regions_for(cfg):
         except Exception: return None
     return f
 
+def ease_windows(errtxt):
+    """the renderer's logged eases ("view: ease frame N axis A from .. to .." .. "view: ease frame M axis A done"):
+    {axis: [(N, M)]}: the view's offset moving there is a logged transition, not jitter"""
+    w, open_ = {"x": [], "y": []}, {}
+    for l in errtxt.splitlines():
+        m = re.match(r"view: ease frame (\d+) axis ([xy]) (from|done)", l)
+        if not m: continue
+        f, ax = int(m.group(1)), m.group(2)
+        if m.group(3) == "from": open_[ax] = f
+        elif ax in open_: w[ax].append((open_.pop(ax), f))
+    for ax, f in open_.items(): w[ax].append((f, 1 << 30))
+    return w
+
+def camera_check(rows, cfg, eases=None):
+    """the view's motion against the game camera's, per frame (from the sidecar; every picture must be a frame:
+    --every 1). V = the view's world origin (gx - ox); the offset o = ox (the GBA screen's place in the view).
+      jitter    the offset moving while the game camera is still, or V reversing while the camera moves one way,
+                or the offset's second difference > JERK px (a re-chosen placement)
+      jump      the offset or the view size stepping > JUMP px in one frame (an uneased transition)
+      parallax  per shown BG: its apparent motion in the view vs the view's world motion times the layer's scale
+                (scale = median d hofs / d camera over the run); error = (1-s) d ox + (s d gx - d hofs) (px)
+    Frames where the game itself snaps (camera step > SNAP px, an area / stage / variant change) are not judged,
+    and listed as `snaps`."""
+    SNAP, JUMP, JERK, SETTLE_F = 24, 6, 3, 2
+    hud = set(cfg.get("hud", [0]))
+    out = {"snaps": [], "jitter": [], "jump": [], "parallax": [], "scale": {}}
+    if len(rows) < 3: return out
+    wk = [k for k, _ in cfg.get("watch", []) if k in ("area", "stage", "variants", "mission")]
+    def snap(a, b):
+        return (abs(b["gx"] - a["gx"]) > SNAP or abs(b["gy"] - a["gy"]) > SNAP or b["frame"] - a["frame"] != 1
+                or any(a["watch"] != b["watch"] for _ in wk[:1]))
+    # per BG scale from the run (frames the camera moves, the BG shown in both)
+    for b in range(4):
+        for ax, k in ((0, "h"), (1, "v")):
+            rs = []
+            for a, c in zip(rows, rows[1:]):
+                dg = c["gx" if ax == 0 else "gy"] - a["gx" if ax == 0 else "gy"]
+                if not dg or snap(a, c) or not (a["dispcnt"] >> (8 + b) & 1 and c["dispcnt"] >> (8 + b) & 1): continue
+                dh = (c[f"bg{b}{k}"] - a[f"bg{b}{k}"]) % 512
+                if dh >= 256: dh -= 512
+                rs.append(dh / dg)
+            if len(rs) >= 8: out["scale"][f"bg{b}{'xy'[ax]}"] = round(sorted(rs)[len(rs) // 2], 3)
+    last_snap = -99
+    for i in range(1, len(rows)):
+        a, c = rows[i - 1], rows[i]
+        if snap(a, c):
+            last_snap = i
+            out["snaps"].append({"frame": c["frame"], "cam": [c["gx"] - a["gx"], c["gy"] - a["gy"]]})
+            continue
+        f = c["frame"]
+        for ax in (0, 1):
+            g, o, n = ("gx", "ox", "w") if ax == 0 else ("gy", "oy", "h")
+            dg, do = c[g] - a[g], c[o] - a[o]
+            dn = c[n] - a[n]
+            if abs(do) > JUMP or abs(dn) > JUMP: out["jump"].append({"frame": f, "axis": "xy"[ax], "d_offset": do, "d_size": dn})
+            in_ease = any(f0 <= f <= f1 + 1 for f0, f1 in (eases or {}).get("xy"[ax], []))
+            if dg == 0 and do != 0 and dn == 0 and i - last_snap > SETTLE_F and not in_ease: out["jitter"].append({"frame": f, "axis": "xy"[ax], "why": "camera still, view moved", "d": do})
+            if i >= 2 and not snap(rows[i - 2], a) and i - last_snap > SETTLE_F:
+                p = rows[i - 2]
+                dg0, dv0, dv = a[g] - p[g], (a[g] - a[o]) - (p[g] - p[o]), (c[g] - c[o]) - (a[g] - a[o])
+                if dg0 and dg and (dg0 > 0) == (dg > 0) and dv0 and dv and (dv0 > 0) != (dv > 0):
+                    out["jitter"].append({"frame": f, "axis": "xy"[ax], "why": "view reversed, camera did not", "d": [dv0, dv]})
+                # the view's own motion (V = g - o) jerking beyond the camera's: the offset alone moves when the view
+                # is held at a room edge while the camera starts / stops (the view is still then)
+                elif abs(dv - dv0) > JERK + abs(dg - dg0) and abs((c[o] - a[o]) - (a[o] - p[o])) > JERK and dn == 0:
+                    out["jitter"].append({"frame": f, "axis": "xy"[ax], "why": "offset jerk", "d": [a[o] - p[o], do]})
+            for b in range(4):
+                if b in hud: continue   # (the HUD layer is drawn at the view's edges, not scrolled with the world)
+                key = f"bg{b}{'xy'[ax]}"
+                if key not in out["scale"] or not (a["dispcnt"] >> (8 + b) & 1 and c["dispcnt"] >> (8 + b) & 1): continue
+                s = out["scale"][key]
+                if abs(s - 1) < 0.02: continue
+                k = "hv"[ax]
+                dh = (c[f"bg{b}{k}"] - a[f"bg{b}{k}"]) % 512
+                if dh >= 256: dh -= 512
+                err = (1 - s) * do + (s * dg - dh)
+                if abs(err) >= 1.5: out["parallax"].append({"frame": f, "bg": b, "axis": "xy"[ax], "err_px": round(err, 2), "d_offset": do})
+    return out
+
 def static_summary(frames, cfg, events_bg=0, wide_expected=False):
     """the static checks over a run: FAIL when the mean / any picture's unfilled share, a misplaced GBA screen or
     another room's content goes over the config's `static` limits"""
@@ -724,7 +808,8 @@ def static_summary(frames, cfg, events_bg=0, wide_expected=False):
         why = [f"{events_bg} unexplained background events"] if events_bg > lim["events_bg"] else []
         # a view asked wider than the GBA screen that never got wide checked nothing (warp failed / fit off)
         if wide_expected and frames: why.append("no picture wider than the GBA screen: the scenario checked nothing (warp failed or fit off)")
-        return {**res, "events_bg": events_bg, "fail": bool(why), "why": why}
+        return {**res, "events_bg": events_bg, "fail": bool(why), "why": why,
+                "parts": {"events": events_bg > lim["events_bg"], "picture": bool(wide_expected and frames)}}
     bl = [x["black"] for x in st]
     res["black_mean"] = round(sum(bl) / len(bl), 4); res["black_max"] = max(bl)
     res["black_over"] = sum(1 for b in bl if b > lim["black_max"])
@@ -743,6 +828,8 @@ def static_summary(frames, cfg, events_bg=0, wide_expected=False):
     if events_bg > lim["events_bg"]: why.append(f"{events_bg} unexplained background events (pop/block/layer) > {lim['events_bg']:.0f}")
     if res.get("foreign_over"): why.append(f"{res['foreign_over']} pictures with another room's content > {lim['foreign_max']:.0%}")
     res["fail"] = bool(why); res["why"] = why
+    res["parts"] = {"events": events_bg > lim["events_bg"],
+                    "picture": bool(res["black_mean"] > lim["black_mean"] or res["black_over"] or res["place_bad"] or res.get("foreign_over"))}
     return res
 
 def parse_config(path):
@@ -757,6 +844,7 @@ def parse_config(path):
         elif w[0] == "settle": cfg["settle"] = int(w[1])
         elif w[0] == "views": cfg["views"] = w[1]
         elif w[0] == "reg": cfg["regs"].append((w[1], int(w[2], 0), int(w[3])))
+        elif w[0] == "hud": cfg["hud"] = [int(x) for x in w[1:]]   # hud BG ...: layers drawn at the view's edges (no parallax judged)
         elif w[0] == "env": k, _, v = w[1].partition("="); cfg.setdefault("env", {})[k] = v   # env NAME=VALUE for the emulator
         elif w[0] == "regions": cfg["regions"] = line[8:].strip()          # regions CMD: prints {"KEY": {"cx,cy": room}}
         elif w[0] == "regionkey": cfg["regionkey"] = line[10:].strip()     # regionkey EXPR: KEY from the watched values
@@ -798,7 +886,10 @@ def main():
             if "error" in r: print(f"{r['scenario']:12} {r['view']:9} ERROR {r['error']}")
             else:
                 st = r["static"]
+                parts = st.get("parts", {})
+                print(f"{r['scenario']:12} {r['view']:9} verdict picture {'FAIL' if parts.get('picture') else 'ok'} events {'FAIL' if parts.get('events') else 'ok'} camera {'FAIL' if parts.get('camera') else 'ok'} labels {'FAIL' if parts.get('labels') else 'ok'}", flush=True)
                 print(f"{r['scenario']:12} {r['view']:9} static {'FAIL' if st['fail'] else 'ok'}: black mean {st.get('black_mean', 0):.1%} max {st.get('black_max', 0):.1%} (over {st.get('black_over', 0)}), off-centre {st.get('place_bad', 0)}, foreign max {st.get('foreign_max', 0):.1%} (over {st.get('foreign_over', 0)}), wide {st['wide_pictures']}/{st['pictures']}", flush=True)
+                print(f"{r['scenario']:12} {r['view']:9} camera {st.get('camera')}", flush=True)
                 print(f"{r['scenario']:12} {r['view']:9} pictures {r['pictures']:4} events {r['events']:3} flagged {r['flagged_pictures']:4} pop {r['counts']['pop']} block {r['counts']['block']} layer {r['counts']['layer']} sprite {r['counts']['sprite']} (gba edge {r['counts']['sprite_gba_edge']}; events bg {r['events_bg']} sprite {r['events_sprite']} edge {r['events_sprite_gba_edge']}) (explained {r['explained_blocks']}, skipped {r['skipped']}, flag changes {len(r['flag_changes'])})", flush=True)
     xv = {}
     for s in scs:

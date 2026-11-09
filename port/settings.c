@@ -213,7 +213,7 @@ void settings_load(const char *file) {
 		SDL_free(base);
 	}
 	FILE *f = fopen(path, "r");
-	if (!f) { settings_save(); return; }
+	if (!f) { settings_save(); goto env; }
 	char line[600];
 	while (fgets(line, sizeof line, f)) {
 		char *s = trim(line);
@@ -224,6 +224,9 @@ void settings_load(const char *file) {
 		apply(trim(s), trim(eq + 1));
 	}
 	fclose(f);
+env:
+	/* (testing) MMZ_FIT_ROOMS=0/1 overrides fit_small_rooms (motioncheck runs the window's default) */
+	if (getenv("MMZ_FIT_ROOMS")) settings.fitRooms = atoi(getenv("MMZ_FIT_ROOMS"));
 }
 
 void settings_save(void) {

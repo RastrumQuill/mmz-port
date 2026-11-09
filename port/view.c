@@ -1408,6 +1408,127 @@ void view_fit_apply(int *w, int *h) {
 	*h = ((int)ch + 1) & ~1;
 }
 
+/* ------------------------------------------------------------ the view's place
+ *
+ * The GBA screen's place in the view (ox, oy) is a smooth function of the
+ * game camera: the screen centred, the view clamped to the room (sideways in
+ * its box, up/down in the rows of the columns shown, sideways again in the
+ * rows shown) -- continuous in the camera, so it follows it pixel for pixel
+ * and never re-chooses (the old fewest-unfilled search flipped between
+ * places: jitter). Where the target steps (a column of another height comes
+ * in, camera limits change, the view's size changes) the offset eases there
+ * (speed <= EASE_MAX px/frame, changing by <= 1 px/frame each frame). Only a
+ * game snap (the camera stepping > 24 px: doors, teleports, Stage_Init; an
+ * area change; frames not drawn) moves it at once; each snap and ease is
+ * logged ("view: snap" / "view: ease").
+ */
+#define EASE_MAX 4
+/* one axis of the target: of the places that keep the GBA screen inside the
+   view, the fewest unfilled pixels (the room's actual extent under the view,
+   not its bounding box); on a tie the previous offset (prev, the GBA
+   screen's place in the view; < 0: none) so the view follows the camera
+   pixel for pixel, else the one nearest the GBA screen centred */
+static s32 place_min(int vertical, s32 other, int w, int h, int prev) {
+	s32 g = vertical ? gbaGY : gbaGX;
+	int n = vertical ? h : w, screen = vertical ? SCREEN_H : SCREEN_W;
+	/* the tie-break: the GBA screen centred (the black split where the room's extent does not tell) */
+	s32 c = g - (n - screen) / 2, best = c;
+	long bc = -1;
+	for (int k = 0; k <= n - screen; k++) {
+		s32 a = g + screen - n + k;
+		long u = vertical ? view_unfilled(other, a, w, h) : view_unfilled(a, other, w, h);
+		s32 d = a > c ? a - c : c - a, bd = best > c ? best - c : c - best;
+		int isPrev = prev >= 0 && g - a == prev, bPrev = prev >= 0 && g - best == prev;
+		if (bc < 0 || u < bc || (u == bc && (d < bd || (d == bd && isPrev && !bPrev)))) { bc = u; best = a; }
+	}
+	return best;
+}
+/* the eased place kept inside [lo, hi) where that is wider than the view, the GBA screen inside the view */
+static float clamp_box(float off, s32 g, int n, s32 lo, s32 hi, int screen) {
+	if (hi - lo >= n) {
+		if (g - off < lo) off = g - lo;
+		if (g - off + n > hi) off = g + n - hi;
+	}
+	if (off < 0) off = 0;
+	if (off > n - screen) off = n - screen;
+	return off;
+}
+static void view_offset(int w, int h, int *pox, int *poy) {
+	static float off[2], vel[2];
+	static long lastFrame = -10;
+	static int lastArea = -1, lastW, lastH, easing[2];
+	static s32 lastG[2];
+	static int lastT[2];
+	static s32 lastExt[4];
+	static long snapFrame = -100;
+	int keep = frameCount == lastFrame + 1 && areaCur == lastArea && w == lastW && h == lastH;
+	int px = keep ? lastT[0] : -1, py = keep ? lastT[1] : -1;
+	s32 l = place_axis(gbaGX, SCREEN_W, w, extL, extR);
+	s32 t = place_min(1, l, w, h, py);
+	l = place_min(0, t, w, h, px);
+	t = place_min(1, l, w, h, py);
+	int T[2] = { gbaGX - l, gbaGY - t }, n[2] = { w, h }, sc[2] = { SCREEN_W, SCREEN_H };
+	s32 g[2] = { gbaGX, gbaGY };
+	int roomCut = extL != lastExt[0] && extR != lastExt[2] && extT != lastExt[1] && extB != lastExt[3];   /* (a new room: all four edges move) */
+	int snap = (lastW <= SCREEN_W && lastH <= SCREEN_H) ||   /* (the view's first wide frame) */
+	           frameCount != lastFrame + 1 || areaCur != lastArea || g[0] - lastG[0] > 24 || lastG[0] - g[0] > 24 || g[1] - lastG[1] > 24 || lastG[1] - g[1] > 24;
+	/* the frames right after a cut settle at once (the room / camera limits are set up a frame after the game's snap) */
+	if (snap) snapFrame = frameCount;
+	else if (frameCount - snapFrame <= 2 && (T[0] != lastT[0] || T[1] != lastT[1])) snap = 1;
+	if (snap && lastFrame >= 0) fprintf(stderr, "view: snap frame %ld area %d camera %+d,%+d\n", frameCount, areaCur, (int)(g[0] - lastG[0]), (int)(g[1] - lastG[1]));
+	for (int a = 0; a < 2 && !(roomCut && !snap); a++) {   /* (a new room: hold this frame; the game's cut follows it) */
+		if (snap) { off[a] = T[a]; vel[a] = 0; easing[a] = 0; continue; }
+		/* a size change keeps the GBA screen's centre where it was on the view's scale */
+		if (n[a] != (a ? lastH : lastW)) off[a] += (n[a] - (a ? lastH : lastW)) / 2.0f;
+		/* the target moving with the camera (the view held at a room edge: offset change = camera step) is
+		   followed pixel for pixel, easing or not; only a step of the target eases */
+		if (keep) {
+			int dT = T[a] - lastT[a], dg = g[a] - lastG[a];
+			if ((dT < 0 ? -dT : dT) <= (dg < 0 ? -dg : dg) + 1) off[a] += dT;
+		}
+		float err = T[a] - off[a];
+		/* a step that uncovers more of the room is taken at once (easing there only shows black the target
+		   does not); a step that shows more black eases */
+		if (err > 0.5f || err < -0.5f) {
+			s32 cl = g[0] - (int)(off[0] + 0.5f), ct = g[1] - (int)(off[1] + 0.5f);
+			long uc = view_unfilled(cl, ct, w, h), ut = a ? view_unfilled(cl, g[1] - T[1], w, h) : view_unfilled(g[0] - T[0], ct, w, h);
+			if (ut < uc) {
+				fprintf(stderr, "view: snap frame %ld axis %c reveal %d -> %d\n", frameCount, "xy"[a], (int)off[a], T[a]);
+				off[a] = T[a]; vel[a] = 0; easing[a] = 0; err = 0;
+			}
+		}
+		if (!easing[a] && (err > 0.5f || err < -0.5f)) {
+			easing[a] = 1;
+			fprintf(stderr, "view: ease frame %ld axis %c from %d to %d\n", frameCount, "xy"[a], (int)off[a], T[a]);
+		}
+		if (easing[a]) {
+			float want = err * 0.15f;
+			if (want > EASE_MAX) want = EASE_MAX; if (want < -EASE_MAX) want = -EASE_MAX;
+			if (want > vel[a] + 1) want = vel[a] + 1; if (want < vel[a] - 1) want = vel[a] - 1;
+			vel[a] = want;
+			off[a] += vel[a];
+			if ((err >= 0 && off[a] >= T[a]) || (err <= 0 && off[a] <= T[a]) || (err < 1 && err > -1 && vel[a] < 1 && vel[a] > -1)) {
+				off[a] = T[a]; vel[a] = 0; easing[a] = 0;
+				fprintf(stderr, "view: ease frame %ld axis %c done at %d\n", frameCount, "xy"[a], T[a]);
+			}
+		} else off[a] = T[a];
+		/* the GBA screen stays inside the view, the view inside the room's span under it (widened to take in
+		   the target): easing never shows more black than the clamp allows. (Not the room's bounding box: a
+		   corridor's box holds a shaft far off, and clamping to it pushes the GBA screen off-centre.) */
+		{
+			s32 lo, hi, aT = g[a] - T[a];
+			local_span(a, g[!a] - (int)(off[!a] + 0.5f), n[!a], &lo, &hi);
+			if (aT < lo) lo = aT; if (aT + n[a] > hi) hi = aT + n[a];
+			off[a] = clamp_box(off[a], g[a], n[a], lo, hi, sc[a]);
+		}
+	}
+	lastT[0] = T[0]; lastT[1] = T[1];
+	lastExt[0] = extL; lastExt[1] = extT; lastExt[2] = extR; lastExt[3] = extB;
+	lastFrame = frameCount; lastArea = areaCur; lastW = w; lastH = h; lastG[0] = g[0]; lastG[1] = g[1];
+	*pox = (int)(off[0] + (off[0] >= 0 ? 0.5f : -0.5f));
+	*poy = (int)(off[1] + (off[1] >= 0 ? 0.5f : -0.5f));
+}
+
 /* ------------------------------------------------------------ frame */
 static int lastOx, lastOy;
 static s32 lastGbaX, lastGbaY;
@@ -1467,8 +1588,9 @@ int view_render(void) {
 	   span (not its bounding box: a corridor's room may hold a shaft far off),
 	   then sideways again in the room's columns over the rows shown */
 	s32 left, top;
-	place_view(w, h, &left, &top);
-	int ox = gbaGX - left, oy = gbaGY - top;
+	int ox, oy;
+	view_offset(w, h, &ox, &oy);
+	left = gbaGX - ox; top = gbaGY - oy;
 	if (dbgo.logView) fprintf(stderr, "F%ld area %d gba %d,%d ext %d..%d x %d..%d ox %d oy %d layers %d%d%d\n", frameCount, areaCur, gbaGX, gbaGY,
 	                          extL, extR, extT, extB, ox, oy, layers[1].on, layers[2].on, layers[3].on);
 	if (dbgo.logView) for (int b = 1; b < 4; b++) if (layers[b].on) fprintf(stderr, "  L%d bg%d gbaOn %d prio %d cb %X live-cnt %04X td %p\n", layers[b].idx, b, layers[b].gbaOn, layers[b].prio, (unsigned)layers[b].charBase, BGREGS[2 + b], (const void *)layers[b].tiles);
