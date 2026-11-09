@@ -399,6 +399,9 @@ static int areaCur;
 static s32 areaPxL, areaPxT;      /* the area's top-left, global pixels */
 static int areaW, areaH;          /* chunks */
 
+extern int view_labels;
+static int label_layers(int cx, int cy);
+
 static int find_layers(void) {
 	memset(layers, 0, sizeof layers);
 	memset(stageBg, 0, sizeof stageBg);
@@ -435,12 +438,18 @@ static int find_layers(void) {
 		   (m1's corridor). MMZ_OFF_LAYERS=1: drawn anyway, to work on it) */
 		static int offLayers = -1;
 		if (offLayers < 0) offLayers = getenv("MMZ_OFF_LAYERS") != NULL;
-		if (!gbaOn && !offLayers) continue;
+		if (!gbaOn && !offLayers && !view_labels) continue;
 		if (!rom_ptr(td) || !rom_ptr(ch) || !rom_ptr(mp)) continue;
 		if (gbaOn && !handler_native(*(u32 *)(s + 4), *(u32 *)s)) continue;
 		struct Layer L = { 0 };
 		L.gbaOn = gbaOn;
-		L.prio = *(u32 *)(s + 0x58) & 3;
+		/* the label: BGCNT as the layer's setup writes it (s+0x58 | s+0x5C | 0x6044, sub_08007850) */
+		u16 cnt = (u16)(*(u32 *)(s + 0x58) | *(u32 *)(s + 0x5C) | 0x6044);
+		/* priority: the game's register once it has the BG on. Before that the
+		   area's setup value (cnt) is not what the layer's handler ends up
+		   with (m1 cave BG3: setup 1, handler 3), so a layer not on yet goes
+		   behind everything (3) */
+		L.prio = (dispcnt & (0x100 << bg)) ? BGREGS[2 + bg] & 3 : 3;
 		L.idx = k; L.bg = bg;
 		L.backdrop = *(s32 *)(s + 0x44) != 0x100 || *(s32 *)(s + 0x48) != 0x100;
 		/* the position the GBA picture was drawn with (the registers latched for
@@ -462,7 +471,7 @@ static int find_layers(void) {
 		L.mtCols = MT_STRIDE; L.mtRows = areaH * 10;
 		/* (the game's own stride: an area up to the layout's 64 chunks wide, such as m3's 42) */
 		if (L.live && (L.mtCols <= 0 || L.mtCols > 64 * 15 || (long)L.mtCols * L.mtRows > 0x10000)) continue;
-		L.charBase = gbaOn ? ((BGREGS[2 + bg] >> 2) & 3) * 0x4000 : 0x4000;   /* (BGCNT 0x6044 | prio | base when the handler turns it on) */
+		L.charBase = gbaOn ? ((BGREGS[2 + bg] >> 2) & 3) * 0x4000 : ((cnt >> 2) & 3) * 0x4000;   /* (BGCNT 0x6044 | prio | base when the handler turns it on) */
 		L.on = 1;
 		layers[bg] = L;
 		vramRepeat[bg] = 0;
@@ -485,6 +494,15 @@ static int native_entry(const struct Layer *L, s32 lx, s32 ly, u16 *out, int *fy
 		int col = lx >> 4, row = ly >> 4;
 		if (col >= L->mtCols || row >= L->mtRows) return 0;
 		mt = MT[row * L->mtCols + col];
+		/* labels: a part of the area the game has not built into its buffer
+		   yet (0) is the level data's (the area's own layout) */
+		if (!mt && view_labels && L->w) {
+			s32 W = L->w * 240, H = L->h * 160;
+			if (lx < W && ly < H) {
+				int cid = L->map[4 + (ly / 160) * L->stride + lx / 240];
+				if (cid != L->null) mt = L->chunks[cid * 150 + ((ly % 160) >> 4) * 15 + ((lx % 240) >> 4)];
+			}
+		}
 	} else {
 		s32 W = L->w * 240, H = L->h * 160;
 		if (L->backdrop) {
@@ -609,8 +627,103 @@ static int chunk_layers(int gx, int gy, int area) {
 }
 static u8 chunkLayers[128][128];
 
+/* ------------------------------------------------------------ labels
+ *
+ * Every chunk of the area is labelled once (per area and progress flags)
+ * with the background it belongs to: the stage layers its layer map cell
+ * has handlers for and its graphics set pair, both from the level data.
+ * A chunk with no layers or no pair of its own (an edge or door chunk)
+ * takes its nearest labelled neighbour's in the same row/column; one with
+ * none is flagged empty. The layers' BG, priority, char base and scroll
+ * rule come from the layer setup (find_layers). The renderer draws a
+ * chunk's labelled background outside the GBA screen whatever video memory
+ * holds or the game has on. Written to MMZ_LABELS_TSV (names/ids only).
+ */
+#define PROGRESS ((const u8 *)0x02022AD0)
+struct Label { u8 layers; short pair; u8 how; };   /* how: 0 own, 1 neighbour, 2 empty */
+static struct Label labels[128][128];
+static u32 labelKey = ~0u;
+static int chunk_in_area(int cx, int cy) { u8 a = CHUNK_AREA[cy * 128 + cx]; return a <= 0xEF && (a & 15) == areaCur && chunk_sets(cx, cy, areaCur) >= 0; }
+static u32 progress_key(void) {
+	u32 h = 2166136261u;
+	for (int i = 0; i < 0x1C; i++) h = (h ^ PROGRESS[i]) * 16777619u;
+	h = (h ^ (AREA_STATES >> (areaCur * 2) & 3)) * 16777619u;
+	h = (h ^ (u32)(uintptr_t)area_desc(areaCur)) * 16777619u;   /* (the mission: area numbers repeat across missions) */   /* the area's state (above/below ground etc.: which area descriptor) */
+	return h;
+}
+static void labels_build(void) {
+	u32 key = (u32)(CUR_AREA & 0xFF) << 24 ^ progress_key();
+	if (key == labelKey) return;
+	if (labelKey != ~0u && (labelKey >> 24) == (key >> 24))
+		fprintf(stderr, "labels: frame %ld area %d progress/area-state flags changed (%08X -> %08X): relabelled\n", frameCount, areaCur, labelKey, key);
+	labelKey = key;
+	for (int cy = 0; cy < 128; cy++)
+		for (int cx = 0; cx < 128; cx++) {
+			struct Label *L = &labels[cy][cx];
+			int inArea = chunk_in_area(cx, cy);
+			L->layers = inArea ? chunk_layers(cx, cy, areaCur) & 7 : 0;
+			L->pair = inArea ? chunk_pair(cx, cy, areaCur) : -1;
+			if (L->layers == 7 && !inArea) L->layers = 0;
+			L->how = 0;
+		}
+	static struct Label tmp[128][128];
+	memcpy(tmp, labels, sizeof tmp);
+	int nOwn = 0, nNb = 0, nEmpty = 0;
+	for (int cy = 0; cy < 128; cy++)
+		for (int cx = 0; cx < 128; cx++) {
+			struct Label *L = &labels[cy][cx];
+			if (!chunk_in_area(cx, cy)) continue;
+			/* a level-15 chunk (the camera never stands there: a room's edge) has
+			   no handler cell of its own that the game uses; it is shown with the
+			   camera in the chunk next to it */
+			int edge = chunk_level(cx, cy, areaCur) == 15;
+			if (L->layers && L->pair >= 0 && !edge) { nOwn++; continue; }
+			static const int d[4][2] = { { 0, -1 }, { 0, 1 }, { -1, 0 }, { 1, 0 } };
+			int got = 0;
+			for (int r = 1; r < 4 && !got; r++)
+				for (int k = 0; k < 4 && !got; k++) {
+					int nx = cx + d[k][0] * r, ny = cy + d[k][1] * r;
+					if (nx < 0 || ny < 0 || nx >= 128 || ny >= 128) continue;
+					const struct Label *n = &tmp[ny][nx];
+					if (n->layers && n->pair >= 0 && chunk_level(nx, ny, areaCur) != 15) {
+						L->layers = n->layers;
+						if (L->pair < 0) L->pair = n->pair;
+						L->how = 1; got = 1;
+					}
+				}
+			if (got) nNb++; else { L->how = 2; nEmpty++; }
+		}
+	fprintf(stderr, "labels: frame %ld area %d key %08X own %d neighbour %d empty %d\n", frameCount, areaCur, key, nOwn, nNb, nEmpty);
+	const char *path = getenv("MMZ_LABELS_TSV");
+	if (path) {
+		FILE *f = fopen(path, "a");
+		if (f) {
+			for (int cy = 0; cy < 128; cy++)
+				for (int cx = 0; cx < 128; cx++) {
+					if (!chunk_in_area(cx, cy)) continue;
+					const struct Label *L = &labels[cy][cx];
+					static const char *how[3] = { "own", "neighbour", "empty" };
+					fprintf(f, "%d\t%08X:%06X\t%d\t%d\t%d\t", areaCur, (u32)(uintptr_t)area_desc(areaCur), key & 0xFFFFFF, cx, cy, L->layers);
+					fprintf(f, L->pair >= 0 ? "%X%X\t" : "-\t", L->pair >> 4, L->pair & 15);
+					fprintf(f, "%s", how[L->how]);
+					for (int b = 1; b < 4; b++)
+						if (layers[b].on) fprintf(f, "\tL%d:bg%d:p%d:c%X:s%d", layers[b].idx, b, layers[b].prio, (unsigned)layers[b].charBase >> 14, layers[b].backdrop);
+					fputc('\n', f);
+				}
+			fclose(f);
+		}
+	}
+}
+static int label_layers(int cx, int cy) {
+	if (cx < 0 || cy < 0 || cx >= 128 || cy >= 128) return 0;
+	return labels[cy][cx].layers;
+}
+
+
 /* per chunk this frame: -1 not drawn, 0 live video memory (the loaded pair), 1 + n cache n */
 static signed char chunkSrc[128][128];
+static signed char chunkRom[128][128];   /* 1 + cache n: the chunk's pair decoded from the ROM, or -1 */
+int view_labels = 1;   /* draw each chunk's labelled background (MMZ_LABELS=0: the old live-VRAM rule) */
 static void chunk_sources(s32 vl, s32 vt, int w, int h) {
 	/* the loaded pair (0x02005430) names the new sets the frame the game
 	   loads them, after this frame's GBA picture was drawn: video memory is
@@ -626,6 +739,8 @@ static void chunk_sources(s32 vl, s32 vt, int w, int h) {
 	bgp = loading ? snapP : (const u8 *)0x05000000;
 	if (!loading) { memcpy(snapV, vram, sizeof snapV); memcpy(snapP, pal, sizeof snapP); }
 	lastSets = sets;
+	{ static int init; if (!init) { init = 1; const char *e = getenv("MMZ_LABELS"); if (e) view_labels = atoi(e); } }
+	if (view_labels) labels_build();
 	for (int cy = floordiv(vt, 160); cy <= floordiv(vt + h - 1, 160); cy++)
 		for (int cx = floordiv(vl, 240); cx <= floordiv(vl + w - 1, 240); cx++) {
 			if (cx < 0 || cy < 0 || cx >= 128 || cy >= 128) continue;
@@ -638,6 +753,7 @@ static void chunk_sources(s32 vl, s32 vt, int w, int h) {
 				}
 			}
 			chunkSrc[cy][cx] = src;
+			{ int p = room[cy][cx] && view_labels ? labels[cy][cx].pair : -1; int c = p >= 0 ? cache_get(areaCur, p >> 4, p & 15) : -1; chunkRom[cy][cx] = c >= 0 ? 1 + c : -1; }
 			chunkLayers[cy][cx] = src >= 0 ? chunk_layers(cx, cy, areaCur) : 0;
 		}
 }
@@ -841,7 +957,11 @@ static void draw_native_row(const struct Layer *L, int vy, int ox, int oy, u16 *
 		   so a layer that is on is not cut at chunks whose own handler differs) */
 		int onGba = inGbaRow && vx >= ox && vx < ox + SCREEN_W;
 		if (onGba && src > 0) src = 0;
-		if (src >= 0 && !L->gbaOn && (onGba || !(chunkLayers[cy][cx] >> L->idx & 1))) src = -1;
+		/* labels: outside the GBA screen, the chunk's labelled background from
+		   the ROM-decoded pair, whatever video memory holds */
+		if (view_labels && !onGba && src >= 0 && chunkRom[cy][cx] > 0) src = chunkRom[cy][cx];
+		if (src >= 0 && !onGba && view_labels && !(label_layers(cx, cy) >> L->idx & 1)) src = -1;
+		else if (src >= 0 && !L->gbaOn && (onGba || !(chunkLayers[cy][cx] >> L->idx & 1))) src = -1;
 		u16 e; int ty;
 		if (src < 0 || !native_entry(L, lx, ly, &e, &ty)) {
 			for (int k = 0; k < run && vx < w; k++) out[vx++] = TRANSPARENT;
@@ -1111,7 +1231,7 @@ static void render_row(int vy) {
 	if (evb > 16) evb = 16;
 	if (evy > 16) evy = 16;
 	int bgPrio[4];
-	for (int bg = 0; bg < 4; bg++) bgPrio[bg] = layers[bg].on && !layers[bg].gbaOn ? layers[bg].prio : R16(line, 0x08 + bg * 2) & 3;
+	for (int bg = 0; bg < 4; bg++) bgPrio[bg] = layers[bg].on && !(dispcnt & (0x100 << bg)) ? layers[bg].prio : R16(line, 0x08 + bg * 2) & 3;   /* (a BG off in this line's picture: its latched BGCNT is stale) */
 	u16 backdrop = PAL16(0) & 0x7FFF;
 	s32 gy = gbaGY + (vy - oy);
 	for (int x = 0; x < w; x++) {
@@ -1351,6 +1471,7 @@ int view_render(void) {
 	int ox = gbaGX - left, oy = gbaGY - top;
 	if (dbgo.logView) fprintf(stderr, "F%ld area %d gba %d,%d ext %d..%d x %d..%d ox %d oy %d layers %d%d%d\n", frameCount, areaCur, gbaGX, gbaGY,
 	                          extL, extR, extT, extB, ox, oy, layers[1].on, layers[2].on, layers[3].on);
+	if (dbgo.logView) for (int b = 1; b < 4; b++) if (layers[b].on) fprintf(stderr, "  L%d bg%d gbaOn %d prio %d cb %X live-cnt %04X td %p\n", layers[b].idx, b, layers[b].gbaOn, layers[b].prio, (unsigned)layers[b].charBase, BGREGS[2 + b], (const void *)layers[b].tiles);
 	view_ext_left = ox; view_ext_right = w - ox - SCREEN_W;
 	view_ext_up = oy; view_ext_down = h - oy - SCREEN_H;
 	lastOx = ox; lastOy = oy;
@@ -1358,6 +1479,20 @@ int view_render(void) {
 	chunk_sources(left, top, w, h);
 	draw_hud(w, h, ox, oy);
 	render_rows(w, h, ox, oy);
+	/* labelcheck: outside the GBA screen every drawn stage layer pixel must
+	   be one of its chunk's labelled layers (motioncheck fails on these) */
+	if (view_labels) {
+		long bad = 0;
+		for (int y = 0; y < h; y += 4)
+			for (int x = 0; x < w; x += 4) {
+				if (x >= ox && x < ox + SCREEN_W && y >= oy && y < oy + SCREEN_H) continue;
+				int bg = view_layers[(size_t)y * w + x] & 15;
+				if (bg < 1 || bg > 3 || !layers[bg].on) continue;
+				int cx = floordiv(left + x, 240), cy = floordiv(top + y, 160);
+				if (!(label_layers(cx, cy) >> layers[bg].idx & 1)) bad++;
+			}
+		if (bad) fprintf(stderr, "labelcheck: frame %ld area %d %ld samples drawn off-label\n", frameCount, areaCur, bad);
+	}
 	view_active = 1;
 	return 1;
 }

@@ -64,6 +64,32 @@ BG is on in gBgRegs. A world-space layer pixel at area pixel (lx, ly):
   has no repeat).
 - no data at a position (null chunk, outside the layout): transparent (what is behind shows).
 
+### Labels (each chunk's background, known ahead)
+
+`labels_build` (view.c) labels every chunk of the area once per area and
+flag key (CUR_AREA, the area's state bits in 0x02005208 -- which area
+descriptor, e.g. above/below ground -- and a hash of the progress block at
+0x02022AD0..+0x1B). A change of key relabels and is logged
+(`labels: ... flags changed`). A label is the stage layers the chunk's layer
+map cell has handlers for and its graphics set pair; a chunk with neither
+(door / edge chunks) takes the nearest labelled chunk's in its row/column
+(`neighbour`), else is flagged `empty`. Outside the GBA screen the renderer
+draws each chunk's labelled layers with its pair decoded from the ROM (gcache),
+whatever video memory holds or the game has on; inside, the PPU's own
+registers and video memory. Layer 0's metatile buffer cells the game has not
+built yet (0) come from the area's layout. A BG the game has not turned on
+yet goes behind everything (priority 3): the area setup's BGCNT is not what the
+layer's handler ends up with (m1 cave BG3: setup 1, handler 3) -- not derived
+from the ROM yet. `MMZ_LABELS=0` restores the old live-VRAM rule;
+`MMZ_LABELS_TSV=path` appends the table (generated: docs/wideview-labels.tsv
+via port/tools/labels_tsv.py). Each frame the renderer checks that no stage
+layer is drawn outside its chunk's labels (`labelcheck:`; motioncheck fails
+on it).
+
+Known gaps: palette bank 1 in m1 (17-31) is loaded by something other than the
+set pair (not in gcache): until the game loads it, those colours come from
+live palettes. BG priorities for not-yet-on layers are a rule, not data.
+
 ## 5. Extent (rooms)
 
 Computed once per (area, variant, room) and only changed by a cut:

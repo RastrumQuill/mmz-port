@@ -412,6 +412,12 @@ def analyse(src, rows, history, keep=True, reach=SPRITE_REACH, edge=EDGE, region
             jfrac_area = max(1, judge.histogram()[255])
             ofrac = un_out.histogram()[255] / jfrac_area
             stats = {"gba_changed": round(gfrac, 4), "out_changed": round(ofrac, 4), "motions": sorted(S)}
+            # a BG turned on / off on the GBA: a pop only if the view outside the GBA screen changes with it (the
+            # renderer draws each chunk's labelled layers whatever the GBA has on)
+            for f in flags:
+                if f["kind"] == "layer" and f.get("bg") is not None:
+                    if W * H <= 240 * 160: f["explained"] = "the view is the GBA screen (the PPU's own picture)"
+                    elif ofrac < 0.02: f["explained"] = f"BG{f['bg']} toggled on the GBA; outside it {ofrac:.1%} changed (labels)"
             if gfrac > 0.35:
                 stats["skipped"] = "most of the GBA screen changed (fade / room change)"
                 flags = [f for f in flags if f["kind"] != "sprite"]
@@ -596,7 +602,16 @@ def run_view(mmz, sc, cfg, view, out, every, keep, history, xevery, reach=SPRITE
                                    + (f"  after {', '.join(c['what'] for c in nc)}" if nc else ""), fill=(255, 255, 255))
             tiles.append(t)
     sheet = save_sheet(tiles, os.path.join(d, "sheet.png"))
+    # labels: the renderer logs each frame where a stage layer was drawn outside its chunk's labelled layers
+    # ("labelcheck:") and each relabel on a progress / area-state flag change ("labels: ... changed")
+    try: errtxt = open(os.path.join(d, "stderr.txt")).read()
+    except OSError: errtxt = ""
+    label_bad = [l for l in errtxt.splitlines() if l.startswith("labelcheck:")]
+    relabels = [l for l in errtxt.splitlines() if l.startswith("labels:") and "changed" in l]
     static = static_summary(frames, cfg, wide_expected=view not in ("240x160", "x1"), events_bg=len(groups) - sum(1 for g in groups if all(f["kind"] == "sprite" for e in g for f in e[1])))
+    static["label_frames_bad"] = len(label_bad); static["relabels"] = len(relabels)
+    if label_bad:
+        static["fail"] = True; static.setdefault("why", []).append(f"{len(label_bad)} frames drew a stage layer outside its chunk's labels (first: {label_bad[0]})")
     summ = {"scenario": sc["name"], "view": view, "warp": sc["warp"], "pictures": len(frames), "static": static, "skipped": skipped,
             "flagged_pictures": len(events), "events": len(groups), "counts": counts,
             "events_bg": len(groups) - sum(1 for g in groups if all(f["kind"] == "sprite" for e in g for f in e[1])),
