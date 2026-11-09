@@ -235,7 +235,7 @@ the game, its camera and the GBA-visible pixels do not. It is a rectangle:
 where one side of the view reaches lower than the other (mission 1 past the
 purple door), the unreachable part beside it still shows the fill / black.
 `MMZ_NOCROP=1` turns it off, `CROPDEBUG=1` prints the region per frame;
-headless routes apply the fit as the window does (`fit_small_rooms`; shots
+headless routes apply the fit as the window does (`fit_one_screen_rooms`; shots
 then have the shrunk size); `MMZ_HEADLESS_NOFIT=1` keeps the size asked for.
 
 **Gap fill (`fill_gaps`).** Note: the native renderer (view.c, chunk

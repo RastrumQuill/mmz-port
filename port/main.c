@@ -826,7 +826,7 @@ static void sdl_frame(void) {
 	int ww, wh;
 	SDL_GetRendererOutputSize(renderer, &ww, &wh);
 	settings_view_size(ww, wh, &view_w, &view_h);   /* (used from the next frame) */
-	view_fit_apply(&view_w, &view_h);                /* small rooms: the view fits them */
+	view_fit_apply(&view_w, &view_h);                /* (the size asked for: it never changes in play) */
 	view_hud_edges = settings.hudEdges;
 	hw_cpu_speed = settings.cpuSpeed < 100 ? 100 : settings.cpuSpeed > 1600 ? 1600 : settings.cpuSpeed;
 	sdl_events();
@@ -923,7 +923,7 @@ void frontend_frame(void) {
 	}
 	if (headless) {
 		route_step();
-		/* the fit as in the window (settings fit_small_rooms; after the shots: they use this frame's size);
+		/* the fit as in the window (settings fit_one_screen_rooms; after the shots: they use this frame's size);
 		   MMZ_HEADLESS_NOFIT: the view stays at the size asked for */
 		if (!getenv("MMZ_HEADLESS_NOFIT")) {
 			static int aw, ah;

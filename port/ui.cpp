@@ -403,7 +403,7 @@ static void settings_window() {
 		}
 		if (ImGui::Checkbox("HUD at the screen's edges", &he)) settings.hudEdges = he;
 		bool fr = settings.fitRooms;
-		if (ImGui::Checkbox("Fit small rooms to the screen", &fr)) settings.fitRooms = fr;
+		if (ImGui::Checkbox("One-screen rooms: GBA picture", &fr)) settings.fitRooms = fr;
 		if (ImGui::IsItemHovered()) ImGui::SetTooltip("A rectangular room smaller than the view: the view zooms in to fill the screen with it\n(smoothly, when you enter it) instead of showing black around it.");
 		bool is = settings.integerScale, sm = settings.smooth;
 		if (ImGui::Checkbox("Whole-number scaling only", &is)) settings.integerScale = is;
@@ -576,7 +576,7 @@ static void debug_options() {
 		{ bool no = view_native_only; if (ImGui::Checkbox("Native GBA rect", &no)) view_native_only = no; }
 		tip("Draw the GBA screen's part from the game state too, not the GBA picture (what viewcheck compares).");
 		bool fr = settings.fitRooms, he = settings.hudEdges;
-		if (ImGui::Checkbox("Fit small rooms", &fr)) { settings.fitRooms = fr; dbg_changed(); }
+		if (ImGui::Checkbox("One-screen rooms: GBA picture", &fr)) { settings.fitRooms = fr; dbg_changed(); }
 		tip("The setting: zoom the view in to fit rooms smaller than it.");
 		ImGui::SameLine();
 		if (ImGui::Checkbox("HUD at edges", &he)) settings.hudEdges = he;

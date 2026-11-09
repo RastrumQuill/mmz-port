@@ -135,7 +135,7 @@ void settings_defaults(void) {
 	settings.viewH = 240;
 	settings.viewHeight = 240;
 	settings.hudEdges = 1;
-	settings.fitRooms = 1;
+	settings.fitRooms = 0;
 	settings.fillGaps = 0;   /* off: fills.bin takes ~25 min to make (Settings has a button) */
 	settings.cropUnreach = 1;
 	settings.cpuSpeed = 400;   /* no slowdown where the GBA ran out of time */
@@ -179,7 +179,7 @@ static void apply(const char *key, const char *value) {
 	else if (!strcmp(key, "view_height")) settings.viewH = atoi(value);
 	else if (!strcmp(key, "view_window_height")) settings.viewHeight = atoi(value);
 	else if (!strcmp(key, "hud_edges")) settings.hudEdges = atoi(value);
-	else if (!strcmp(key, "fit_small_rooms")) settings.fitRooms = atoi(value);
+	else if (!strcmp(key, "fit_one_screen_rooms")) settings.fitRooms = atoi(value);   /* (the old fit_small_rooms is ignored: the view no longer changes size) */
 	else if (!strcmp(key, "crop_unreachable")) settings.cropUnreach = atoi(value);
 	else if (!strcmp(key, "fill_gaps")) settings.fillGaps = atoi(value);
 	else if (!strcmp(key, "cpu_speed")) settings.cpuSpeed = atoi(value);
@@ -225,7 +225,7 @@ void settings_load(const char *file) {
 	}
 	fclose(f);
 env:
-	/* (testing) MMZ_FIT_ROOMS=0/1 overrides fit_small_rooms (motioncheck runs the window's default) */
+	/* (testing) MMZ_FIT_ROOMS=0/1 overrides fit_one_screen_rooms (motioncheck runs the window's default) */
 	if (getenv("MMZ_FIT_ROOMS")) settings.fitRooms = atoi(getenv("MMZ_FIT_ROOMS"));
 }
 
@@ -241,8 +241,8 @@ void settings_save(void) {
 	           "# (the window's shape, view_window_height world pixels high)\n");
 	fprintf(f, "view = %s\nview_width = %d\nview_height = %d\nview_window_height = %d\nhud_edges = %d\n",
 	        kViewNames[settings.viewMode], settings.viewW, settings.viewH, settings.viewHeight, settings.hudEdges);
-	fprintf(f, "# rooms smaller than the view: 1 = the view fits them; empty parts of areas (fill_gaps): 0 = black, 1 = tile fill learned from the area, 2 = old column repeat\n"
-	           "fit_small_rooms = %d\nfill_gaps = %d\n", settings.fitRooms, settings.fillGaps);
+	fprintf(f, "# the view never changes size in play; 1 = a room of one screen shows the GBA picture instead. empty parts of areas (fill_gaps): 0 = black, 1 = tile fill learned from the area, 2 = old column repeat\n"
+	           "fit_one_screen_rooms = %d\nfill_gaps = %d\n", settings.fitRooms, settings.fillGaps);
 	fprintf(f, "# 1: the wide view stops where the GBA camera can never go (from the collision); shorter than the view: zoomed in to fill the window\n"
 	           "crop_unreachable = %d\n", settings.cropUnreach);
 	fprintf(f, "\n# CPU time the game gets per frame, percent of the GBA's (100: the GBA's slowdown)\ncpu_speed = %d\n", settings.cpuSpeed);

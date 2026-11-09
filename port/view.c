@@ -387,6 +387,8 @@ struct Layer {
 	int prio;                     /* BG priority while its BG is off on the GBA (the area's setting) */
 	s32 ax0, ay0, ax1, ay1;       /* backdrop: the painting under the GBA screen (its chunks), layer px; past it the edge repeats */
 	int wrapX;                    /* backdrop: the painting spans the layout's width (it repeats sideways, as on the GBA) */
+	int scx, scy;                 /* the layer's scroll speed (0x100: the stage's) */
+	s32 pdx, pdy;                 /* backdrop: its shift for the view's own camera (the view's centre, not the GBA screen's) */
 };
 static struct Layer layers[4];    /* by BG */
 static int stageBg[4];            /* BGs a stage layer is on (drawn natively or not) */
@@ -502,6 +504,7 @@ static int find_layers(void) {
 		L.prio = (dispcnt & (0x100 << bg)) ? BGREGS[2 + bg] & 3 : 3;
 		L.idx = k; L.bg = bg;
 		L.backdrop = *(s32 *)(s + 0x44) != 0x100 || *(s32 *)(s + 0x48) != 0x100;
+		L.scx = *(s32 *)(s + 0x44); L.scy = *(s32 *)(s + 0x48);
 		/* the position the GBA picture was drawn with (the registers latched for
 		   this picture; the struct may already hold the next frame's) */
 		L.x = *(s32 *)(s + 0x14); L.y = *(s32 *)(s + 0x18);
@@ -579,60 +582,108 @@ static int native_entry(const struct Layer *L, s32 lx, s32 ly, u16 *out, int *fy
  * variant changes or the camera's chunk leaves the room (a cut).
  */
 static u8 room[128][128];
+static int chunk_in_area(int cx, int cy);
 static u32 roomKey = ~0u;
 static int roomX0, roomY0, roomX1 = -1, roomY1 = -1;   /* bounding box, chunks, inclusive */
 static s32 extL, extT, extR, extB;                     /* drawn region: room box clipped by camera limits, global px */
 static s32 gbaGX, gbaGY;                               /* the GBA screen's top-left, global px */
 
-static void room_build(int sx, int sy) {
+/* The area's pieces: chunks joined by a level step of at most 1 (where the
+   game's camera moves freely). A room is the pieces the camera reaches
+   without a cut: adjacent pieces of MERGE_MIN chunks or more are one room
+   from the start (a corridor and the hall next to it); a smaller piece (a
+   door's room, a shaft) joins when the camera walks into it, and only a cut
+   (a door, a teleport, an area / above-below ground change) starts a new
+   room. So the drawn region never changes while you walk through a level. */
+#define MERGE_MIN 3
+static short piece[128][128];
+static int pieceSize[4096], nPieces;
+static void pieces_build(void) {
 	static int qx[128 * 128], qy[128 * 128];
-	memset(room, 0, sizeof room);
-	roomX0 = roomY0 = 1 << 30; roomX1 = roomY1 = -1;
+	memset(piece, 0, sizeof piece);
+	nPieces = 0;
+	for (int y = 0; y < 128; y++)
+		for (int x = 0; x < 128; x++) {
+			if (piece[y][x] || chunk_level(x, y, areaCur) == 15 || nPieces >= 4095) continue;
+			int id = ++nPieces, n = 0, h = 0;
+			piece[y][x] = id; qx[n] = x; qy[n++] = y;
+			while (h < n) {
+				int cx = qx[h], cy = qy[h++], lv = chunk_level(cx, cy, areaCur);
+				static const int dx[4] = { 1, -1, 0, 0 }, dy[4] = { 0, 0, 1, -1 };
+				for (int k = 0; k < 4; k++) {
+					int nx = cx + dx[k], ny = cy + dy[k];
+					if (nx < 0 || ny < 0 || nx >= 128 || ny >= 128 || piece[ny][nx]) continue;
+					int l2 = chunk_level(nx, ny, areaCur);
+					if (l2 == 15 || l2 > lv + 1 || l2 < lv - 1) continue;
+					piece[ny][nx] = id; qx[n] = nx; qy[n++] = ny;
+				}
+			}
+			pieceSize[id] = n;
+		}
+}
+/* add the room the camera is in at chunk (sx, sy): its piece and the big pieces next to it */
+static void room_add(int sx, int sy) {
+	static int qx[128 * 128], qy[128 * 128];
+	if (sx < 0 || sy < 0 || sx >= 128 || sy >= 128 || !piece[sy][sx] || room[sy][sx] == 1) return;
 	int n = 0, h = 0;
-	if (chunk_level(sx, sy, areaCur) != 15) { room[sy][sx] = 1; qx[n] = sx; qy[n++] = sy; }
+	room[sy][sx] = 1; qx[n] = sx; qy[n++] = sy;
 	while (h < n) {
-		int x = qx[h], y = qy[h++], lv = chunk_level(x, y, areaCur);
-		if (x < roomX0) roomX0 = x; if (x > roomX1) roomX1 = x;
-		if (y < roomY0) roomY0 = y; if (y > roomY1) roomY1 = y;
+		int x = qx[h], y = qy[h++], p = piece[y][x];
 		static const int dx[4] = { 1, -1, 0, 0 }, dy[4] = { 0, 0, 1, -1 };
 		for (int k = 0; k < 4; k++) {
 			int nx = x + dx[k], ny = y + dy[k];
-			if (nx < 0 || ny < 0 || nx >= 128 || ny >= 128 || room[ny][nx]) continue;
-			int l2 = chunk_level(nx, ny, areaCur);
-			if (l2 == 15 || l2 > lv + 1 || l2 < lv - 1) continue;
+			if (nx < 0 || ny < 0 || nx >= 128 || ny >= 128 || room[ny][nx] == 1) continue;
+			int q = piece[ny][nx];
+			if (!q || (q != p && (pieceSize[p] < MERGE_MIN || pieceSize[q] < MERGE_MIN))) continue;
 			room[ny][nx] = 1; qx[n] = nx; qy[n++] = ny;
 		}
 	}
-	/* level-15 chunks of the area next to the room (the camera never centres
-	   there, but they hold the walls / ground the GBA screen shows at the
-	   room's edge): drawn, not walked through, not in the box */
-	for (int i = 0; i < n; i++)
-		for (int k = 0; k < 8; k++) {
-			static const int ex[8] = { 1, -1, 0, 0, 1, 1, -1, -1 }, ey[8] = { 0, 0, 1, -1, 1, -1, 1, -1 };
-			int nx = qx[i] + ex[k], ny = qy[i] + ey[k];
-			if (nx < 0 || ny < 0 || nx >= 128 || ny >= 128 || room[ny][nx]) continue;
-			u8 a = CHUNK_AREA[ny * 128 + nx];
-			if (a > 0xEF || (a & 15) != areaCur || chunk_level(nx, ny, areaCur) != 15) continue;
-			room[ny][nx] = 2;
+	/* the box, and the level-15 chunks of the area next to the room (the
+	   camera never centres there, but they hold the walls / ground the GBA
+	   screen shows at the room's edge): drawn, not walked through, not in the box */
+	roomX0 = roomY0 = 1 << 30; roomX1 = roomY1 = -1;
+	for (int y = 0; y < 128; y++)
+		for (int x = 0; x < 128; x++) {
+			if (room[y][x] == 2) room[y][x] = 0;
+			if (room[y][x] != 1) continue;
+			if (x < roomX0) roomX0 = x; if (x > roomX1) roomX1 = x;
+			if (y < roomY0) roomY0 = y; if (y > roomY1) roomY1 = y;
+		}
+	for (int y = 0; y < 128; y++)
+		for (int x = 0; x < 128; x++) {
+			if (room[y][x] != 1) continue;
+			for (int k = 0; k < 8; k++) {
+				static const int ex[8] = { 1, -1, 0, 0, 1, 1, -1, -1 }, ey[8] = { 0, 0, 1, -1, 1, -1, 1, -1 };
+				int nx = x + ex[k], ny = y + ey[k];
+				if (nx < 0 || ny < 0 || nx >= 128 || ny >= 128 || room[ny][nx]) continue;
+				u8 a = CHUNK_AREA[ny * 128 + nx];
+				if (a > 0xEF || (a & 15) != areaCur || chunk_level(nx, ny, areaCur) != 15) continue;
+				room[ny][nx] = 2;
+			}
 		}
 }
 
 static int room_update(void) {
+	static long lastF = -10;
+	static s32 lastGX, lastGY;
 	u32 key = (u32)areaCur << 8 ^ ((AREA_STATES >> (areaCur * 2)) & 3);
 	int cx = floordiv(CAMERA_X >> 8, 240), cy = floordiv(CAMERA_Y >> 8, 160);
+	int cut = key != roomKey || frameCount != lastF + 1 || gbaGX - lastGX > 24 || lastGX - gbaGX > 24 || gbaGY - lastGY > 24 || lastGY - gbaGY > 24;
+	lastF = frameCount; lastGX = gbaGX; lastGY = gbaGY;
 	int changed = 0;
+	if (key != roomKey) { pieces_build(); memset(room, 0, sizeof room); roomX1 = roomY1 = -1; }
 	if (key != roomKey || cx < 0 || cy < 0 || cx >= 128 || cy >= 128 || room[cy][cx] != 1) {
+		/* a cut: a new room; walking: the room grows */
+		if (cut) { memset(room, 0, sizeof room); roomX1 = roomY1 = -1; }
 		/* from the camera's chunk, else a chunk under the GBA screen */
 		int pts[5][2] = { { cx, cy }, { floordiv(gbaGX, 240), floordiv(gbaGY, 160) }, { floordiv(gbaGX + 239, 240), floordiv(gbaGY, 160) },
 		                  { floordiv(gbaGX, 240), floordiv(gbaGY + 159, 160) }, { floordiv(gbaGX + 239, 240), floordiv(gbaGY + 159, 160) } };
-		int built = 0;
-		for (int i = 0; i < 5 && !built; i++)
-			if (chunk_level(pts[i][0], pts[i][1], areaCur) != 15) { room_build(pts[i][0], pts[i][1]); built = 1; }
-		if (!built) { memset(room, 0, sizeof room); roomX1 = roomY1 = -1; }
+		for (int i = 0; i < 5; i++)
+			if (pts[i][0] >= 0 && pts[i][1] >= 0 && pts[i][0] < 128 && pts[i][1] < 128 && piece[pts[i][1]][pts[i][0]]) { room_add(pts[i][0], pts[i][1]); break; }
 		if (key != roomKey && cacheArea != areaCur) { nCache = 0; cacheArea = areaCur; }
 		roomKey = key;
 		changed = 1;
-		if (dbgo.logView) fprintf(stderr, "room: frame %ld area %d camera chunk %d,%d box %d..%d x %d..%d\n", frameCount, areaCur, cx, cy, roomX0, roomX1, roomY0, roomY1);
+		fprintf(stderr, "room: frame %ld area %d %s camera chunk %d,%d box %d..%d x %d..%d\n", frameCount, areaCur, cut ? "cut" : "grows", cx, cy, roomX0, roomX1, roomY0, roomY1);
 	}
 	if (roomX1 < 0) { extL = gbaGX; extT = gbaGY; extR = gbaGX + SCREEN_W; extB = gbaGY + SCREEN_H; return changed; }
 	extL = roomX0 * 240; extT = roomY0 * 160; extR = (roomX1 + 1) * 240; extB = (roomY1 + 1) * 160;
@@ -1019,6 +1070,7 @@ static void draw_native_row(const struct Layer *L, int vy, int ox, int oy, u16 *
 		ly = L->y + wrap_delta(vv & 0x1FF, L->y) + l;
 		lx0 = L->x + wrap_delta(hh & 0x1FF, L->x) - ox;
 	}
+	if (L->backdrop) { lx0 += L->pdx; ly += L->pdy; }
 	s32 gy = gbaGY + l;
 	int cy = floordiv(gy, 160);
 	int inGbaRow = l >= 0 && l < SCREEN_H;
@@ -1366,26 +1418,8 @@ static void render_row(int vy) {
  * changes only with the room, and the size eases only then.
  */
 int view_asked_w, view_asked_h;
-#define FIT_UNFILLED 4   /* % of the view outside the GBA screen the fit lets stay unfilled */
 int view_fit_w, view_fit_h;   /* 0: no fit */
 int view_fit_gba;             /* a room no bigger than the GBA screen one way and two the other: the GBA picture */
-/* the room's extent across a span of the world: rows (cols) of room chunks in
-   the columns (rows) the span covers, clipped to the drawn region, px.
-   A room is often not a rectangle (a corridor with a shaft at its end): its
-   bounding box says nothing about how tall the world is around the camera. */
-static void local_span(int vertical, s32 a0, int n, s32 *lo, s32 *hi) {
-	int c0 = vertical ? floordiv(a0, 240) : floordiv(a0, 160), c1 = vertical ? floordiv(a0 + n - 1, 240) : floordiv(a0 + n - 1, 160);
-	int m0 = 1 << 30, m1 = -1;
-	for (int c = c0; c <= c1; c++) {
-		if (c < 0 || c >= 128) continue;
-		for (int k = 0; k < 128; k++)
-			if (vertical ? room[k][c] : room[c][k]) { if (k < m0) m0 = k; if (k > m1) m1 = k; }
-	}
-	if (m1 < 0) { *lo = vertical ? gbaGY : gbaGX; *hi = *lo + (vertical ? SCREEN_H : SCREEN_W); return; }
-	*lo = m0 * (vertical ? 160 : 240); *hi = (m1 + 1) * (vertical ? 160 : 240);
-	if (vertical) { if (*lo < extT) *lo = extT; if (*hi > extB) *hi = extB; if (*lo > gbaGY) *lo = gbaGY; if (*hi < gbaGY + SCREEN_H) *hi = gbaGY + SCREEN_H; }
-	else { if (*lo < extL) *lo = extL; if (*hi > extR) *hi = extR; if (*lo > gbaGX) *lo = gbaGX; if (*hi < gbaGX + SCREEN_W) *hi = gbaGX + SCREEN_W; }
-}
 /* the left edge of a view w wide: the GBA screen centred, kept in [lo, hi) where that is wider */
 static s32 place_axis(s32 g, int screen, int w, s32 lo, s32 hi) {
 	s32 a = g - (w - screen) / 2;
@@ -1396,225 +1430,61 @@ static s32 place_axis(s32 g, int screen, int w, s32 lo, s32 hi) {
 	return a;
 }
 
-/* pixels of a view (left, top, w, h) that nothing would be drawn in: outside
-   the drawn region or the room, or in a chunk whose graphics sets are unknown */
-static int drawable(int cx, int cy) {
-	if (cx < 0 || cy < 0 || cx >= 128 || cy >= 128 || !room[cy][cx]) return 0;
-	return chunk_pair(cx, cy, areaCur) >= 0 && chunk_layers(cx, cy, areaCur);   /* (no layer: black) */
-}
-static long view_unfilled(s32 left, s32 top, int w, int h) {
-	long filled = 0;
-	s32 r = left + w, b = top + h;
-	for (int cy = floordiv(top, 160); cy <= floordiv(b - 1, 160); cy++)
-		for (int cx = floordiv(left, 240); cx <= floordiv(r - 1, 240); cx++) {
-			if (!drawable(cx, cy)) continue;
-			s32 x0 = cx * 240, x1 = x0 + 240, y0 = cy * 160, y1 = y0 + 160;
-			if (x0 < left) x0 = left; if (x0 < extL) x0 = extL; if (x1 > r) x1 = r; if (x1 > extR) x1 = extR;
-			if (y0 < top) y0 = top; if (y0 < extT) y0 = extT; if (y1 > b) y1 = b; if (y1 > extB) y1 = extB;
-			if (x1 > x0 && y1 > y0) filled += (long)(x1 - x0) * (y1 - y0);
-		}
-	return (long)w * h - filled;
-}
-/* one axis of the placement: of the places that keep the GBA screen inside
-   the view, the one with the fewest unfilled pixels, then the one nearest
-   the GBA screen centred (a column at the view's edge that reaches further
-   down must not pull the whole view into the black under its neighbours) */
-static s32 place_best(int vertical, s32 other, int w, int h) {
-	s32 g = vertical ? gbaGY : gbaGX;
-	int n = vertical ? h : w, screen = vertical ? SCREEN_H : SCREEN_W;
-	s32 c = g - (n - screen) / 2, best = c;
-	long bc = -1;
-	int span = n - screen, step = span > 64 ? 4 : 1;
-	for (int k = 0; k <= span; k += step) {
-		s32 a = g + screen - n + k;
-		if (k + step > span) a = g;   /* (the last place: the GBA screen at the start) */
-		long u = vertical ? view_unfilled(other, a, w, h) : view_unfilled(a, other, w, h);
-		s32 d = a > c ? a - c : c - a, bd = best > c ? best - c : c - best;
-		if (bc < 0 || u < bc || (u == bc && d < bd)) { bc = u; best = a; }
-	}
-	return best;
-}
-/* the view's placement for a size: sideways, up/down, sideways again */
-static void place_view(int w, int h, s32 *left, s32 *top) {
-	s32 l = place_axis(gbaGX, SCREEN_W, w, extL, extR);
-	s32 t = place_best(1, l, w, h);
-	l = place_best(0, t, w, h);
-	t = place_best(1, l, w, h);
-	*left = l; *top = t;
-}
-
-/* one view size per room: set when you enter a room (an area / door change,
-   above / below ground, a part of the area the flood fill keeps apart) and
-   never changed inside it, whatever the camera does. The size asked for,
-   made smaller only where the room's box is smaller than the view (the
-   window's shape kept); tiny rooms (two screens or less) the GBA size. */
+/* the view's size never changes in play: the size asked for, everywhere.
+   (fit_one_screen_rooms = 1: a room of one screen shows the GBA picture) */
 static void fit_target(void) {
-	static u32 key = ~0u;
-	static int keyW, keyH, fitH = SCREEN_H;
 	view_fit_w = view_fit_h = view_fit_gba = 0;
 	if (roomX1 < 0) return;
-	int bw = (roomX1 - roomX0 + 1) * 240, bh = (roomY1 - roomY0 + 1) * 160;
-	if (settings.fitRooms && ((bw <= 2 * 240 && bh <= 160) || (bw <= 240 && bh <= 2 * 160))) view_fit_gba = 1;
-	if (!settings.fitRooms) return;
-	int aw = view_asked_w > SCREEN_W ? view_asked_w : view_w, ah = view_asked_h > SCREEN_H ? view_asked_h : view_h;
-	/* (the room: its area / state and its box) */
-	u32 rk = roomKey * 2654435761u ^ (u32)roomX0 << 24 ^ (u32)roomX1 << 16 ^ (u32)roomY0 << 8 ^ (u32)roomY1;
-	if (rk != key || aw != keyW || ah != keyH) {
-		key = rk; keyW = aw; keyH = ah;
-		int h = ah;
-		if (bh < h) h = bh;
-		if ((long)bw * ah / aw < h) h = (int)((long)bw * ah / aw);
-		if (h < SCREEN_H) h = SCREEN_H;
-		if (dbgo.logFit || h != fitH) fprintf(stderr, "fit: frame %ld area %d room %d..%d x %d..%d (%dx%d) -> height %d\n", frameCount, areaCur, roomX0, roomX1, roomY0, roomY1, bw, bh, h);
-		fitH = h;
-	}
-	view_fit_w = bw;
-	view_fit_h = fitH;
+	if (settings.fitRooms && roomX0 == roomX1 && roomY0 == roomY1) view_fit_gba = 1;
 }
 
 void view_fit_apply(int *w, int *h) {
-	static float cw, ch;
-	int tw = *w, th = *h;
 	view_asked_w = *w; view_asked_h = *h;
-	if (view_fit_h > 0 && view_fit_h < th && tw > SCREEN_W && th > SCREEN_H) {
-		/* fit the room's height; the width follows the window's shape */
-		float ew = view_fit_h * (float)tw / th;
-		float minw = SCREEN_W > SCREEN_H * (float)tw / th ? SCREEN_W : SCREEN_H * (float)tw / th;
-		if (ew < minw) ew = minw;
-		tw = (int)ew;
-		th = (int)(ew * *h / *w);
-	}
-	{ static int lw, lh; if (tw != lw || th != lh) { fprintf(stderr, "fit: frame %ld view size -> %dx%d\n", frameCount, tw, th); lw = tw; lh = th; } }
-	if (dbgo.logFit && frameCount % 300 == 0)
-		fprintf(stderr, "fit: frame %ld asked %dx%d target %dx%d -> %dx%d\n", frameCount, *w, *h, view_fit_w, view_fit_h, tw, th);
-	if (cw <= 0) { cw = tw; ch = th; }
-	cw += (tw - cw) * 0.15f;
-	ch += (th - ch) * 0.15f;
-	if (cw - tw < 1 && tw - cw < 1) cw = tw;
-	if (ch - th < 1 && th - ch < 1) ch = th;
-	*w = ((int)cw + 1) & ~1;
-	*h = ((int)ch + 1) & ~1;
+	{ static int lw, lh; if (*w != lw || *h != lh) { fprintf(stderr, "fit: frame %ld view size -> %dx%d\n", frameCount, *w, *h); lw = *w; lh = *h; } }
 }
 
 /* ------------------------------------------------------------ the view's place
  *
- * The GBA screen's place in the view (ox, oy) is a smooth function of the
- * game camera: the screen centred, the view clamped to the room (sideways in
- * its box, up/down in the rows of the columns shown, sideways again in the
- * rows shown) -- continuous in the camera, so it follows it pixel for pixel
- * and never re-chooses (the old fewest-unfilled search flipped between
- * places: jitter). Where the target steps (a column of another height comes
- * in, camera limits change, the view's size changes) the offset eases there
- * (speed <= EASE_MAX px/frame, changing by <= 1 px/frame each frame). Only a
- * game snap (the camera stepping > 24 px: doors, teleports, Stage_Init; an
- * area change; frames not drawn) moves it at once; each snap and ease is
- * logged ("view: snap" / "view: ease").
+ * The view is centred on the game's camera and stopped at the room's box,
+ * like any 2D camera at a level's edge: it moves exactly as the game's
+ * camera does, and stands still where the box stops it. Only when the box
+ * changes without a cut (the room grows as you walk into a door's room or a
+ * shaft, camera limits change) does it ease to the new place (<= EASE_MAX
+ * px/frame); a cut (the game's camera jumping > 24 px, an area change, the
+ * view's size changing) moves it at once.
  */
-#define EASE_MAX 4
-/* one axis of the target: of the places that keep the GBA screen inside the
-   view, the fewest unfilled pixels (the room's actual extent under the view,
-   not its bounding box); on a tie the previous offset (prev, the GBA
-   screen's place in the view; < 0: none) so the view follows the camera
-   pixel for pixel, else the one nearest the GBA screen centred */
-static s32 place_min(int vertical, s32 other, int w, int h, int prev) {
-	s32 g = vertical ? gbaGY : gbaGX;
-	int n = vertical ? h : w, screen = vertical ? SCREEN_H : SCREEN_W;
-	/* the tie-break: the GBA screen centred (the black split where the room's extent does not tell) */
-	s32 c = g - (n - screen) / 2, best = c;
-	long bc = -1;
-	for (int k = 0; k <= n - screen; k++) {
-		s32 a = g + screen - n + k;
-		long u = vertical ? view_unfilled(other, a, w, h) : view_unfilled(a, other, w, h);
-		s32 d = a > c ? a - c : c - a, bd = best > c ? best - c : c - best;
-		int isPrev = prev >= 0 && g - a == prev, bPrev = prev >= 0 && g - best == prev;
-		if (bc < 0 || u < bc || (u == bc && (d < bd || (d == bd && isPrev && !bPrev)))) { bc = u; best = a; }
-	}
-	return best;
-}
-/* the eased place kept inside [lo, hi) where that is wider than the view, the GBA screen inside the view */
-static float clamp_box(float off, s32 g, int n, s32 lo, s32 hi, int screen) {
-	if (hi - lo >= n) {
-		if (g - off < lo) off = g - lo;
-		if (g - off + n > hi) off = g + n - hi;
-	}
-	if (off < 0) off = 0;
-	if (off > n - screen) off = n - screen;
-	return off;
-}
+#define EASE_MAX 6
 static void view_offset(int w, int h, int *pox, int *poy) {
 	static float off[2], vel[2];
 	static long lastFrame = -10;
-	static int lastArea = -1, lastW, lastH, easing[2];
+	static int lastArea = -1, lastW, lastH, lastT[2];
 	static s32 lastG[2];
-	static int lastT[2];
-	static s32 lastExt[4];
-	static long snapFrame = -100;
-	int keep = frameCount == lastFrame + 1 && areaCur == lastArea && w == lastW && h == lastH;
-	int px = keep ? lastT[0] : -1, py = keep ? lastT[1] : -1;
-	s32 l = place_axis(gbaGX, SCREEN_W, w, extL, extR);
-	s32 t = place_min(1, l, w, h, py);
-	l = place_min(0, t, w, h, px);
-	t = place_min(1, l, w, h, py);
-	int T[2] = { gbaGX - l, gbaGY - t }, n[2] = { w, h }, sc[2] = { SCREEN_W, SCREEN_H };
-	s32 g[2] = { gbaGX, gbaGY };
-	int roomCut = extL != lastExt[0] && extR != lastExt[2] && extT != lastExt[1] && extB != lastExt[3];   /* (a new room: all four edges move) */
-	int snap = (lastW <= SCREEN_W && lastH <= SCREEN_H) ||   /* (the view's first wide frame) */
-	           frameCount != lastFrame + 1 || areaCur != lastArea || g[0] - lastG[0] > 24 || lastG[0] - g[0] > 24 || g[1] - lastG[1] > 24 || lastG[1] - g[1] > 24;
-	/* the frames right after a cut settle at once (the room / camera limits are set up a frame after the game's snap) */
-	if (snap) snapFrame = frameCount;
-	else if (frameCount - snapFrame <= 2 && (T[0] != lastT[0] || T[1] != lastT[1])) snap = 1;
-	if (snap && lastFrame >= 0) fprintf(stderr, "view: snap frame %ld area %d camera %+d,%+d\n", frameCount, areaCur, (int)(g[0] - lastG[0]), (int)(g[1] - lastG[1]));
-	for (int a = 0; a < 2 && !(roomCut && !snap); a++) {   /* (a new room: hold this frame; the game's cut follows it) */
-		if (snap) { off[a] = T[a]; vel[a] = 0; easing[a] = 0; continue; }
-		/* a size change keeps the GBA screen's centre where it was on the view's scale */
-		if (n[a] != (a ? lastH : lastW)) off[a] += (n[a] - (a ? lastH : lastW)) / 2.0f;
-		/* the target moving with the camera (the view held at a room edge: offset change = camera step) is
-		   followed pixel for pixel, easing or not; only a step of the target eases */
-		if (keep) {
-			int dT = T[a] - lastT[a], dg = g[a] - lastG[a];
-			if ((dT < 0 ? -dT : dT) <= (dg < 0 ? -dg : dg) + 1) off[a] += dT;
-		}
+	s32 g[2] = { gbaGX, gbaGY }, lo[2] = { extL, extT }, hi[2] = { extR, extB };
+	int n[2] = { w, h }, sc[2] = { SCREEN_W, SCREEN_H }, T[2];
+	for (int a = 0; a < 2; a++) T[a] = g[a] - place_axis(g[a], sc[a], n[a], lo[a], hi[a]);
+	int cut = frameCount != lastFrame + 1 || areaCur != lastArea || w != lastW || h != lastH ||
+	          g[0] - lastG[0] > 24 || lastG[0] - g[0] > 24 || g[1] - lastG[1] > 24 || lastG[1] - g[1] > 24;
+	for (int a = 0; a < 2; a++) {
+		if (cut) { off[a] = T[a]; vel[a] = 0; continue; }
+		/* the box stopping the view: the target moves with the camera, followed exactly */
+		int dT = T[a] - lastT[a], dg = g[a] - lastG[a];
+		if ((dT < 0 ? -dT : dT) <= (dg < 0 ? -dg : dg)) off[a] += dT;
 		float err = T[a] - off[a];
-		/* a step that uncovers more of the room is taken at once (easing there only shows black the target
-		   does not); a step that shows more black eases */
 		if (err > 0.5f || err < -0.5f) {
-			s32 cl = g[0] - (int)(off[0] + 0.5f), ct = g[1] - (int)(off[1] + 0.5f);
-			long uc = view_unfilled(cl, ct, w, h), ut = a ? view_unfilled(cl, g[1] - T[1], w, h) : view_unfilled(g[0] - T[0], ct, w, h);
-			if (ut < uc) {
-				fprintf(stderr, "view: snap frame %ld axis %c reveal %d -> %d\n", frameCount, "xy"[a], (int)off[a], T[a]);
-				off[a] = T[a]; vel[a] = 0; easing[a] = 0; err = 0;
-			}
-		}
-		if (!easing[a] && (err > 0.5f || err < -0.5f)) {
-			easing[a] = 1;
-			fprintf(stderr, "view: ease frame %ld axis %c from %d to %d\n", frameCount, "xy"[a], (int)off[a], T[a]);
-		}
-		if (easing[a]) {
 			float want = err * 0.15f;
 			if (want > EASE_MAX) want = EASE_MAX; if (want < -EASE_MAX) want = -EASE_MAX;
 			if (want > vel[a] + 1) want = vel[a] + 1; if (want < vel[a] - 1) want = vel[a] - 1;
 			vel[a] = want;
 			off[a] += vel[a];
-			if ((err >= 0 && off[a] >= T[a]) || (err <= 0 && off[a] <= T[a]) || (err < 1 && err > -1 && vel[a] < 1 && vel[a] > -1)) {
-				off[a] = T[a]; vel[a] = 0; easing[a] = 0;
-				fprintf(stderr, "view: ease frame %ld axis %c done at %d\n", frameCount, "xy"[a], T[a]);
-			}
-		} else off[a] = T[a];
-		/* the GBA screen stays inside the view, the view inside the room's span under it (widened to take in
-		   the target): easing never shows more black than the clamp allows. (Not the room's bounding box: a
-		   corridor's box holds a shaft far off, and clamping to it pushes the GBA screen off-centre.) */
-		{
-			s32 lo, hi, aT = g[a] - T[a];
-			local_span(a, g[!a] - (int)(off[!a] + 0.5f), n[!a], &lo, &hi);
-			if (aT < lo) lo = aT; if (aT + n[a] > hi) hi = aT + n[a];
-			off[a] = clamp_box(off[a], g[a], n[a], lo, hi, sc[a]);
-		}
+			if ((err > 0 && off[a] >= T[a]) || (err < 0 && off[a] <= T[a])) { off[a] = T[a]; vel[a] = 0; }
+		} else { off[a] = T[a]; vel[a] = 0; }
+		if (off[a] < 0) off[a] = 0;
+		if (off[a] > n[a] - sc[a]) off[a] = n[a] - sc[a];
 	}
 	lastT[0] = T[0]; lastT[1] = T[1];
-	lastExt[0] = extL; lastExt[1] = extT; lastExt[2] = extR; lastExt[3] = extB;
 	lastFrame = frameCount; lastArea = areaCur; lastW = w; lastH = h; lastG[0] = g[0]; lastG[1] = g[1];
-	*pox = (int)(off[0] + (off[0] >= 0 ? 0.5f : -0.5f));
-	*poy = (int)(off[1] + (off[1] >= 0 ? 0.5f : -0.5f));
+	*pox = (int)(off[0] + 0.5f);
+	*poy = (int)(off[1] + 0.5f);
 }
 
 /* ------------------------------------------------------------ frame */
@@ -1628,7 +1498,25 @@ int view_level_only;
 void view_gba_origin(int *ox, int *oy) { *ox = lastOx; *oy = lastOy; }
 void view_gba_global(int *x, int *y) { *x = lastGbaX; *y = lastGbaY; }
 
+static int view_render_frame(void);
+/* the wide view on / off, logged with why (each switch is a jump between the
+   wide view and the GBA picture zoomed to the window) */
 int view_render(void) {
+	static int was = -1, held;
+	static int lastW, lastH;
+	int r = view_render_frame();
+	/* a few frames the wide view cannot draw in a stage (a fade's frames with
+	   every BG off): the last wide frame is held, not the GBA picture flashed */
+	if (view_active) { held = 0; lastW = view_w; lastH = view_h; }
+	else if (was == 1 && held < 8 && view_frame && view_w == lastW && view_h == lastH && (GAME_MODE == 3 || GAME_MODE == 4)) { held++; view_active = 1; r = 1; }
+	if (view_active != was) {
+		const char *why = view_active ? "wide" : !(GAME_MODE == 3 || GAME_MODE == 4) ? "not in a stage" : view_fit_gba ? "one-screen room" : "gba picture";
+		fprintf(stderr, "view: frame %ld %s (area %d event %d mode %d dispcnt %04X)\n", frameCount, why, areaCur, EVENT_FLAGS & 1, GAME_MODE, BGREGS[0]);
+		was = view_active;
+	}
+	return r;
+}
+static int view_render_frame(void) {
 	effects_frame();
 	set_ranges(view_w, view_h);
 	view_active = 0;
@@ -1662,9 +1550,22 @@ int view_render(void) {
 		fprintf(stderr, "\n");
 	}
 	view_gameplay = ok && !(EVENT_FLAGS & 1) && (GAME_MODE == 3 || GAME_MODE == 4);
-	if (!view_gameplay) return 0;   /* menus, cutscenes, area loads: the GBA picture */
+	/* menus, full-screen cutscenes, area loads: the GBA picture. A stage's own
+	   events (dialogs, scripted scenes in the level) stay in the wide view
+	   (MMZ_EVENTS_GBA=1: the GBA picture there too, as before) */
+	static int eventsGba = -1;
+	if (eventsGba < 0) eventsGba = getenv("MMZ_EVENTS_GBA") != NULL;
+	if (!ok || !(GAME_MODE == 3 || GAME_MODE == 4) || (eventsGba && !view_gameplay)) return 0;
 	const struct Layer *L0 = layer0();
 	gbaGX = areaPxL + L0->x; gbaGY = areaPxT + L0->y;
+	{ static long dumpAt = -2; if (dumpAt == -2) dumpAt = getenv("ROOMDUMP") ? atol(getenv("ROOMDUMP")) : -1;
+	  if (frameCount == dumpAt) {   /* (debug) the area's pieces and the room each is in */
+		for (int id = 1; id <= nPieces; id++) {
+			int x0 = 128, x1 = -1, y0 = 128, y1 = -1, fx = 0, fy = 0;
+			for (int y = 0; y < 128; y++) for (int x = 0; x < 128; x++) if (piece[y][x] == id) { if (x1 < 0) { fx = x; fy = y; } if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+			fprintf(stderr, "roomdump: area %d piece %d chunks %d box %d..%d x %d..%d in-room %d\n", areaCur, id, pieceSize[id], x0, x1, y0, y1, x1 >= 0 && room[fy][fx] == 1);
+		}
+	  } }
 	room_update();
 	fit_target();   /* (also while the fit has the view at the GBA's size: it grows again from here) */
 	if (view_w == SCREEN_W && view_h == SCREEN_H) return 0;
@@ -1680,6 +1581,17 @@ int view_render(void) {
 	int ox, oy;
 	view_offset(w, h, &ox, &oy);
 	left = gbaGX - ox; top = gbaGY - oy;
+	/* backdrops scroll with the view's camera: the view's centre moved off the
+	   GBA screen's centre by (dx, dy) moves a layer of speed sc by d * sc / 0x100 */
+	{
+		s32 dx = (w - SCREEN_W) / 2 - ox, dy = (h - SCREEN_H) / 2 - oy;
+		for (int b = 1; b < 4; b++) {
+			struct Layer *L = &layers[b];
+			if (!L->on || !L->backdrop) continue;
+			L->pdx = (dx * (L->scx - 0x100)) >> 8;
+			L->pdy = (dy * (L->scy - 0x100)) >> 8;
+		}
+	}
 	if (dbgo.logView) fprintf(stderr, "F%ld area %d gba %d,%d ext %d..%d x %d..%d ox %d oy %d layers %d%d%d\n", frameCount, areaCur, gbaGX, gbaGY,
 	                          extL, extR, extT, extB, ox, oy, layers[1].on, layers[2].on, layers[3].on);
 	if (dbgo.logView) for (int b = 1; b < 4; b++) if (layers[b].on) fprintf(stderr, "  L%d bg%d gbaOn %d prio %d cb %X live-cnt %04X td %p\n", layers[b].idx, b, layers[b].gbaOn, layers[b].prio, (unsigned)layers[b].charBase, BGREGS[2 + b], (const void *)layers[b].tiles);
