@@ -252,6 +252,7 @@ void dbg_init_env(void) {
 	dbgo.logSprite = env_on("SPRITEDEBUG");
 	dbgo.logLag = env_on("LAGDEBUG");
 	dbgo.logSkip = env_on("SKIPDEBUG");
+	dbgo.logEffects = env_on("EFFECTSDEBUG");
 }
 void dbg_changed(void) { dbgo.gen++; }
 
@@ -262,7 +263,7 @@ int dbg_describe(char *out, int n) {
 		{ "ov-shown", dbgo.ovShown }, { "ov-fill", dbgo.ovFill }, { "ov-chunks", dbgo.ovChunk }, { "ov-crop", dbgo.ovCrop }, { "ov-grid", dbgo.ovGrid },
 		{ "log-view", dbgo.logView }, { "log-crop", dbgo.logCrop }, { "log-chunks", dbgo.logChunk }, { "log-fit", dbgo.logFit },
 		{ "log-fill", dbgo.logFill }, { "log-fillmap", dbgo.logFillMap }, { "log-owmap", dbgo.logOwMap }, { "log-shown", dbgo.logShown },
-		{ "log-fx", dbgo.logFx }, { "log-sprites", dbgo.logSprite }, { "log-lag", dbgo.logLag }, { "log-skip", dbgo.logSkip },
+		{ "log-fx", dbgo.logFx }, { "log-sprites", dbgo.logSprite }, { "log-lag", dbgo.logLag }, { "log-skip", dbgo.logSkip }, { "log-effects", dbgo.logEffects },
 		{ "invincible", cheat_invincible }, { "no-enemies", cheat_no_enemies }, { "infinite-life", dbgo.infLife },
 	};
 	int k = 0;

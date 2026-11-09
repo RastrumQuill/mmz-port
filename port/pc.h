@@ -38,7 +38,12 @@ extern u8 *view_layers;   /* per view pixel: top | second << 4 (view.c) */
 void view_fit_apply(int *w, int *h);
 void view_record_line(int line);
 int view_render(void);
+const unsigned char *view_line_regs(int line);   /* the registers GBA line drew with (DISPCNT..BLDY) */
+void effects_frame(void);                        /* effects.c: the screen-effects finder, each frame */
+const char *effects_line(int i);                 /* its log, newest first (NULL: no more) */
+const char *effects_now(void);
 void view_gba_origin(int *ox, int *oy);
+int view_dump_bg(int bg, u32 **out, int *w, int *h, char *info, unsigned long n);   /* (debug) a parallax layer's whole art */
 void view_gba_global(int *x, int *y);   /* the GBA screen's top-left in the world, last frame drawn */
 extern int view_level_only, view_native_only, view_gba_pasted;   /* viewcheck (main.c) */   /* where the GBA screen is in view_frame */
 

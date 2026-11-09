@@ -31,7 +31,7 @@ struct DbgOpts {
 	/* overlays (drawn by the menu over the game) */
 	int ovShown, ovFill, ovChunk, ovCrop, ovGrid;
 	/* stderr logs */
-	int logView, logCrop, logChunk, logFit, logFill, logFillMap, logOwMap, logShown, logFx, logSprite, logLag, logSkip;
+	int logView, logCrop, logChunk, logFit, logFill, logFillMap, logOwMap, logShown, logFx, logSprite, logLag, logSkip, logEffects;
 	/* cheats */
 	int infLife;
 	int gen;           /* bumped by dbg_changed() */

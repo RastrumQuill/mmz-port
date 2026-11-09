@@ -593,6 +593,12 @@ static void debug_options() {
 		opt("Line effects", &dbgo.logFx, "Per-line effects the view replays (FXDEBUG).");
 		ImGui::SameLine(); opt("Sprites", &dbgo.logSprite, "Each sprite draw routine, once (SPRITEDEBUG).");
 		ImGui::SameLine(); opt("Lag", &dbgo.logLag, "Routes: game frames per line (LAGDEBUG).");
+		opt("Screen effects", &dbgo.logEffects, "Blends, windows, mosaic, per-line registers, palette fades, big sprites: start / stop (EFFECTSDEBUG; MMZ_EFFECTS_TSV=FILE).");
+	}
+	if (header("Screen effects")) {
+		const char *now = effects_now();
+		ImGui::TextWrapped("On now: %s", now[0] ? now : "none");
+		for (int i = 0; i < 16; i++) { const char *l = effects_line(i); if (!l) break; ImGui::TextUnformatted(l); }
 	}
 	if (header("Checks")) {
 		if (ImGui::Button("View check")) dbg_run_check(0);

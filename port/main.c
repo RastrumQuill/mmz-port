@@ -593,6 +593,17 @@ static void shots_step(void) {
 		snprintf(q, sizeof q, "%s_%06ld.layers.png", shotsPrefix, frameCount);
 		write_image(q, lb, view_w, view_h);
 	}
+	if (view_active && getenv("MMZ_DUMP_BG"))   /* (debug) PREFIX_FRAME.bgN.png + .txt: the parallax layers' whole art */
+		for (int b = 1; b < 4; b++) {
+			u32 *a; int aw, ah; char info[512], q[300];
+			if (!view_dump_bg(b, &a, &aw, &ah, info, sizeof info)) continue;
+			snprintf(q, sizeof q, "%s_%06ld.bg%d.png", shotsPrefix, frameCount, b);
+			write_image(q, a, aw, ah);
+			free(a);
+			snprintf(q, sizeof q, "%s_%06ld.bg%d.txt", shotsPrefix, frameCount, b);
+			FILE *t = fopen(q, "w");
+			if (t) { fputs(info, t); fclose(t); }
+		}
 	struct Location l;
 	loc_now(&l);
 	int ox = 0, oy = 0, gx = 0, gy = 0;
