@@ -1,31 +1,47 @@
-Changes since v0.2.9-alpha
+Changes since v0.3.0-alpha
 
-Wide view
-- The view is cropped to what the GBA camera can show; it zooms to fit the height and keeps the window's shape.
-- The shown map (where the camera can go) now counts ladders as open.
-- Level art the GBA never shows is drawn only where it goes on from shown space.
-- Train level drawn right across the wide view.
-- Objects outside the rooms you can reach are hidden.
+This is a graphics work-in-progress release. Releases stay on 0.4.x until the
+wide-view graphics issues below are fixed; 0.5.0 comes only after that.
 
-Gap fill
-- New offline WFC gap fill for empty parts of areas. Off by default (black).
-- To turn on: Settings (F1) > Video > "Fill empty parts of areas" > Tile fill.
-  Then press "Make it now" (about 25 min, 4 cores, runs in the background),
-  or run `mmz --gen-fills` once. It writes fills.bin next to mmz.ini.
-- fills.bin is made from your ROM and is never shipped.
+Wide view camera
+- The view size is fixed for the whole stage and never resizes.
+- The camera follows the game camera and stops only at the edges of a room.
+- Connected parts of a level count as one room, which grows as you walk in.
+  The camera jumps only on a door, a teleport, or going above/below ground.
+- Dialogs and in-stage events stay in the wide view (set MMZ_EVENTS_GBA=1 for
+  the old zoom to the GBA picture).
+- Short blank frames during fades keep the last wide frame instead of
+  flashing to the GBA picture.
+- The "One-screen rooms: GBA picture" option (fit_one_screen_rooms in mmz.ini)
+  is off by default. The old fit_small_rooms setting is ignored.
 
-Reports
-- Quick report: F9 saves a full report zip with no window (can be mapped to a controller).
-- Reports cut file paths to file names and leave personal mmz.ini lines out.
+Backgrounds
+- Background layers scroll with the wide view, not with Zero's camera.
+- A layer's art outside its painted area repeats the edge, or wraps if the
+  art covers the whole layout.
+- Tiles the game changes at run time are drawn live, with matching colours
+  outside the GBA screen.
 
-Debug window (F2)
-- Cheats: invincible, no enemies, infinite life.
-- Teleport: warp to a mission and checkpoint, or move Zero to a point (only open, reachable spots).
-- Wide-view options, overlays (shown map, gap fill, chunk sources, crop), logging.
-- Checks: view check, view probe, view chunks.
+Renderer
+- New native wide-view renderer: background layers and sprites are drawn from
+  game state in world space, not stretched from the GBA screen.
 
-Known issues
+Debugging
+- Screen effects finder: logs blends, windows, mosaic, per-line effects,
+  palette fades and big or rotated sprites. See the "Screen effects" debug
+  panel, or set EFFECTSDEBUG / MMZ_EFFECTS_TSV.
+- View logs on stderr: "view:" (wide/GBA switches and why), "room:" (room cuts
+  and growth), "fit:" (view size).
+- Problem reports record the Debug window cheats, so replays stay in sync.
+
+Known issues (must be fixed before 0.5.0)
+- Black areas where a room has no level tiles (for example the lower left of
+  the intro area).
+- The base has not been checked with the new camera yet.
+- Full-screen effects (lasers, line effects in stage 3) are not yet adapted to
+  the wide view.
+- The base entry teleport and its above/below-ground switch are not logged yet.
 - m16 cp1: teal vs pink block not checked against the GBA yet.
 - m11 cp1: orange strip at the bottom not checked yet.
 - m5 station: the view is narrower than a 21:9 window.
-- Making fill data takes about 25 minutes.
+- Making gap-fill data takes about 25 minutes.
