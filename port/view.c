@@ -94,10 +94,12 @@ static const u8 *area_desc(int area) {
 static inline int floordiv(s32 a, s32 b) { return a >= 0 ? a / b : -((-a + b - 1) / b); }
 
 /* the layerMap level (sub_08006B4C) of a global chunk in an area; 15 outside it */
+static int chunk_sets(int cx, int cy, int area);
 static int chunk_level(int gx, int gy, int area) {
 	if (gx < 0 || gy < 0 || gx >= 128 || gy >= 128) return 15;
 	u8 a = CHUNK_AREA[gy * 128 + gx];
 	if (a > 0xEF || (a & 15) != area) return 15;
+	if (chunk_sets(gx, gy, area) < 0) return 15;   /* outside the area's chunk grid (empty cells read as area 0) */
 	const u8 *d = area_desc(area);
 	s32 left = *(s32 *)(d + 0x6C), top = *(s32 *)(d + 0x70);
 	const u8 *map = (const u8 *)(uintptr_t)*(u32 *)(d + 0x7C);
@@ -1564,6 +1566,19 @@ static int view_render_frame(void) {
 			int x0 = 128, x1 = -1, y0 = 128, y1 = -1, fx = 0, fy = 0;
 			for (int y = 0; y < 128; y++) for (int x = 0; x < 128; x++) if (piece[y][x] == id) { if (x1 < 0) { fx = x; fy = y; } if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
 			fprintf(stderr, "roomdump: area %d piece %d chunks %d box %d..%d x %d..%d in-room %d\n", areaCur, id, pieceSize[id], x0, x1, y0, y1, x1 >= 0 && room[fy][fx] == 1);
+		}
+	  } }
+	{ static long lvAt = -2; static const char *lvPath;   /* (debug) LEVELDUMP=FRAME:FILE for dtk level.graph */
+	  if (lvAt == -2) { const char *e = getenv("LEVELDUMP"); lvAt = -1; if (e && strchr(e, ':')) { lvAt = atol(e); lvPath = strchr(e, ':') + 1; } }
+	  if (frameCount == lvAt) {   /* 128x128 walkable (1/0), then 128x128 step levels; ROM-derived: keep local */
+		FILE *f = fopen(lvPath, "wb");
+		if (f) {
+			for (int pass = 0; pass < 2; pass++) for (int y = 0; y < 128; y++) for (int x = 0; x < 128; x++) {
+				int lv = chunk_level(x, y, areaCur);
+				fputc(pass == 0 ? lv != 15 : lv, f);
+			}
+			fclose(f);
+			fprintf(stderr, "leveldump: frame %ld area %d -> %s\n", frameCount, areaCur, lvPath);
 		}
 	  } }
 	room_update();
